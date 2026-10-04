@@ -1,0 +1,20 @@
+{
+  "name": "tether",
+  "private": true,
+  "version": "0.1.0",
+  "description": "AI control plane over local network",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,client -c blue,green \"npm run dev -w @tether/server\" \"npm run dev -w @tether/client\"",
+    "build": "npm run build -w @tether/client && npm run build -w @tether/server",
+    "start": "npm run start -w @tether/server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
