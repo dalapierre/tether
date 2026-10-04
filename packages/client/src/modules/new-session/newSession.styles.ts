@@ -1,14 +1,11 @@
 export const styles = {
-    main: 'flex flex-1 flex-col text-zinc-100',
-    body: 'flex flex-1 flex-col px-4 pb-6',
-    intro: 'mt-3 text-sm text-zinc-500',
+    root: 'fixed inset-0 z-20 flex flex-col bg-zinc-950 text-zinc-100',
+    body: 'flex min-h-0 flex-1 flex-col gap-4 overflow-auto px-4',
     loading: 'mt-8 text-sm text-zinc-500',
-    form: 'mt-8 flex flex-col gap-3',
+    form: 'flex flex-col gap-4',
     label: 'block text-sm text-zinc-400',
     input: 'mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-zinc-100 outline-none focus:border-zinc-500',
     select: 'mt-1 w-full appearance-none rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-zinc-100 outline-none focus:border-zinc-500',
-    hint: 'text-xs text-zinc-500',
     error: 'text-sm text-red-400',
-    success: 'text-sm text-emerald-400',
-    actions: 'mt-auto pt-10',
+    footer: 'px-4 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]',
 };

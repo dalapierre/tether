@@ -1,5 +1,6 @@
 import { Button } from '@client/components/button';
 import { PageHeader } from '@client/components/page-header';
+import { AGENTS, isAgentId, type AgentId } from '@client/libs/agents/agents';
 import { ApiError } from '@client/libs/api/client';
 import { getSettings, updateSettings } from '@client/libs/api/settings';
 import { clearAccessToken } from '@client/libs/auth/session';
@@ -10,6 +11,7 @@ import { styles } from './settingsPage.styles';
 export function SettingsPage() {
     const navigate = useNavigate();
     const [devDir, setDevDir] = useState('');
+    const [agent, setAgent] = useState<AgentId>('cursor');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -22,6 +24,7 @@ export function SettingsPage() {
             .then((settings) => {
                 if (!cancelled) {
                     setDevDir(settings.devDir);
+                    setAgent(isAgentId(settings.agent) ? settings.agent : 'cursor');
                     setError(null);
                 }
             })
@@ -48,8 +51,12 @@ export function SettingsPage() {
         setSaving(true);
 
         try {
-            const settings = await updateSettings({ devDir: devDir.trim() });
+            const settings = await updateSettings({
+                devDir: devDir.trim(),
+                agent,
+            });
             setDevDir(settings.devDir);
+            setAgent(settings.agent);
             setSavedMessage('Settings saved.');
         } catch (err: unknown) {
             if (err instanceof ApiError) {
@@ -71,7 +78,7 @@ export function SettingsPage() {
         <main className={styles.main}>
             <PageHeader crumbs={[{ label: 'settings' }]} />
             <div className={styles.body}>
-                <p className={styles.intro}>Configure where Tether looks for repositories on this machine.</p>
+                <p className={styles.intro}>Configure repositories and the agent for new sessions.</p>
 
                 {loading ? <p className={styles.loading}>Loading settings…</p> : null}
 
@@ -90,6 +97,27 @@ export function SettingsPage() {
                             />
                         </label>
                         <p className={styles.hint}>Absolute path to the folder that contains your git repositories.</p>
+
+                        <label className={styles.label}>
+                            Agent
+                            <select
+                                className={styles.select}
+                                value={agent}
+                                onChange={(event) => {
+                                    const next = event.target.value;
+                                    if (isAgentId(next)) {
+                                        setAgent(next);
+                                    }
+                                }}
+                            >
+                                {AGENTS.map((option) => (
+                                    <option key={option.id} value={option.id}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+
                         {error ? <p className={styles.error}>{error}</p> : null}
                         {savedMessage ? <p className={styles.success}>{savedMessage}</p> : null}
                         <Button type='submit' disabled={saving}>

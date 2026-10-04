@@ -1,7 +1,9 @@
 import { ApiError, apiFetch } from '@client/libs/api/client';
+import type { AgentId } from '@client/libs/agents/agents';
 
 export type Settings = {
     devDir: string;
+    agent: AgentId;
 };
 
 type SettingsResponse = {

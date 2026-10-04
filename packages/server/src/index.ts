@@ -1,4 +1,5 @@
 import { requireAuth } from '@server/middleware/requireAuth.js';
+import { agentsRouter } from '@server/routes/agents.js';
 import { authRouter } from '@server/routes/auth.js';
 import { repositoriesRouter } from '@server/routes/repositories.js';
 import { settingsRouter } from '@server/routes/settings.js';
@@ -32,6 +33,7 @@ app.get('/api/health', (_req, res) => {
 
 app.use('/api/settings', settingsRouter);
 app.use('/api/repositories', repositoriesRouter);
+app.use('/api/agents', agentsRouter);
 
 // Command handling will be implemented here later.
 app.post('/api/commands', (_req, res) => {

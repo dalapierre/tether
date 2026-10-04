@@ -1,3 +1,4 @@
+import { isAgentId, type AgentId } from '@server/libs/agents/agents.js';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -11,10 +12,12 @@ export type StoredRepository = {
 /** Public settings exposed through the settings API/UI. */
 export type Settings = {
     devDir: string;
+    agent: AgentId;
 };
 
 type SettingsFile = {
     devDir: string;
+    agent: AgentId;
     /** Persisted added repositories — not exposed via the settings API/UI. */
     repositories: StoredRepository[];
 };
@@ -25,6 +28,7 @@ const dataFile = path.join(dataDir, 'settings.json');
 
 const defaultSettingsFile: SettingsFile = {
     devDir: '',
+    agent: 'cursor',
     repositories: [],
 };
 
@@ -38,6 +42,13 @@ function isStoredRepository(value: unknown): value is StoredRepository {
     );
 }
 
+function toPublicSettings(file: SettingsFile): Settings {
+    return {
+        devDir: file.devDir,
+        agent: file.agent,
+    };
+}
+
 function normalizeSettingsFile(value: unknown): SettingsFile {
     if (!value || typeof value !== 'object') {
         return { ...defaultSettingsFile, repositories: [] };
@@ -45,9 +56,10 @@ function normalizeSettingsFile(value: unknown): SettingsFile {
 
     const record = value as Record<string, unknown>;
     const devDir = typeof record.devDir === 'string' ? record.devDir : '';
+    const agent = isAgentId(record.agent) ? record.agent : defaultSettingsFile.agent;
     const repositories = Array.isArray(record.repositories) ? record.repositories.filter(isStoredRepository) : [];
 
-    return { devDir, repositories };
+    return { devDir, agent, repositories };
 }
 
 async function ensureDataFile(): Promise<void> {
@@ -82,7 +94,7 @@ async function writeSettingsFile(next: SettingsFile): Promise<void> {
 
 export async function getSettings(): Promise<Settings> {
     const file = await readSettingsFile();
-    return { devDir: file.devDir };
+    return toPublicSettings(file);
 }
 
 export async function updateSettings(patch: Partial<Settings>): Promise<Settings> {
@@ -90,9 +102,10 @@ export async function updateSettings(patch: Partial<Settings>): Promise<Settings
     const next: SettingsFile = {
         ...current,
         devDir: typeof patch.devDir === 'string' ? patch.devDir : current.devDir,
+        agent: isAgentId(patch.agent) ? patch.agent : current.agent,
     };
     await writeSettingsFile(next);
-    return { devDir: next.devDir };
+    return toPublicSettings(next);
 }
 
 export async function getStoredRepositories(): Promise<StoredRepository[]> {
