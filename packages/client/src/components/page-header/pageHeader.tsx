@@ -1,7 +1,9 @@
 import { IconButton } from '@client/components/icon-button';
 import { useSettings } from '@client/modules/settings/settingsContext';
 import { Fragment } from 'react';
+import { useIntl } from 'react-intl';
 import { Link } from 'react-router-dom';
+import { messages } from './pageHeader.messages';
 import { styles } from './pageHeader.styles';
 import type { PageHeaderProps } from './pageHeader.types';
 
@@ -26,12 +28,13 @@ function SettingsIcon() {
 }
 
 export function PageHeader({ crumbs, actions, showSettings = true }: PageHeaderProps) {
+    const intl = useIntl();
     const { openSettings } = useSettings();
 
     return (
         <header className={styles.header}>
             <div className={styles.start}>
-                <nav className={styles.crumbs} aria-label='Breadcrumb'>
+                <nav className={styles.crumbs} aria-label={intl.formatMessage(messages.breadcrumb)}>
                     {crumbs.map((crumb, index) => {
                         const isLast = index === crumbs.length - 1;
                         const key = `${crumb.label}-${index}`;
@@ -67,7 +70,7 @@ export function PageHeader({ crumbs, actions, showSettings = true }: PageHeaderP
                 <div className={styles.actions}>
                     {actions}
                     {showSettings ? (
-                        <IconButton label='Settings' onClick={openSettings}>
+                        <IconButton label={intl.formatMessage(messages.settings)} onClick={openSettings}>
                             <SettingsIcon />
                         </IconButton>
                     ) : null}

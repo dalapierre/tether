@@ -6,11 +6,14 @@ import { ApiError } from '@client/libs/api/client';
 import { getSettings, updateSettings } from '@client/libs/api/settings';
 import { clearAccessToken } from '@client/libs/auth/session';
 import { useEffect, useState } from 'react';
+import { useIntl } from 'react-intl';
 import { useNavigate } from 'react-router-dom';
+import { messages } from './settings.messages';
 import { styles } from './settings.styles';
 import type { SettingsProps } from './settings.types';
 
 export function Settings({ onClose }: SettingsProps) {
+    const intl = useIntl();
     const navigate = useNavigate();
     const [devDir, setDevDir] = useState('');
     const [agent, setAgent] = useState<AgentId>('cursor');
@@ -32,7 +35,7 @@ export function Settings({ onClose }: SettingsProps) {
             })
             .catch((err: unknown) => {
                 if (!cancelled) {
-                    setError(err instanceof Error ? err.message : 'Failed to load settings');
+                    setError(err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed));
                 }
             })
             .finally(() => {
@@ -44,7 +47,7 @@ export function Settings({ onClose }: SettingsProps) {
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [intl]);
 
     async function handleSave() {
         setError(null);
@@ -58,12 +61,12 @@ export function Settings({ onClose }: SettingsProps) {
             });
             setDevDir(settings.devDir);
             setAgent(settings.agent);
-            setSavedMessage('Settings saved.');
+            setSavedMessage(intl.formatMessage(messages.saved));
         } catch (err: unknown) {
             if (err instanceof ApiError) {
                 setError(err.message);
             } else {
-                setError(err instanceof Error ? err.message : 'Failed to save settings');
+                setError(err instanceof Error ? err.message : intl.formatMessage(messages.saveFailed));
             }
         } finally {
             setSaving(false);
@@ -76,42 +79,45 @@ export function Settings({ onClose }: SettingsProps) {
     }
 
     return (
-        <div className={styles.root} role='dialog' aria-modal='true' aria-label='Settings'>
+        <div
+            className={styles.root}
+            role='dialog'
+            aria-modal='true'
+            aria-label={intl.formatMessage(messages.ariaLabel)}
+        >
             <PageHeader
-                crumbs={[{ label: 'settings' }]}
+                crumbs={[{ label: intl.formatMessage(messages.crumb) }]}
                 showSettings={false}
                 actions={
-                    <IconButton label='Close' onClick={onClose}>
+                    <IconButton label={intl.formatMessage(messages.close)} onClick={onClose}>
                         ×
                     </IconButton>
                 }
             />
             <div className={styles.body}>
-                <p className={styles.intro}>Configure repositories and the agent for new sessions.</p>
+                <p className={styles.intro}>{intl.formatMessage(messages.intro)}</p>
 
-                {loading ? <p className={styles.loading}>Loading settings…</p> : null}
+                {loading ? <p className={styles.loading}>{intl.formatMessage(messages.loading)}</p> : null}
 
                 {!loading ? (
                     <>
                         <div className={styles.fields}>
                             <label className={styles.label}>
-                                Development directory
+                                {intl.formatMessage(messages.devDirLabel)}
                                 <input
                                     className={styles.input}
                                     type='text'
                                     value={devDir}
                                     onChange={(event) => setDevDir(event.target.value)}
-                                    placeholder='/home/you/dev'
+                                    placeholder={intl.formatMessage(messages.devDirPlaceholder)}
                                     autoComplete='off'
                                     spellCheck={false}
                                 />
                             </label>
-                            <p className={styles.hint}>
-                                Absolute path to the folder that contains your git repositories.
-                            </p>
+                            <p className={styles.hint}>{intl.formatMessage(messages.devDirHint)}</p>
 
                             <label className={styles.label}>
-                                Agent
+                                {intl.formatMessage(messages.agentLabel)}
                                 <select
                                     className={styles.select}
                                     value={agent}
@@ -124,7 +130,7 @@ export function Settings({ onClose }: SettingsProps) {
                                 >
                                     {AGENTS.map((option) => (
                                         <option key={option.id} value={option.id}>
-                                            {option.label}
+                                            {intl.formatMessage(option.labelMessage)}
                                         </option>
                                     ))}
                                 </select>
@@ -136,7 +142,7 @@ export function Settings({ onClose }: SettingsProps) {
 
                         <div className={styles.actions}>
                             <Button type='button' variant='secondary' onClick={onSignOut}>
-                                Sign out
+                                {intl.formatMessage(messages.signOut)}
                             </Button>
                         </div>
                     </>
@@ -145,7 +151,7 @@ export function Settings({ onClose }: SettingsProps) {
             {!loading ? (
                 <div className={styles.footer}>
                     <Button type='button' onClick={handleSave} disabled={saving}>
-                        {saving ? 'Saving…' : 'Save'}
+                        {saving ? intl.formatMessage(messages.saving) : intl.formatMessage(messages.save)}
                     </Button>
                 </div>
             ) : null}

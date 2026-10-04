@@ -82,6 +82,7 @@ Every React component in the client follows the same structure. Place each compo
 | `{componentName}.tsx` | The React component definition |
 | `{componentName}.styles.ts` | Tailwind CSS class strings and other stylistic rules (keeps style concerns visible and separate) |
 | `{componentName}.types.ts` | Private and public types for the component. Export public types from `index.ts` |
+| `{componentName}.messages.ts` | `defineMessages` catalog for all user-facing strings in the component |
 
 Example:
 
@@ -91,6 +92,7 @@ components/status-badge/
   statusBadge.tsx
   statusBadge.styles.ts
   statusBadge.types.ts
+  statusBadge.messages.ts
 ```
 
 ```ts
@@ -98,12 +100,32 @@ components/status-badge/
 export type StatusBadgeProps = { label: string };
 type InternalState = { hovered: boolean }; // private — not re-exported
 
+// statusBadge.messages.ts
+import { defineMessages } from 'react-intl';
+
+export const messages = defineMessages({
+    label: {
+        id: 'statusBadge.label',
+        defaultMessage: 'Ready',
+    },
+});
+
 // index.ts
 export { StatusBadge } from './statusBadge';
 export type { StatusBadgeProps } from './statusBadge.types';
 ```
 
 This applies to components under `components/`, `modules/`, and `pages/` alike.
+
+### Internationalization (client)
+
+Never hardcode user-facing strings in the client. All copy — labels, buttons, placeholders, aria-labels, empty states, errors shown in the UI, toast text, and similar — must go through `react-intl`.
+
+- Define strings with `defineMessages` from `react-intl` in `{componentName}.messages.ts` next to the component (or next to the module that owns the copy, e.g. `toast.messages.ts`, `agents.messages.ts`).
+- Render with `useIntl().formatMessage(...)` or `<FormattedMessage />`. Do not inline string literals in JSX or props.
+- Prefer message `id`s scoped by component/module (e.g. `settings.save`, `toast.dismiss`).
+- Dynamic values from the user or API (repository names, server error bodies) may be passed as `values` or shown as-is; the surrounding template and any fallback copy must still be a defined message.
+- When a message has ICU placeholders or rich-text tags, declare the values contract and pass `{ typed: true }` (use `MessageTag` for tags, `NoMessageValues` for plain messages in that catalog).
 
 ### UI (mobile-first)
 

@@ -5,12 +5,15 @@ import { ApiError } from '@client/libs/api/client';
 import { addRepository, listAvailableRepositories, type AvailableRepository } from '@client/libs/api/repositories';
 import { useSettings } from '@client/modules/settings';
 import { useEffect, useState } from 'react';
+import { useIntl } from 'react-intl';
+import { messages } from './addRepository.messages';
 import { styles } from './addRepository.styles';
 import type { AddRepositoryProps } from './addRepository.types';
 
 type Step = 'select' | 'confirm';
 
 export function AddRepository({ onClose, onAdded }: AddRepositoryProps) {
+    const intl = useIntl();
     const { openSettings } = useSettings();
     const [step, setStep] = useState<Step>('select');
     const [available, setAvailable] = useState<AvailableRepository[]>([]);
@@ -31,7 +34,7 @@ export function AddRepository({ onClose, onAdded }: AddRepositoryProps) {
             })
             .catch((err: unknown) => {
                 if (!cancelled) {
-                    setError(err instanceof Error ? err.message : 'Failed to load repositories');
+                    setError(err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed));
                 }
             })
             .finally(() => {
@@ -43,7 +46,7 @@ export function AddRepository({ onClose, onAdded }: AddRepositoryProps) {
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [intl]);
 
     function handleClose() {
         if (submitting) return;
@@ -75,7 +78,7 @@ export function AddRepository({ onClose, onAdded }: AddRepositoryProps) {
             if (err instanceof ApiError) {
                 setError(err.message);
             } else {
-                setError(err instanceof Error ? err.message : 'Failed to add repository');
+                setError(err instanceof Error ? err.message : intl.formatMessage(messages.addFailed));
             }
         } finally {
             setSubmitting(false);
@@ -83,11 +86,22 @@ export function AddRepository({ onClose, onAdded }: AddRepositoryProps) {
     }
 
     return (
-        <div className={styles.root} role='dialog' aria-modal='true' aria-label='Add repository'>
+        <div
+            className={styles.root}
+            role='dialog'
+            aria-modal='true'
+            aria-label={intl.formatMessage(messages.ariaLabel)}
+        >
             <PageHeader
-                crumbs={[{ label: 'projects', onClick: handleClose }, { label: step === 'select' ? 'add' : 'confirm' }]}
+                crumbs={[
+                    { label: intl.formatMessage(messages.projectsCrumb), onClick: handleClose },
+                    {
+                        label: intl.formatMessage(step === 'select' ? messages.addCrumb : messages.confirmCrumb),
+                    },
+                ]}
+                showSettings={false}
                 actions={
-                    <IconButton label='Close' onClick={handleClose} disabled={submitting}>
+                    <IconButton label={intl.formatMessage(messages.close)} onClick={handleClose} disabled={submitting}>
                         ×
                     </IconButton>
                 }
@@ -96,15 +110,17 @@ export function AddRepository({ onClose, onAdded }: AddRepositoryProps) {
             {step === 'select' ? (
                 <>
                     <div className={styles.content}>
-                        {loading ? <p className={styles.loading}>Looking for repositories…</p> : null}
+                        {loading ? <p className={styles.loading}>{intl.formatMessage(messages.loading)}</p> : null}
                         {!loading && error ? <p className={styles.error}>{error}</p> : null}
                         {!loading && !error && available.length === 0 ? (
                             <p className={styles.empty}>
-                                No new repositories found. Set a development directory in{' '}
-                                <button type='button' className={styles.link} onClick={openSettings}>
-                                    Settings
-                                </button>
-                                .
+                                {intl.formatMessage(messages.empty, {
+                                    settingsLink: (chunks) => (
+                                        <button type='button' className={styles.link} onClick={openSettings}>
+                                            {chunks}
+                                        </button>
+                                    ),
+                                })}
                             </p>
                         ) : null}
                         {!loading && !error
@@ -126,14 +142,16 @@ export function AddRepository({ onClose, onAdded }: AddRepositoryProps) {
                     </div>
                     <div className={styles.footer}>
                         <Button type='button' disabled={!selected} onClick={handleNext}>
-                            Next
+                            {intl.formatMessage(messages.next)}
                         </Button>
                     </div>
                 </>
             ) : (
                 <>
                     <div className={styles.confirmBody}>
-                        <p className={styles.confirmQuestion}>Are you sure you want to add {selected?.name}?</p>
+                        <p className={styles.confirmQuestion}>
+                            {intl.formatMessage(messages.confirmQuestion, { name: selected?.name ?? '' })}
+                        </p>
                         {selected ? <p className={styles.confirmPath}>{selected.path}</p> : null}
                         {error ? <p className={styles.confirmError}>{error}</p> : null}
                     </div>
@@ -141,12 +159,14 @@ export function AddRepository({ onClose, onAdded }: AddRepositoryProps) {
                         <div className={styles.footerRow}>
                             <div className={styles.footerButton}>
                                 <Button type='button' variant='secondary' onClick={handleBack} disabled={submitting}>
-                                    Back
+                                    {intl.formatMessage(messages.back)}
                                 </Button>
                             </div>
                             <div className={styles.footerButton}>
                                 <Button type='button' onClick={handleConfirm} disabled={submitting}>
-                                    {submitting ? 'Adding…' : 'Confirm'}
+                                    {submitting
+                                        ? intl.formatMessage(messages.adding)
+                                        : intl.formatMessage(messages.confirm)}
                                 </Button>
                             </div>
                         </div>

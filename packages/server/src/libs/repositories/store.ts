@@ -4,7 +4,7 @@ import {
     setStoredRepositories,
     type StoredRepository,
 } from '@server/libs/settings/store.js';
-import { randomUUID } from 'node:crypto';
+import { slugify, uniqueSlug } from '@server/libs/slug/slug.js';
 import { access, readFile, readdir, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,8 +18,10 @@ export type AvailableRepository = {
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const legacyDataFile = path.join(packageRoot, 'data', 'repositories.json');
+const uuidIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 let legacyMigrated = false;
+let slugIdsMigrated = false;
 
 function isRepository(value: unknown): value is Repository {
     return (
@@ -67,9 +69,38 @@ async function migrateLegacyRepositories(): Promise<void> {
     await unlink(legacyDataFile).catch(() => undefined);
 }
 
+/** One-time: replace UUID repository ids with name slugs used in project URLs. */
+async function migrateSlugIds(repositories: Repository[]): Promise<Repository[]> {
+    if (slugIdsMigrated) {
+        return repositories;
+    }
+    slugIdsMigrated = true;
+
+    if (!repositories.some((repository) => uuidIdPattern.test(repository.id))) {
+        return repositories;
+    }
+
+    const taken = new Set(
+        repositories.filter((repository) => !uuidIdPattern.test(repository.id)).map((repository) => repository.id),
+    );
+
+    const next = repositories.map((repository) => {
+        if (!uuidIdPattern.test(repository.id)) {
+            return repository;
+        }
+        const id = uniqueSlug(slugify(repository.name), taken);
+        taken.add(id);
+        return { ...repository, id };
+    });
+
+    await writeAll(next);
+    return next;
+}
+
 async function readAll(): Promise<Repository[]> {
     await migrateLegacyRepositories();
-    return getStoredRepositories();
+    const repositories = await getStoredRepositories();
+    return migrateSlugIds(repositories);
 }
 
 async function writeAll(repositories: Repository[]): Promise<void> {
@@ -148,9 +179,11 @@ export async function addRepository(repoPath: string): Promise<Repository> {
         throw new Error('Repository is already added');
     }
 
+    const name = path.basename(resolved);
+    const taken = new Set(repositories.map((repository) => repository.id));
     const repository: Repository = {
-        id: randomUUID(),
-        name: path.basename(resolved),
+        id: uniqueSlug(slugify(name), taken),
+        name,
         path: resolved,
     };
     repositories.push(repository);

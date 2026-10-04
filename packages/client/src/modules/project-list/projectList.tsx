@@ -5,10 +5,13 @@ import { listRepositories, type Repository } from '@client/libs/api/repositories
 import { AddRepository } from '@client/modules/add-repository';
 import { useSettings } from '@client/modules/settings';
 import { useEffect, useState } from 'react';
+import { useIntl } from 'react-intl';
 import { useNavigate } from 'react-router-dom';
+import { messages } from './projectList.messages';
 import { styles } from './projectList.styles';
 
 export function ProjectList() {
+    const intl = useIntl();
     const navigate = useNavigate();
     const { openSettings } = useSettings();
     const [repositories, setRepositories] = useState<Repository[]>([]);
@@ -28,7 +31,7 @@ export function ProjectList() {
             })
             .catch((err: unknown) => {
                 if (!cancelled) {
-                    setError(err instanceof Error ? err.message : 'Failed to load projects');
+                    setError(err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed));
                 }
             })
             .finally(() => {
@@ -40,7 +43,7 @@ export function ProjectList() {
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [intl]);
 
     function handleAdded(repository: Repository) {
         setRepositories((current) => [...current, repository].sort((a, b) => a.name.localeCompare(b.name)));
@@ -53,17 +56,19 @@ export function ProjectList() {
 
     return (
         <div className={styles.root}>
-            <PageHeader crumbs={[{ label: 'projects' }]} />
+            <PageHeader crumbs={[{ label: intl.formatMessage(messages.projectsCrumb) }]} />
             <div className={styles.content}>
-                {loading ? <p className={styles.loading}>Loading projects…</p> : null}
+                {loading ? <p className={styles.loading}>{intl.formatMessage(messages.loading)}</p> : null}
                 {!loading && error ? <p className={styles.error}>{error}</p> : null}
                 {!loading && !error && repositories.length === 0 ? (
                     <p className={styles.empty}>
-                        No projects yet. Tap New project to add a repository from your{' '}
-                        <button type='button' className={styles.link} onClick={openSettings}>
-                            development directory
-                        </button>
-                        .
+                        {intl.formatMessage(messages.empty, {
+                            devDirLink: (chunks) => (
+                                <button type='button' className={styles.link} onClick={openSettings}>
+                                    {chunks}
+                                </button>
+                            ),
+                        })}
                     </p>
                 ) : null}
                 {!loading && !error
@@ -79,7 +84,7 @@ export function ProjectList() {
             {!loading && !error ? (
                 <div className={styles.footer}>
                     <Button type='button' onClick={() => setAdding(true)}>
-                        New project
+                        {intl.formatMessage(messages.newProject)}
                     </Button>
                 </div>
             ) : null}

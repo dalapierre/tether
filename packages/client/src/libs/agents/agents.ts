@@ -1,4 +1,6 @@
-export const AGENTS = [{ id: 'cursor', label: 'Cursor' }] as const;
+import { messages } from './agents.messages';
+
+export const AGENTS = [{ id: 'cursor', labelMessage: messages.cursor }] as const;
 
 export type AgentId = (typeof AGENTS)[number]['id'];
 

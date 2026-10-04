@@ -13,18 +13,19 @@ function emit() {
     }
 }
 
-function resolveText(value: string | ((...args: never[]) => string), args: unknown[]): string {
-    return typeof value === 'function' ? (value as (...args: unknown[]) => string)(...args) : value;
-}
-
 export function showToast<Id extends ToastId>(id: Id, ...args: ToastArgs<Id>): string {
     const definition = TOASTS[id];
     const instanceId = `toast-${nextInstanceId++}`;
+    const values =
+        'values' in definition && typeof definition.values === 'function'
+            ? (definition.values as unknown as (...valuesArgs: ToastArgs<Id>) => Record<string, string>)(...args)
+            : undefined;
     const toast: ActiveToast = {
         instanceId,
         id,
-        title: resolveText(definition.title, args),
-        message: resolveText(definition.message, args),
+        title: definition.title,
+        message: definition.message,
+        values,
     };
 
     toasts = [toast, ...toasts];

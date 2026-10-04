@@ -35,9 +35,9 @@ export async function listRepositories(): Promise<Repository[]> {
     return data.repositories;
 }
 
-export async function getRepository(id: string): Promise<Repository | null> {
+export async function getRepository(slug: string): Promise<Repository | null> {
     const repositories = await listRepositories();
-    return repositories.find((repository) => repository.id === id) ?? null;
+    return repositories.find((repository) => repository.id === slug) ?? null;
 }
 
 export async function listAvailableRepositories(): Promise<AvailableRepository[]> {

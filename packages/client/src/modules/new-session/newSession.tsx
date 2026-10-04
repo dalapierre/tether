@@ -4,10 +4,13 @@ import { PageHeader } from '@client/components/page-header';
 import { AGENTS, isAgentId, type AgentId } from '@client/libs/agents/agents';
 import { getSettings } from '@client/libs/api/settings';
 import { useEffect, useState } from 'react';
+import { useIntl } from 'react-intl';
+import { messages } from './newSession.messages';
 import { styles } from './newSession.styles';
 import type { NewSessionProps } from './newSession.types';
 
 export function NewSession({ projectName, onClose, onStarted }: NewSessionProps) {
+    const intl = useIntl();
     const [name, setName] = useState('');
     const [agent, setAgent] = useState<AgentId>('cursor');
     const [loading, setLoading] = useState(true);
@@ -24,7 +27,7 @@ export function NewSession({ projectName, onClose, onStarted }: NewSessionProps)
             })
             .catch((err: unknown) => {
                 if (!cancelled) {
-                    setError(err instanceof Error ? err.message : 'Failed to load settings');
+                    setError(err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed));
                 }
             })
             .finally(() => {
@@ -36,7 +39,7 @@ export function NewSession({ projectName, onClose, onStarted }: NewSessionProps)
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [intl]);
 
     function handleStart() {
         const trimmedName = name.trim();
@@ -47,17 +50,23 @@ export function NewSession({ projectName, onClose, onStarted }: NewSessionProps)
     const canStart = !loading && !error && name.trim().length > 0 && Boolean(agent);
 
     return (
-        <div className={styles.root} role='dialog' aria-modal='true' aria-label='New session'>
+        <div
+            className={styles.root}
+            role='dialog'
+            aria-modal='true'
+            aria-label={intl.formatMessage(messages.ariaLabel)}
+        >
             <PageHeader
-                crumbs={[{ label: projectName, onClick: onClose }, { label: 'new session' }]}
+                crumbs={[{ label: projectName, onClick: onClose }, { label: intl.formatMessage(messages.crumb) }]}
+                showSettings={false}
                 actions={
-                    <IconButton label='Close' onClick={onClose}>
+                    <IconButton label={intl.formatMessage(messages.close)} onClick={onClose}>
                         ×
                     </IconButton>
                 }
             />
             <div className={styles.body}>
-                {loading ? <p className={styles.loading}>Loading…</p> : null}
+                {loading ? <p className={styles.loading}>{intl.formatMessage(messages.loading)}</p> : null}
 
                 {!loading ? (
                     <form
@@ -68,13 +77,13 @@ export function NewSession({ projectName, onClose, onStarted }: NewSessionProps)
                         }}
                     >
                         <label className={styles.label}>
-                            Name
+                            {intl.formatMessage(messages.nameLabel)}
                             <input
                                 className={styles.input}
                                 type='text'
                                 value={name}
                                 onChange={(event) => setName(event.target.value)}
-                                placeholder='Session name'
+                                placeholder={intl.formatMessage(messages.namePlaceholder)}
                                 autoComplete='off'
                                 spellCheck={false}
                                 autoFocus
@@ -82,7 +91,7 @@ export function NewSession({ projectName, onClose, onStarted }: NewSessionProps)
                         </label>
 
                         <label className={styles.label}>
-                            Agent
+                            {intl.formatMessage(messages.agentLabel)}
                             <select
                                 className={styles.select}
                                 value={agent}
@@ -95,7 +104,7 @@ export function NewSession({ projectName, onClose, onStarted }: NewSessionProps)
                             >
                                 {AGENTS.map((option) => (
                                     <option key={option.id} value={option.id}>
-                                        {option.label}
+                                        {intl.formatMessage(option.labelMessage)}
                                     </option>
                                 ))}
                             </select>
@@ -107,7 +116,7 @@ export function NewSession({ projectName, onClose, onStarted }: NewSessionProps)
             </div>
             <div className={styles.footer}>
                 <Button type='button' onClick={handleStart} disabled={!canStart}>
-                    Start
+                    {intl.formatMessage(messages.start)}
                 </Button>
             </div>
         </div>
