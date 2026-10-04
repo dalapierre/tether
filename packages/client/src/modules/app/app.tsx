@@ -1,7 +1,9 @@
+import { AppShell } from '@client/modules/app-shell';
 import { RequireAuth } from '@client/modules/auth/require-auth';
 import { HomePage } from '@client/pages/home-page';
 import { LoginPage } from '@client/pages/login-page';
 import { ProjectPage } from '@client/pages/project-page';
+import { SettingsPage } from '@client/pages/settings-page';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 
 export function App() {
@@ -10,21 +12,16 @@ export function App() {
             <Routes>
                 <Route path='/login' element={<LoginPage />} />
                 <Route
-                    path='/'
                     element={
                         <RequireAuth>
-                            <HomePage />
+                            <AppShell />
                         </RequireAuth>
                     }
-                />
-                <Route
-                    path='/projects/:id'
-                    element={
-                        <RequireAuth>
-                            <ProjectPage />
-                        </RequireAuth>
-                    }
-                />
+                >
+                    <Route path='/' element={<HomePage />} />
+                    <Route path='/projects/:id' element={<ProjectPage />} />
+                    <Route path='/settings' element={<SettingsPage />} />
+                </Route>
             </Routes>
         </BrowserRouter>
     );

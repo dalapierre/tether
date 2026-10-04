@@ -113,3 +113,10 @@ Tether is primarily accessed from a phone. Design and implement the UI **mobile-
 - Prefer simple, single-column flows that work well with thumbs.
 - Favor mobile-app patterns: full-bleed screens, bottom navigation or sticky primary actions, generous tap targets, and clear visual hierarchy over dense web chrome (sidebars, multi-panel dashboards, hover-only menus).
 - Avoid dense desktop-oriented patterns (multi-column dashboards, hover-only affordances) unless they degrade gracefully on mobile.
+
+### Network calls (auth by default)
+
+All network calls must require authentication via the access token **unless specified otherwise**.
+
+- Default to authenticated requests on both client and server when adding or changing API routes, fetch helpers, or other network I/O.
+- Only skip access-token auth when the task or existing API explicitly marks the endpoint as public/unauthenticated.

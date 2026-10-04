@@ -1,59 +1,46 @@
-import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { getSettings } from '@server/libs/settings/store.js';
+import { access, readdir } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 export type Repository = {
     id: string;
     name: string;
 };
 
-const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
-const dataDir = path.join(packageRoot, 'data');
-const dataFile = path.join(dataDir, 'repositories.json');
-
-async function ensureDataFile(): Promise<void> {
-    await mkdir(dataDir, { recursive: true });
+async function isGitRepository(dirPath: string): Promise<boolean> {
     try {
-        await readFile(dataFile, 'utf8');
-    } catch (err: unknown) {
-        if (err && typeof err === 'object' && 'code' in err && err.code === 'ENOENT') {
-            await writeFile(dataFile, '[]\n', 'utf8');
-            return;
-        }
-        throw err;
+        await access(path.join(dirPath, '.git'));
+        return true;
+    } catch {
+        return false;
     }
-}
-
-async function readAll(): Promise<Repository[]> {
-    await ensureDataFile();
-    const raw = await readFile(dataFile, 'utf8');
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-        return [];
-    }
-    return parsed.filter(
-        (item): item is Repository =>
-            !!item &&
-            typeof item === 'object' &&
-            typeof (item as Repository).id === 'string' &&
-            typeof (item as Repository).name === 'string',
-    );
-}
-
-async function writeAll(repositories: Repository[]): Promise<void> {
-    await ensureDataFile();
-    await writeFile(dataFile, `${JSON.stringify(repositories, null, 2)}\n`, 'utf8');
 }
 
 export async function listRepositories(): Promise<Repository[]> {
-    return readAll();
-}
+    const { devDir } = await getSettings();
+    const trimmed = devDir.trim();
+    if (!trimmed) {
+        return [];
+    }
 
-export async function createRepository(name: string): Promise<Repository> {
-    const repositories = await readAll();
-    const repository: Repository = { id: randomUUID(), name };
-    repositories.push(repository);
-    await writeAll(repositories);
-    return repository;
+    let entries;
+    try {
+        entries = await readdir(trimmed, { withFileTypes: true });
+    } catch (err: unknown) {
+        if (err && typeof err === 'object' && 'code' in err && err.code === 'ENOENT') {
+            return [];
+        }
+        throw err;
+    }
+
+    const repositories: Repository[] = [];
+    for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const repoPath = path.join(trimmed, entry.name);
+        if (!(await isGitRepository(repoPath))) continue;
+        repositories.push({ id: entry.name, name: entry.name });
+    }
+
+    repositories.sort((a, b) => a.name.localeCompare(b.name));
+    return repositories;
 }

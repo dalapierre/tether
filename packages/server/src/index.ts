@@ -1,6 +1,7 @@
 import { requireAuth } from '@server/middleware/requireAuth.js';
 import { authRouter } from '@server/routes/auth.js';
 import { repositoriesRouter } from '@server/routes/repositories.js';
+import { settingsRouter } from '@server/routes/settings.js';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
@@ -29,6 +30,7 @@ app.use('/api/auth', authRouter);
 
 app.use('/api', requireAuth);
 
+app.use('/api/settings', settingsRouter);
 app.use('/api/repositories', repositoriesRouter);
 
 // Command handling will be implemented here later.
