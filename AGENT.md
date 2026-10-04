@@ -2,6 +2,20 @@
 
 Conventions for working in this repository.
 
+## Project goal
+
+Tether lets you control a coding agent from your phone while the agent runs on a local PC.
+
+The server owns all execution: spawning agents, running commands, reading repositories, reviewing changes, and creating pull requests. The UI is a thin remote control — it sends prompts and presents output; it does not run agent work locally on the phone.
+
+Typical use: the app runs on your computer on the LAN; you open it from your phone elsewhere in the house, pick a repository and coding agent, prompt from the couch, watch progress, review the resulting code, and open PRs — without sitting at the machine.
+
+When making product or architecture decisions, prefer:
+
+- **Server-side execution** — agent runs, tooling, git, and PR workflows happen on the host PC.
+- **Phone-first remote control** — the client is for prompting, monitoring, and review on a small screen.
+- **Local-network access** — connect to the machine running Tether over LAN; keep the control plane usable away from the desk.
+
 ## Project file setup
 
 ### File naming

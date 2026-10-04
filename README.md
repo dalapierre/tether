@@ -1,6 +1,8 @@
 # Tether
 
-AI control plane over local network.
+Control a coding agent from your phone while it runs on a local PC.
+
+Tether is a LAN control plane: the server on your computer owns all execution (agents, commands, repos, reviews, PRs). The UI on your phone is a remote control that sends prompts and shows output — so you can work from the living room without sitting at the desk.
 
 ## Stack
 
