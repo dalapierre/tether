@@ -3,14 +3,15 @@ import { IconButton } from '@client/components/icon-button';
 import { PageHeader } from '@client/components/page-header';
 import { ApiError } from '@client/libs/api/client';
 import { addRepository, listAvailableRepositories, type AvailableRepository } from '@client/libs/api/repositories';
+import { useSettings } from '@client/modules/settings';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { styles } from './addRepository.styles';
 import type { AddRepositoryProps } from './addRepository.types';
 
 type Step = 'select' | 'confirm';
 
 export function AddRepository({ onClose, onAdded }: AddRepositoryProps) {
+    const { openSettings } = useSettings();
     const [step, setStep] = useState<Step>('select');
     const [available, setAvailable] = useState<AvailableRepository[]>([]);
     const [loading, setLoading] = useState(true);
@@ -100,9 +101,9 @@ export function AddRepository({ onClose, onAdded }: AddRepositoryProps) {
                         {!loading && !error && available.length === 0 ? (
                             <p className={styles.empty}>
                                 No new repositories found. Set a development directory in{' '}
-                                <Link className={styles.link} to='/settings'>
+                                <button type='button' className={styles.link} onClick={openSettings}>
                                     Settings
-                                </Link>
+                                </button>
                                 .
                             </p>
                         ) : null}

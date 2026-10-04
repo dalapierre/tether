@@ -1,12 +1,15 @@
+import { SettingsProvider } from '@client/modules/settings';
 import { Outlet } from 'react-router-dom';
 import { styles } from './appShell.styles';
 
 export function AppShell() {
     return (
-        <div className={styles.root}>
-            <div className={styles.content}>
-                <Outlet />
+        <SettingsProvider>
+            <div className={styles.root}>
+                <div className={styles.content}>
+                    <Outlet />
+                </div>
             </div>
-        </div>
+        </SettingsProvider>
     );
 }

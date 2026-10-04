@@ -9,4 +9,5 @@ export type PageHeaderCrumb = {
 export type PageHeaderProps = {
     crumbs: PageHeaderCrumb[];
     actions?: ReactNode;
+    showSettings?: boolean;
 };
