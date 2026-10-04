@@ -5,7 +5,7 @@
     "type": "module",
     "scripts": {
         "dev": "tsx watch src/index.ts",
-        "build": "tsc -p tsconfig.json",
+        "build": "tsc -p tsconfig.json && tsc-alias -p tsconfig.json",
         "start": "node dist/index.js"
     },
     "dependencies": {
@@ -16,6 +16,7 @@
         "@types/cors": "^2.8.19",
         "@types/express": "^5.0.3",
         "@types/node": "^24.6.0",
+        "tsc-alias": "^1.9.7",
         "tsx": "^4.20.5",
         "typescript": "^5.9.3"
     }
