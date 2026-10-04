@@ -16,9 +16,8 @@
         "noUnusedParameters": true,
         "noFallthroughCasesInSwitch": true,
         "noUncheckedSideEffectImports": true,
-        "baseUrl": ".",
         "paths": {
-            "@client/*": ["src/*"]
+            "@client/*": ["./src/*"]
         }
     },
     "include": ["src"]

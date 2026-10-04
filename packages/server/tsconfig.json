@@ -6,7 +6,7 @@
         "lib": ["ES2022"],
         "outDir": "dist",
         "rootDir": "src",
-        "strict": true,
+        "strict": true,        "baseUrl": ".",
         "esModuleInterop": true,
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
@@ -14,9 +14,8 @@
         "declaration": true,
         "declarationMap": true,
         "sourceMap": true,
-        "baseUrl": ".",
         "paths": {
-            "@server/*": ["src/*"]
+            "@server/*": ["./src/*"]
         }
     },
     "include": ["src/**/*"]
