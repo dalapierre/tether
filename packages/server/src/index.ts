@@ -22,13 +22,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.get('/api/health', (_req, res) => {
-    res.json({ ok: true, service: 'tether-server' });
-});
-
 app.use('/api/auth', authRouter);
 
 app.use('/api', requireAuth);
+
+app.get('/api/health', (_req, res) => {
+    res.json({ ok: true, service: 'tether-server' });
+});
 
 app.use('/api/settings', settingsRouter);
 app.use('/api/repositories', repositoriesRouter);

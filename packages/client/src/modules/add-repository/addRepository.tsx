@@ -1,0 +1,154 @@
+import { Button } from '@client/components/button';
+import { IconButton } from '@client/components/icon-button';
+import { ApiError } from '@client/libs/api/client';
+import { addRepository, listAvailableRepositories, type AvailableRepository } from '@client/libs/api/repositories';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { styles } from './addRepository.styles';
+import type { AddRepositoryProps } from './addRepository.types';
+
+type Step = 'select' | 'confirm';
+
+export function AddRepository({ onClose, onAdded }: AddRepositoryProps) {
+    const [step, setStep] = useState<Step>('select');
+    const [available, setAvailable] = useState<AvailableRepository[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [selected, setSelected] = useState<AvailableRepository | null>(null);
+    const [submitting, setSubmitting] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        listAvailableRepositories()
+            .then((repositories) => {
+                if (!cancelled) {
+                    setAvailable(repositories);
+                    setError(null);
+                }
+            })
+            .catch((err: unknown) => {
+                if (!cancelled) {
+                    setError(err instanceof Error ? err.message : 'Failed to load repositories');
+                }
+            })
+            .finally(() => {
+                if (!cancelled) {
+                    setLoading(false);
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    function handleClose() {
+        if (submitting) return;
+        onClose();
+    }
+
+    function handleNext() {
+        if (!selected) return;
+        setError(null);
+        setStep('confirm');
+    }
+
+    function handleBack() {
+        if (submitting) return;
+        setError(null);
+        setStep('select');
+    }
+
+    async function handleConfirm() {
+        if (!selected || submitting) return;
+
+        setError(null);
+        setSubmitting(true);
+
+        try {
+            const repository = await addRepository(selected.path);
+            onAdded(repository);
+        } catch (err: unknown) {
+            if (err instanceof ApiError) {
+                setError(err.message);
+            } else {
+                setError(err instanceof Error ? err.message : 'Failed to add repository');
+            }
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
+    return (
+        <div className={styles.root} role='dialog' aria-modal='true' aria-label='Add repository'>
+            <header className={styles.header}>
+                <h1 className={styles.title}>{step === 'select' ? 'Add repository' : 'Confirm'}</h1>
+                <IconButton label='Close' onClick={handleClose} disabled={submitting}>
+                    ×
+                </IconButton>
+            </header>
+
+            {step === 'select' ? (
+                <>
+                    <div className={styles.content}>
+                        {loading ? <p className={styles.loading}>Looking for repositories…</p> : null}
+                        {!loading && error ? <p className={styles.error}>{error}</p> : null}
+                        {!loading && !error && available.length === 0 ? (
+                            <p className={styles.empty}>
+                                No new repositories found. Set a development directory in{' '}
+                                <Link className={styles.link} to='/settings'>
+                                    Settings
+                                </Link>
+                                .
+                            </p>
+                        ) : null}
+                        {!loading && !error
+                            ? available.map((repository) => {
+                                  const isSelected = selected?.path === repository.path;
+                                  return (
+                                      <button
+                                          key={repository.path}
+                                          type='button'
+                                          className={`${styles.option}${isSelected ? ` ${styles.optionSelected}` : ''}`}
+                                          onClick={() => setSelected(repository)}
+                                          aria-pressed={isSelected}
+                                      >
+                                          {repository.name}
+                                      </button>
+                                  );
+                              })
+                            : null}
+                    </div>
+                    <div className={styles.footer}>
+                        <Button type='button' disabled={!selected} onClick={handleNext}>
+                            Next
+                        </Button>
+                    </div>
+                </>
+            ) : (
+                <>
+                    <div className={styles.confirmBody}>
+                        <p className={styles.confirmQuestion}>Are you sure you want to add {selected?.name}?</p>
+                        {selected ? <p className={styles.confirmPath}>{selected.path}</p> : null}
+                        {error ? <p className={styles.confirmError}>{error}</p> : null}
+                    </div>
+                    <div className={styles.footer}>
+                        <div className={styles.footerRow}>
+                            <div className={styles.footerButton}>
+                                <Button type='button' variant='secondary' onClick={handleBack} disabled={submitting}>
+                                    Back
+                                </Button>
+                            </div>
+                            <div className={styles.footerButton}>
+                                <Button type='button' onClick={handleConfirm} disabled={submitting}>
+                                    {submitting ? 'Adding…' : 'Confirm'}
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </>
+            )}
+        </div>
+    );
+}

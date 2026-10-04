@@ -1,5 +1,7 @@
 import { Card } from '@client/components/card';
+import { IconButton } from '@client/components/icon-button';
 import { listRepositories, type Repository } from '@client/libs/api/repositories';
+import { AddRepository } from '@client/modules/add-repository';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { styles } from './projectList.styles';
@@ -9,6 +11,7 @@ export function ProjectList() {
     const [repositories, setRepositories] = useState<Repository[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [adding, setAdding] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -36,19 +39,31 @@ export function ProjectList() {
         };
     }, []);
 
+    function handleAdded(repository: Repository) {
+        setRepositories((current) => [...current, repository].sort((a, b) => a.name.localeCompare(b.name)));
+        setAdding(false);
+    }
+
+    if (adding) {
+        return <AddRepository onClose={() => setAdding(false)} onAdded={handleAdded} />;
+    }
+
     return (
         <div className={styles.root}>
             <header className={styles.header}>
                 <h1 className={styles.title}>Projects</h1>
+                <IconButton label='Add repository' onClick={() => setAdding(true)}>
+                    +
+                </IconButton>
             </header>
             <div className={styles.content}>
                 {loading ? <p className={styles.loading}>Loading projects…</p> : null}
                 {!loading && error ? <p className={styles.error}>{error}</p> : null}
                 {!loading && !error && repositories.length === 0 ? (
                     <p className={styles.empty}>
-                        No repositories found. Set a development directory in{' '}
+                        No projects yet. Tap + to add a repository from your{' '}
                         <Link className={styles.link} to='/settings'>
-                            Settings
+                            development directory
                         </Link>
                         .
                     </p>

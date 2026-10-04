@@ -24,8 +24,11 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
 
     const res = await fetch(path, { ...init, headers });
 
-    if (res.status === 401) {
+    if (res.status === 403) {
         clearAccessToken();
+        if (window.location.pathname !== '/login') {
+            window.location.assign('/login');
+        }
     }
 
     return res;

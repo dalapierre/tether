@@ -11,7 +11,7 @@ function extractBearerToken(header: string | undefined): string | null {
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
     const token = extractBearerToken(req.header('authorization'));
     if (!token || !verifyAccessToken(token)) {
-        res.status(401).json({ error: 'Unauthorized' });
+        res.status(403).json({ error: 'Forbidden' });
         return;
     }
     next();
