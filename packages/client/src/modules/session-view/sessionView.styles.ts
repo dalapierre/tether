@@ -9,7 +9,8 @@ export const styles = {
     statusError: 'bg-red-500',
     terminalWrap: 'min-h-0 flex-1 overflow-hidden bg-black px-2 py-2',
     terminal: 'h-full w-full',
-    composer: 'flex gap-2 border-t border-zinc-800 px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]',
-    input: 'min-w-0 flex-1 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-zinc-500 disabled:opacity-50',
+    keyboardBar:
+        'flex items-center justify-center border-t border-zinc-800 px-4 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]',
+    keyboardIcon: 'h-6 w-6',
     centered: 'flex flex-1 items-center justify-center px-4 text-sm text-zinc-500',
 };

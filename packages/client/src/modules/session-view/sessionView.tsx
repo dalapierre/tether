@@ -1,4 +1,4 @@
-import { Button } from '@client/components/button';
+import { IconButton } from '@client/components/icon-button';
 import { PageHeader } from '@client/components/page-header';
 import { AGENTS, type AgentId } from '@client/libs/agents/agents';
 import {
@@ -48,6 +48,41 @@ function statusDotClass(status: SessionStatus): string {
     }
 }
 
+function KeyboardIcon() {
+    return (
+        <svg
+            className={styles.keyboardIcon}
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='1.75'
+            aria-hidden='true'
+        >
+            <path
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                d='M4 6.75A1.75 1.75 0 0 1 5.75 5h12.5A1.75 1.75 0 0 1 20 6.75v10.5A1.75 1.75 0 0 1 18.25 19H5.75A1.75 1.75 0 0 1 4 17.25V6.75Z'
+            />
+            <path
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                d='M8 9h.01M12 9h.01M16 9h.01M8 12h.01M12 12h.01M16 12h.01M9.5 15.5h5'
+            />
+        </svg>
+    );
+}
+
+function prepareMobileTextarea(term: Terminal): void {
+    const textarea = term.textarea;
+    if (!textarea) return;
+    textarea.setAttribute('inputmode', 'text');
+    textarea.setAttribute('enterkeyhint', 'send');
+    textarea.setAttribute('autocapitalize', 'off');
+    textarea.setAttribute('autocomplete', 'off');
+    textarea.setAttribute('autocorrect', 'off');
+    textarea.setAttribute('spellcheck', 'false');
+}
+
 export function SessionView({ projectSlug, projectName, sessionId }: SessionViewProps) {
     const intl = useIntl();
     const [session, setSession] = useState<Session | null>(null);
@@ -55,7 +90,6 @@ export function SessionView({ projectSlug, projectName, sessionId }: SessionView
     const [failed, setFailed] = useState(false);
     const [status, setStatus] = useState<SessionStatus>('busy');
     const [connection, setConnection] = useState<ConnectionState>('connecting');
-    const [draft, setDraft] = useState('');
     const terminalRef = useRef<HTMLDivElement | null>(null);
     const socketRef = useRef<WebSocket | null>(null);
     const termRef = useRef<Terminal | null>(null);
@@ -103,8 +137,8 @@ export function SessionView({ projectSlug, projectName, sessionId }: SessionView
 
         const term = new Terminal({
             convertEol: true,
-            disableStdin: true,
-            cursorBlink: false,
+            disableStdin: false,
+            cursorBlink: true,
             fontSize: 13,
             theme: {
                 background: '#000000',
@@ -115,6 +149,7 @@ export function SessionView({ projectSlug, projectName, sessionId }: SessionView
         term.loadAddon(fitAddon);
         term.open(terminalRef.current);
         fitAddon.fit();
+        prepareMobileTextarea(term);
         termRef.current = term;
 
         let socket: WebSocket;
@@ -129,6 +164,13 @@ export function SessionView({ projectSlug, projectName, sessionId }: SessionView
 
         socketRef.current = socket;
         setConnection('connecting');
+
+        const sendInput = (data: string) => {
+            if (socket.readyState !== WebSocket.OPEN) return;
+            sendTerminalMessage(socket, { type: 'input', data });
+        };
+
+        const dataDisposable = term.onData(sendInput);
 
         const onResize = () => {
             try {
@@ -171,12 +213,16 @@ export function SessionView({ projectSlug, projectName, sessionId }: SessionView
         });
 
         window.addEventListener('resize', onResize);
+        const visualViewport = window.visualViewport;
+        visualViewport?.addEventListener('resize', onResize);
         const observer = new ResizeObserver(onResize);
         observer.observe(terminalRef.current);
 
         return () => {
             window.removeEventListener('resize', onResize);
+            visualViewport?.removeEventListener('resize', onResize);
             observer.disconnect();
+            dataDisposable.dispose();
             socket.close();
             socketRef.current = null;
             term.dispose();
@@ -185,15 +231,12 @@ export function SessionView({ projectSlug, projectName, sessionId }: SessionView
         };
     }, [loading, failed, session, intl]);
 
-    function handleSend() {
-        const text = draft.trim();
-        const socket = socketRef.current;
-        if (!text || !socket || socket.readyState !== WebSocket.OPEN) return;
-        sendTerminalMessage(socket, { type: 'message', text });
-        setDraft('');
+    function openKeyboard() {
+        termRef.current?.focus();
     }
 
     const connected = connection === 'connected';
+    const inputDisabled = !connected || status === 'error';
 
     if (loading) {
         return (
@@ -260,31 +303,15 @@ export function SessionView({ projectSlug, projectName, sessionId }: SessionView
             <div className={styles.terminalWrap}>
                 <div ref={terminalRef} className={styles.terminal} />
             </div>
-            <form
-                className={styles.composer}
-                onSubmit={(event) => {
-                    event.preventDefault();
-                    handleSend();
-                }}
-            >
-                <input
-                    className={styles.input}
-                    type='text'
-                    value={draft}
-                    onChange={(event) => setDraft(event.target.value)}
-                    placeholder={intl.formatMessage(messages.messagePlaceholder)}
-                    autoComplete='off'
-                    spellCheck={false}
-                    disabled={!connected || status === 'error'}
-                />
-                <Button
-                    type='submit'
-                    fullWidth={false}
-                    disabled={!connected || status === 'error' || draft.trim().length === 0}
+            <div className={styles.keyboardBar}>
+                <IconButton
+                    label={intl.formatMessage(messages.openKeyboard)}
+                    onClick={openKeyboard}
+                    disabled={inputDisabled}
                 >
-                    {intl.formatMessage(messages.send)}
-                </Button>
-            </form>
+                    <KeyboardIcon />
+                </IconButton>
+            </div>
         </div>
     );
 }

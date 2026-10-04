@@ -8,8 +8,7 @@ type Messages = {
     notFound: NoMessageValues;
     connecting: NoMessageValues;
     disconnected: NoMessageValues;
-    messagePlaceholder: NoMessageValues;
-    send: NoMessageValues;
+    openKeyboard: NoMessageValues;
     statusReady: NoMessageValues;
     statusBusy: NoMessageValues;
     statusError: NoMessageValues;
@@ -46,13 +45,9 @@ export const messages = defineMessages<Messages>(
             id: 'sessionView.disconnected',
             defaultMessage: 'Disconnected',
         },
-        messagePlaceholder: {
-            id: 'sessionView.messagePlaceholder',
-            defaultMessage: 'Message the agent…',
-        },
-        send: {
-            id: 'sessionView.send',
-            defaultMessage: 'Send',
+        openKeyboard: {
+            id: 'sessionView.openKeyboard',
+            defaultMessage: 'Open keyboard',
         },
         statusReady: {
             id: 'sessionView.statusReady',
