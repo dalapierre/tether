@@ -1,14 +1,15 @@
-import { getSettings } from '@server/libs/settings/store.js';
+import {
+    getSettings,
+    getStoredRepositories,
+    setStoredRepositories,
+    type StoredRepository,
+} from '@server/libs/settings/store.js';
 import { randomUUID } from 'node:crypto';
-import { access, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import { access, readFile, readdir, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export type Repository = {
-    id: string;
-    name: string;
-    path: string;
-};
+export type Repository = StoredRepository;
 
 export type AvailableRepository = {
     name: string;
@@ -16,21 +17,9 @@ export type AvailableRepository = {
 };
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
-const dataDir = path.join(packageRoot, 'data');
-const dataFile = path.join(dataDir, 'repositories.json');
+const legacyDataFile = path.join(packageRoot, 'data', 'repositories.json');
 
-async function ensureDataFile(): Promise<void> {
-    await mkdir(dataDir, { recursive: true });
-    try {
-        await readFile(dataFile, 'utf8');
-    } catch (err: unknown) {
-        if (err && typeof err === 'object' && 'code' in err && err.code === 'ENOENT') {
-            await writeFile(dataFile, '[]\n', 'utf8');
-            return;
-        }
-        throw err;
-    }
-}
+let legacyMigrated = false;
 
 function isRepository(value: unknown): value is Repository {
     return (
@@ -42,19 +31,49 @@ function isRepository(value: unknown): value is Repository {
     );
 }
 
-async function readAll(): Promise<Repository[]> {
-    await ensureDataFile();
-    const raw = await readFile(dataFile, 'utf8');
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) {
-        return [];
+/** One-time migration from the old standalone repositories.json into settings. */
+async function migrateLegacyRepositories(): Promise<void> {
+    if (legacyMigrated) {
+        return;
     }
-    return parsed.filter(isRepository);
+    legacyMigrated = true;
+
+    let raw: string;
+    try {
+        raw = await readFile(legacyDataFile, 'utf8');
+    } catch (err: unknown) {
+        if (err && typeof err === 'object' && 'code' in err && err.code === 'ENOENT') {
+            return;
+        }
+        throw err;
+    }
+
+    let parsed: unknown;
+    try {
+        parsed = JSON.parse(raw);
+    } catch {
+        await unlink(legacyDataFile).catch(() => undefined);
+        return;
+    }
+
+    const legacy = Array.isArray(parsed) ? parsed.filter(isRepository) : [];
+    if (legacy.length > 0) {
+        const current = await getStoredRepositories();
+        if (current.length === 0) {
+            await setStoredRepositories(legacy);
+        }
+    }
+
+    await unlink(legacyDataFile).catch(() => undefined);
+}
+
+async function readAll(): Promise<Repository[]> {
+    await migrateLegacyRepositories();
+    return getStoredRepositories();
 }
 
 async function writeAll(repositories: Repository[]): Promise<void> {
-    await ensureDataFile();
-    await writeFile(dataFile, `${JSON.stringify(repositories, null, 2)}\n`, 'utf8');
+    await setStoredRepositories(repositories);
 }
 
 async function isGitRepository(dirPath: string): Promise<boolean> {

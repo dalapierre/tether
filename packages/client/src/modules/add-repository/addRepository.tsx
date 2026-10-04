@@ -1,5 +1,6 @@
 import { Button } from '@client/components/button';
 import { IconButton } from '@client/components/icon-button';
+import { PageHeader } from '@client/components/page-header';
 import { ApiError } from '@client/libs/api/client';
 import { addRepository, listAvailableRepositories, type AvailableRepository } from '@client/libs/api/repositories';
 import { useEffect, useState } from 'react';
@@ -82,12 +83,14 @@ export function AddRepository({ onClose, onAdded }: AddRepositoryProps) {
 
     return (
         <div className={styles.root} role='dialog' aria-modal='true' aria-label='Add repository'>
-            <header className={styles.header}>
-                <h1 className={styles.title}>{step === 'select' ? 'Add repository' : 'Confirm'}</h1>
-                <IconButton label='Close' onClick={handleClose} disabled={submitting}>
-                    ×
-                </IconButton>
-            </header>
+            <PageHeader
+                crumbs={[{ label: 'projects', onClick: handleClose }, { label: step === 'select' ? 'add' : 'confirm' }]}
+                actions={
+                    <IconButton label='Close' onClick={handleClose} disabled={submitting}>
+                        ×
+                    </IconButton>
+                }
+            />
 
             {step === 'select' ? (
                 <>

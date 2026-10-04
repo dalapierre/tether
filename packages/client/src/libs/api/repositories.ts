@@ -35,6 +35,11 @@ export async function listRepositories(): Promise<Repository[]> {
     return data.repositories;
 }
 
+export async function getRepository(id: string): Promise<Repository | null> {
+    const repositories = await listRepositories();
+    return repositories.find((repository) => repository.id === id) ?? null;
+}
+
 export async function listAvailableRepositories(): Promise<AvailableRepository[]> {
     const res = await apiFetch('/api/repositories/available');
 

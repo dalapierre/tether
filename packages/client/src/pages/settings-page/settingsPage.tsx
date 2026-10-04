@@ -1,4 +1,5 @@
 import { Button } from '@client/components/button';
+import { PageHeader } from '@client/components/page-header';
 import { ApiError } from '@client/libs/api/client';
 import { getSettings, updateSettings } from '@client/libs/api/settings';
 import { clearAccessToken } from '@client/libs/auth/session';
@@ -68,38 +69,40 @@ export function SettingsPage() {
 
     return (
         <main className={styles.main}>
-            <h1 className={styles.title}>Settings</h1>
-            <p className={styles.body}>Configure where Tether looks for repositories on this machine.</p>
+            <PageHeader crumbs={[{ label: 'settings' }]} />
+            <div className={styles.body}>
+                <p className={styles.intro}>Configure where Tether looks for repositories on this machine.</p>
 
-            {loading ? <p className={styles.loading}>Loading settings…</p> : null}
+                {loading ? <p className={styles.loading}>Loading settings…</p> : null}
 
-            {!loading ? (
-                <form className={styles.form} onSubmit={onSave}>
-                    <label className={styles.label}>
-                        Development directory
-                        <input
-                            className={styles.input}
-                            type='text'
-                            value={devDir}
-                            onChange={(event) => setDevDir(event.target.value)}
-                            placeholder='/home/you/dev'
-                            autoComplete='off'
-                            spellCheck={false}
-                        />
-                    </label>
-                    <p className={styles.hint}>Absolute path to the folder that contains your git repositories.</p>
-                    {error ? <p className={styles.error}>{error}</p> : null}
-                    {savedMessage ? <p className={styles.success}>{savedMessage}</p> : null}
-                    <Button type='submit' disabled={saving}>
-                        {saving ? 'Saving…' : 'Save'}
+                {!loading ? (
+                    <form className={styles.form} onSubmit={onSave}>
+                        <label className={styles.label}>
+                            Development directory
+                            <input
+                                className={styles.input}
+                                type='text'
+                                value={devDir}
+                                onChange={(event) => setDevDir(event.target.value)}
+                                placeholder='/home/you/dev'
+                                autoComplete='off'
+                                spellCheck={false}
+                            />
+                        </label>
+                        <p className={styles.hint}>Absolute path to the folder that contains your git repositories.</p>
+                        {error ? <p className={styles.error}>{error}</p> : null}
+                        {savedMessage ? <p className={styles.success}>{savedMessage}</p> : null}
+                        <Button type='submit' disabled={saving}>
+                            {saving ? 'Saving…' : 'Save'}
+                        </Button>
+                    </form>
+                ) : null}
+
+                <div className={styles.actions}>
+                    <Button type='button' variant='secondary' onClick={onSignOut}>
+                        Sign out
                     </Button>
-                </form>
-            ) : null}
-
-            <div className={styles.actions}>
-                <Button type='button' variant='secondary' onClick={onSignOut}>
-                    Sign out
-                </Button>
+                </div>
             </div>
         </main>
     );

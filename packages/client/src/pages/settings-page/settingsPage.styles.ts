@@ -1,7 +1,7 @@
 export const styles = {
-    main: 'flex flex-1 flex-col px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6 text-zinc-100',
-    title: 'text-xl font-semibold tracking-tight',
-    body: 'mt-3 text-sm text-zinc-500',
+    main: 'flex flex-1 flex-col text-zinc-100',
+    body: 'flex flex-1 flex-col px-4 pb-6',
+    intro: 'mt-3 text-sm text-zinc-500',
     loading: 'mt-8 text-sm text-zinc-500',
     form: 'mt-8 flex flex-col gap-3',
     label: 'block text-sm text-zinc-400',

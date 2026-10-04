@@ -1,5 +1,6 @@
 import { Card } from '@client/components/card';
 import { IconButton } from '@client/components/icon-button';
+import { PageHeader } from '@client/components/page-header';
 import { listRepositories, type Repository } from '@client/libs/api/repositories';
 import { AddRepository } from '@client/modules/add-repository';
 import { useEffect, useState } from 'react';
@@ -50,12 +51,14 @@ export function ProjectList() {
 
     return (
         <div className={styles.root}>
-            <header className={styles.header}>
-                <h1 className={styles.title}>Projects</h1>
-                <IconButton label='Add repository' onClick={() => setAdding(true)}>
-                    +
-                </IconButton>
-            </header>
+            <PageHeader
+                crumbs={[{ label: 'projects' }]}
+                actions={
+                    <IconButton label='Add repository' onClick={() => setAdding(true)}>
+                        +
+                    </IconButton>
+                }
+            />
             <div className={styles.content}>
                 {loading ? <p className={styles.loading}>Loading projects…</p> : null}
                 {!loading && error ? <p className={styles.error}>{error}</p> : null}
