@@ -1,5 +1,5 @@
-import { ProjectList } from '@client/modules/project-list';
+import { SessionList } from '@client/modules/session-list';
 
 export function HomePage() {
-    return <ProjectList />;
+    return <SessionList />;
 }

@@ -8,6 +8,13 @@ export const styles = {
     input: 'mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-zinc-100 outline-none focus:border-zinc-500',
     select: 'mt-1 w-full appearance-none rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-zinc-100 outline-none focus:border-zinc-500',
     hint: 'text-xs text-zinc-500',
+    projects: 'mt-1 flex flex-col gap-2',
+    projectRow: 'flex items-center justify-between gap-3 rounded-md border border-zinc-800 bg-zinc-900 px-3 py-2.5',
+    projectName: 'min-w-0 truncate text-sm text-zinc-100',
+    projectEmpty: 'text-sm text-zinc-500',
+    removeButton:
+        'shrink-0 border-0 bg-transparent p-0 text-sm text-zinc-400 underline-offset-2 hover:text-zinc-200 hover:underline disabled:opacity-50',
+    addProject: 'mt-1',
     actions: 'mt-auto pt-10 pb-6',
     footer: 'px-4 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]',
 };

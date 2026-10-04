@@ -2,12 +2,18 @@ import { defineMessages, type NoMessageValues } from 'react-intl';
 
 type Messages = {
     ariaLabel: NoMessageValues;
+    sessionsCrumb: NoMessageValues;
     crumb: NoMessageValues;
     close: NoMessageValues;
     loading: NoMessageValues;
     loadFailed: NoMessageValues;
     nameLabel: NoMessageValues;
     namePlaceholder: NoMessageValues;
+    projectLabel: NoMessageValues;
+    projectPlaceholder: NoMessageValues;
+    projectsEmpty: NoMessageValues;
+    branchLabel: NoMessageValues;
+    branchPlaceholder: NoMessageValues;
     agentLabel: NoMessageValues;
     start: NoMessageValues;
     starting: NoMessageValues;
@@ -19,6 +25,10 @@ export const messages = defineMessages<Messages>(
         ariaLabel: {
             id: 'newSession.ariaLabel',
             defaultMessage: 'New session',
+        },
+        sessionsCrumb: {
+            id: 'newSession.sessionsCrumb',
+            defaultMessage: 'sessions',
         },
         crumb: {
             id: 'newSession.crumb',
@@ -34,7 +44,7 @@ export const messages = defineMessages<Messages>(
         },
         loadFailed: {
             id: 'newSession.loadFailed',
-            defaultMessage: 'Failed to load settings',
+            defaultMessage: 'Failed to load form',
         },
         nameLabel: {
             id: 'newSession.nameLabel',
@@ -43,6 +53,26 @@ export const messages = defineMessages<Messages>(
         namePlaceholder: {
             id: 'newSession.namePlaceholder',
             defaultMessage: 'Session name',
+        },
+        projectLabel: {
+            id: 'newSession.projectLabel',
+            defaultMessage: 'Project',
+        },
+        projectPlaceholder: {
+            id: 'newSession.projectPlaceholder',
+            defaultMessage: 'Select a project',
+        },
+        projectsEmpty: {
+            id: 'newSession.projectsEmpty',
+            defaultMessage: 'No projects available. Add one in Settings.',
+        },
+        branchLabel: {
+            id: 'newSession.branchLabel',
+            defaultMessage: 'Branch',
+        },
+        branchPlaceholder: {
+            id: 'newSession.branchPlaceholder',
+            defaultMessage: 'Optional branch name',
         },
         agentLabel: {
             id: 'newSession.agentLabel',

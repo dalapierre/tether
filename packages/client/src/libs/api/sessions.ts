@@ -22,6 +22,32 @@ export type ClientTerminalMessage =
     | { type: 'input'; data: string }
     | { type: 'resize'; cols: number; rows: number };
 
+export type DiffFileStatus = 'added' | 'modified' | 'deleted' | 'renamed';
+
+export type SessionDiffFile = {
+    path: string;
+    oldPath?: string;
+    status: DiffFileStatus;
+    additions: number | null;
+    deletions: number | null;
+    binary: boolean;
+};
+
+export type SessionDiffSummary = {
+    baseSha: string;
+    files: SessionDiffFile[];
+};
+
+export type SessionFileDiff = {
+    path: string;
+    oldPath?: string;
+    status: DiffFileStatus;
+    language: string;
+    original: string;
+    modified: string;
+    binary: boolean;
+};
+
 type ListResponse = {
     sessions: Session[];
 };
@@ -30,9 +56,21 @@ type SessionResponse = {
     session: Session;
 };
 
-export async function listSessions(repositoryId: string): Promise<Session[]> {
-    const params = new URLSearchParams({ repositoryId });
-    const res = await apiFetch(`/api/sessions?${params}`);
+type DiffResponse = {
+    diff: SessionDiffSummary;
+};
+
+type FileDiffResponse = {
+    file: SessionFileDiff;
+};
+
+export async function listSessions(repositoryId?: string): Promise<Session[]> {
+    const params = new URLSearchParams();
+    if (repositoryId) {
+        params.set('repositoryId', repositoryId);
+    }
+    const query = params.toString();
+    const res = await apiFetch(query ? `/api/sessions?${query}` : '/api/sessions');
 
     if (!res.ok) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null;
@@ -59,7 +97,12 @@ export async function getSession(id: string): Promise<Session | null> {
     return data.session;
 }
 
-export async function createSession(input: { repositoryId: string; name: string; agent: AgentId }): Promise<Session> {
+export async function createSession(input: {
+    repositoryId: string;
+    name: string;
+    agent: AgentId;
+    branch?: string;
+}): Promise<Session> {
     const res = await apiFetch('/api/sessions', {
         method: 'POST',
         body: JSON.stringify(input),
@@ -83,6 +126,31 @@ export async function deleteSession(id: string): Promise<void> {
         const body = (await res.json().catch(() => null)) as { error?: string } | null;
         throw new ApiError(res.status, body?.error ?? `HTTP ${res.status}`);
     }
+}
+
+export async function getSessionDiff(sessionId: string): Promise<SessionDiffSummary> {
+    const res = await apiFetch(`/api/sessions/${encodeURIComponent(sessionId)}/diff`);
+
+    if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new ApiError(res.status, body?.error ?? `HTTP ${res.status}`);
+    }
+
+    const data = (await res.json()) as DiffResponse;
+    return data.diff;
+}
+
+export async function getSessionDiffFile(sessionId: string, filePath: string): Promise<SessionFileDiff> {
+    const params = new URLSearchParams({ path: filePath });
+    const res = await apiFetch(`/api/sessions/${encodeURIComponent(sessionId)}/diff/file?${params}`);
+
+    if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new ApiError(res.status, body?.error ?? `HTTP ${res.status}`);
+    }
+
+    const data = (await res.json()) as FileDiffResponse;
+    return data.file;
 }
 
 export function connectSessionTerminal(sessionId: string): WebSocket {

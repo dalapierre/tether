@@ -66,3 +66,14 @@ export async function addRepository(repoPath: string): Promise<Repository> {
     const data = (await res.json()) as AddResponse;
     return data.repository;
 }
+
+export async function deleteRepository(id: string): Promise<void> {
+    const res = await apiFetch(`/api/repositories/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+    });
+
+    if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new ApiError(res.status, body?.error ?? `HTTP ${res.status}`);
+    }
+}

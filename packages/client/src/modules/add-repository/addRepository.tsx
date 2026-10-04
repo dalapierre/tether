@@ -3,7 +3,6 @@ import { IconButton } from '@client/components/icon-button';
 import { PageHeader } from '@client/components/page-header';
 import { ApiError } from '@client/libs/api/client';
 import { addRepository, listAvailableRepositories, type AvailableRepository } from '@client/libs/api/repositories';
-import { useSettings } from '@client/modules/settings';
 import { showToast } from '@client/modules/toast';
 import { useEffect, useState } from 'react';
 import { useIntl } from 'react-intl';
@@ -15,7 +14,6 @@ type Step = 'select' | 'confirm';
 
 export function AddRepository({ onClose, onAdded }: AddRepositoryProps) {
     const intl = useIntl();
-    const { openSettings } = useSettings();
     const [step, setStep] = useState<Step>('select');
     const [available, setAvailable] = useState<AvailableRepository[]>([]);
     const [loading, setLoading] = useState(true);
@@ -96,7 +94,7 @@ export function AddRepository({ onClose, onAdded }: AddRepositoryProps) {
         >
             <PageHeader
                 crumbs={[
-                    { label: intl.formatMessage(messages.projectsCrumb), onClick: handleClose },
+                    { label: intl.formatMessage(messages.settingsCrumb), onClick: handleClose },
                     {
                         label: intl.formatMessage(step === 'select' ? messages.addCrumb : messages.confirmCrumb),
                     },
@@ -117,7 +115,7 @@ export function AddRepository({ onClose, onAdded }: AddRepositoryProps) {
                             <p className={styles.empty}>
                                 {intl.formatMessage(messages.empty, {
                                     settingsLink: (chunks) => (
-                                        <button type='button' className={styles.link} onClick={openSettings}>
+                                        <button type='button' className={styles.link} onClick={handleClose}>
                                             {chunks}
                                         </button>
                                     ),

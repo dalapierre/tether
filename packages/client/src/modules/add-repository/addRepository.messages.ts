@@ -2,7 +2,7 @@ import { defineMessages, type MessageTag, type NoMessageValues } from 'react-int
 
 type Messages = {
     ariaLabel: NoMessageValues;
-    projectsCrumb: NoMessageValues;
+    settingsCrumb: NoMessageValues;
     addCrumb: NoMessageValues;
     confirmCrumb: NoMessageValues;
     close: NoMessageValues;
@@ -23,9 +23,9 @@ export const messages = defineMessages<Messages>(
             id: 'addRepository.ariaLabel',
             defaultMessage: 'Add repository',
         },
-        projectsCrumb: {
-            id: 'addRepository.projectsCrumb',
-            defaultMessage: 'projects',
+        settingsCrumb: {
+            id: 'addRepository.settingsCrumb',
+            defaultMessage: 'settings',
         },
         addCrumb: {
             id: 'addRepository.addCrumb',
@@ -54,7 +54,7 @@ export const messages = defineMessages<Messages>(
         empty: {
             id: 'addRepository.empty',
             defaultMessage:
-                'No new repositories found. Set a development directory in <settingsLink>Settings</settingsLink>.',
+                'No new repositories found. Set a development directory in <settingsLink>settings</settingsLink> first.',
         },
         next: {
             id: 'addRepository.next',

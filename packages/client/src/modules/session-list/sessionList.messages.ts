@@ -1,15 +1,12 @@
 import { defineMessages, type NoMessageValues } from 'react-intl';
 
 type Messages = {
-    projectsCrumb: NoMessageValues;
-    loadingCrumb: NoMessageValues;
-    notFound: NoMessageValues;
-    loadFailed: NoMessageValues;
+    sessionsCrumb: NoMessageValues;
     noSessions: NoMessageValues;
     loadingSessions: NoMessageValues;
     sessionsLoadFailed: NoMessageValues;
     newSession: NoMessageValues;
-    sessionMeta: { harness: string; branch: string };
+    sessionMeta: { project: string; harness: string; branch: string };
     deleteSession: NoMessageValues;
     deleteConfirm: { name: string };
     deleteConfirmContinue: NoMessageValues;
@@ -19,60 +16,48 @@ type Messages = {
 
 export const messages = defineMessages<Messages>(
     {
-        projectsCrumb: {
-            id: 'projectPage.projectsCrumb',
-            defaultMessage: 'projects',
-        },
-        loadingCrumb: {
-            id: 'projectPage.loadingCrumb',
-            defaultMessage: '…',
-        },
-        notFound: {
-            id: 'projectPage.notFound',
-            defaultMessage: 'Project not found',
-        },
-        loadFailed: {
-            id: 'projectPage.loadFailed',
-            defaultMessage: 'Failed to load project',
+        sessionsCrumb: {
+            id: 'sessionList.sessionsCrumb',
+            defaultMessage: 'sessions',
         },
         noSessions: {
-            id: 'projectPage.noSessions',
+            id: 'sessionList.noSessions',
             defaultMessage: 'No sessions',
         },
         loadingSessions: {
-            id: 'projectPage.loadingSessions',
+            id: 'sessionList.loadingSessions',
             defaultMessage: 'Loading sessions…',
         },
         sessionsLoadFailed: {
-            id: 'projectPage.sessionsLoadFailed',
+            id: 'sessionList.sessionsLoadFailed',
             defaultMessage: 'Failed to load sessions',
         },
         newSession: {
-            id: 'projectPage.newSession',
+            id: 'sessionList.newSession',
             defaultMessage: 'New session',
         },
         sessionMeta: {
-            id: 'projectPage.sessionMeta',
-            defaultMessage: '{harness} · {branch}',
+            id: 'sessionList.sessionMeta',
+            defaultMessage: '{project} · {harness} · {branch}',
         },
         deleteSession: {
-            id: 'projectPage.deleteSession',
+            id: 'sessionList.deleteSession',
             defaultMessage: 'Delete',
         },
         deleteConfirm: {
-            id: 'projectPage.deleteConfirm',
+            id: 'sessionList.deleteConfirm',
             defaultMessage: 'Are you sure you want to delete {name}?',
         },
         deleteConfirmContinue: {
-            id: 'projectPage.deleteConfirmContinue',
+            id: 'sessionList.deleteConfirmContinue',
             defaultMessage: 'Continue',
         },
         deleteConfirmCancel: {
-            id: 'projectPage.deleteConfirmCancel',
+            id: 'sessionList.deleteConfirmCancel',
             defaultMessage: 'Cancel',
         },
         deleteFailed: {
-            id: 'projectPage.deleteFailed',
+            id: 'sessionList.deleteFailed',
             defaultMessage: 'Failed to delete session',
         },
     },

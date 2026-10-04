@@ -1,10 +1,13 @@
 import { Button } from '@client/components/button';
+import { ConfirmDialog } from '@client/components/confirm-dialog';
 import { IconButton } from '@client/components/icon-button';
 import { PageHeader } from '@client/components/page-header';
 import { AGENTS, isAgentId, type AgentId } from '@client/libs/agents/agents';
 import { ApiError } from '@client/libs/api/client';
+import { deleteRepository, listRepositories, type Repository } from '@client/libs/api/repositories';
 import { getSettings, updateSettings } from '@client/libs/api/settings';
 import { clearAccessToken } from '@client/libs/auth/session';
+import { AddRepository } from '@client/modules/add-repository';
 import { showToast } from '@client/modules/toast';
 import { useEffect, useState } from 'react';
 import { useIntl } from 'react-intl';
@@ -18,18 +21,22 @@ export function Settings({ onClose }: SettingsProps) {
     const navigate = useNavigate();
     const [devDir, setDevDir] = useState('');
     const [agent, setAgent] = useState<AgentId>('cursor');
+    const [repositories, setRepositories] = useState<Repository[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [adding, setAdding] = useState(false);
+    const [pendingRemove, setPendingRemove] = useState<Repository | null>(null);
+    const [removingId, setRemovingId] = useState<string | null>(null);
 
     useEffect(() => {
         let cancelled = false;
 
-        getSettings()
-            .then((settings) => {
-                if (!cancelled) {
-                    setDevDir(settings.devDir);
-                    setAgent(isAgentId(settings.agent) ? settings.agent : 'cursor');
-                }
+        Promise.all([getSettings(), listRepositories()])
+            .then(([settings, items]) => {
+                if (cancelled) return;
+                setDevDir(settings.devDir);
+                setAgent(isAgentId(settings.agent) ? settings.agent : 'cursor');
+                setRepositories(items);
             })
             .catch((err: unknown) => {
                 if (!cancelled) {
@@ -80,6 +87,37 @@ export function Settings({ onClose }: SettingsProps) {
         navigate('/login', { replace: true });
     }
 
+    function handleAdded(repository: Repository) {
+        setRepositories((current) => [...current, repository].sort((a, b) => a.name.localeCompare(b.name)));
+        setAdding(false);
+        showToast('repository-added', repository.name);
+    }
+
+    async function confirmRemove() {
+        const repository = pendingRemove;
+        if (!repository || removingId) return;
+
+        setRemovingId(repository.id);
+        setPendingRemove(null);
+        setRepositories((current) => current.filter((item) => item.id !== repository.id));
+
+        try {
+            await deleteRepository(repository.id);
+        } catch (err: unknown) {
+            setRepositories((current) => [...current, repository].sort((a, b) => a.name.localeCompare(b.name)));
+            showToast(
+                'generic-error',
+                err instanceof Error ? err.message : intl.formatMessage(messages.removeProjectFailed),
+            );
+        } finally {
+            setRemovingId(null);
+        }
+    }
+
+    if (adding) {
+        return <AddRepository onClose={() => setAdding(false)} onAdded={handleAdded} />;
+    }
+
     return (
         <div
             className={styles.root}
@@ -118,6 +156,36 @@ export function Settings({ onClose }: SettingsProps) {
                             </label>
                             <p className={styles.hint}>{intl.formatMessage(messages.devDirHint)}</p>
 
+                            <div>
+                                <p className={styles.label}>{intl.formatMessage(messages.projectsLabel)}</p>
+                                <div className={styles.projects}>
+                                    {repositories.length === 0 ? (
+                                        <p className={styles.projectEmpty}>
+                                            {intl.formatMessage(messages.projectsEmpty)}
+                                        </p>
+                                    ) : (
+                                        repositories.map((repository) => (
+                                            <div key={repository.id} className={styles.projectRow}>
+                                                <span className={styles.projectName}>{repository.name}</span>
+                                                <button
+                                                    type='button'
+                                                    className={styles.removeButton}
+                                                    disabled={removingId === repository.id}
+                                                    onClick={() => setPendingRemove(repository)}
+                                                >
+                                                    {intl.formatMessage(messages.removeProject)}
+                                                </button>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                                <div className={styles.addProject}>
+                                    <Button type='button' variant='secondary' onClick={() => setAdding(true)}>
+                                        {intl.formatMessage(messages.addProject)}
+                                    </Button>
+                                </div>
+                            </div>
+
                             <label className={styles.label}>
                                 {intl.formatMessage(messages.agentLabel)}
                                 <select
@@ -153,6 +221,18 @@ export function Settings({ onClose }: SettingsProps) {
                         {saving ? intl.formatMessage(messages.saving) : intl.formatMessage(messages.save)}
                     </Button>
                 </div>
+            ) : null}
+            {pendingRemove ? (
+                <ConfirmDialog
+                    message={intl.formatMessage(messages.removeProjectConfirm, { name: pendingRemove.name })}
+                    cancelLabel={intl.formatMessage(messages.removeProjectConfirmCancel)}
+                    confirmLabel={intl.formatMessage(messages.removeProjectConfirmContinue)}
+                    busy={removingId === pendingRemove.id}
+                    onCancel={() => setPendingRemove(null)}
+                    onConfirm={() => {
+                        void confirmRemove();
+                    }}
+                />
             ) : null}
         </div>
     );

@@ -1,5 +1,5 @@
-import { IconButton } from '@client/components/icon-button';
 import { PageHeader } from '@client/components/page-header';
+import { SegmentedControl } from '@client/components/segmented-control';
 import { AGENTS, type AgentId } from '@client/libs/agents/agents';
 import {
     connectSessionTerminal,
@@ -9,17 +9,24 @@ import {
     type Session,
     type SessionStatus,
 } from '@client/libs/api/sessions';
+import { attachTouchScroll } from '@client/libs/terminal/touchScroll';
 import { showToast } from '@client/modules/toast';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { messages } from './sessionView.messages';
 import { styles } from './sessionView.styles';
 import type { SessionViewProps } from './sessionView.types';
 
+const SessionCodeView = lazy(async () => {
+    const mod = await import('@client/modules/session-code-view');
+    return { default: mod.SessionCodeView };
+});
+
 type ConnectionState = 'connecting' | 'connected' | 'disconnected';
+type SessionTab = 'agent' | 'review';
 
 function harnessLabel(agent: AgentId, formatMessage: ReturnType<typeof useIntl>['formatMessage']): string {
     const match = AGENTS.find((item) => item.id === agent);
@@ -48,30 +55,6 @@ function statusDotClass(status: SessionStatus): string {
     }
 }
 
-function KeyboardIcon() {
-    return (
-        <svg
-            className={styles.keyboardIcon}
-            viewBox='0 0 24 24'
-            fill='none'
-            stroke='currentColor'
-            strokeWidth='1.75'
-            aria-hidden='true'
-        >
-            <path
-                strokeLinecap='round'
-                strokeLinejoin='round'
-                d='M4 6.75A1.75 1.75 0 0 1 5.75 5h12.5A1.75 1.75 0 0 1 20 6.75v10.5A1.75 1.75 0 0 1 18.25 19H5.75A1.75 1.75 0 0 1 4 17.25V6.75Z'
-            />
-            <path
-                strokeLinecap='round'
-                strokeLinejoin='round'
-                d='M8 9h.01M12 9h.01M16 9h.01M8 12h.01M12 12h.01M16 12h.01M9.5 15.5h5'
-            />
-        </svg>
-    );
-}
-
 function prepareMobileTextarea(term: Terminal): void {
     const textarea = term.textarea;
     if (!textarea) return;
@@ -83,6 +66,11 @@ function prepareMobileTextarea(term: Terminal): void {
     textarea.setAttribute('spellcheck', 'false');
 }
 
+function isScrolledToBottom(term: Terminal): boolean {
+    const buffer = term.buffer.active;
+    return buffer.viewportY >= buffer.baseY;
+}
+
 export function SessionView({ projectSlug, projectName, sessionId }: SessionViewProps) {
     const intl = useIntl();
     const [session, setSession] = useState<Session | null>(null);
@@ -90,9 +78,11 @@ export function SessionView({ projectSlug, projectName, sessionId }: SessionView
     const [failed, setFailed] = useState(false);
     const [status, setStatus] = useState<SessionStatus>('busy');
     const [connection, setConnection] = useState<ConnectionState>('connecting');
+    const [tab, setTab] = useState<SessionTab>('agent');
     const terminalRef = useRef<HTMLDivElement | null>(null);
     const socketRef = useRef<WebSocket | null>(null);
     const termRef = useRef<Terminal | null>(null);
+    const fitAddonRef = useRef<FitAddon | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -140,6 +130,7 @@ export function SessionView({ projectSlug, projectName, sessionId }: SessionView
             disableStdin: false,
             cursorBlink: true,
             fontSize: 13,
+            scrollback: 10000,
             theme: {
                 background: '#000000',
                 foreground: '#e4e4e7',
@@ -151,6 +142,7 @@ export function SessionView({ projectSlug, projectName, sessionId }: SessionView
         fitAddon.fit();
         prepareMobileTextarea(term);
         termRef.current = term;
+        fitAddonRef.current = fitAddon;
 
         let socket: WebSocket;
         try {
@@ -167,6 +159,8 @@ export function SessionView({ projectSlug, projectName, sessionId }: SessionView
 
         const sendInput = (data: string) => {
             if (socket.readyState !== WebSocket.OPEN) return;
+            // Keep the prompt/response in view after the user types.
+            term.scrollToBottom();
             sendTerminalMessage(socket, { type: 'input', data });
         };
 
@@ -203,7 +197,12 @@ export function SessionView({ projectSlug, projectName, sessionId }: SessionView
             }
 
             if (parsed.type === 'history' || parsed.type === 'output') {
-                term.write(parsed.data);
+                const stickToBottom = parsed.type === 'history' || isScrolledToBottom(term);
+                term.write(parsed.data, () => {
+                    if (stickToBottom) {
+                        term.scrollToBottom();
+                    }
+                });
                 return;
             }
 
@@ -217,34 +216,53 @@ export function SessionView({ projectSlug, projectName, sessionId }: SessionView
         visualViewport?.addEventListener('resize', onResize);
         const observer = new ResizeObserver(onResize);
         observer.observe(terminalRef.current);
+        const detachTouchScroll = attachTouchScroll(terminalRef.current, term);
 
         return () => {
             window.removeEventListener('resize', onResize);
             visualViewport?.removeEventListener('resize', onResize);
             observer.disconnect();
+            detachTouchScroll();
             dataDisposable.dispose();
             socket.close();
             socketRef.current = null;
             term.dispose();
             termRef.current = null;
+            fitAddonRef.current = null;
             setConnection('disconnected');
         };
     }, [loading, failed, session, intl]);
 
-    function openKeyboard() {
-        termRef.current?.focus();
-    }
+    useEffect(() => {
+        if (tab !== 'agent') return;
+        const fitAddon = fitAddonRef.current;
+        const term = termRef.current;
+        const socket = socketRef.current;
+        if (!fitAddon || !term) return;
 
-    const connected = connection === 'connected';
-    const inputDisabled = !connected || status === 'error';
+        requestAnimationFrame(() => {
+            try {
+                fitAddon.fit();
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    sendTerminalMessage(socket, {
+                        type: 'resize',
+                        cols: term.cols,
+                        rows: term.rows,
+                    });
+                }
+            } catch {
+                // ignore fit errors while unmounted/hidden
+            }
+        });
+    }, [tab]);
 
     if (loading) {
         return (
             <div className={styles.root}>
                 <PageHeader
                     crumbs={[
-                        { label: intl.formatMessage(messages.projectsCrumb), to: '/' },
-                        { label: projectName, to: `/projects/${projectSlug}` },
+                        { label: intl.formatMessage(messages.sessionsCrumb), to: '/' },
+                        { label: projectName },
                         { label: intl.formatMessage(messages.loadingCrumb) },
                     ]}
                     showSettings={false}
@@ -259,8 +277,8 @@ export function SessionView({ projectSlug, projectName, sessionId }: SessionView
             <div className={styles.root}>
                 <PageHeader
                     crumbs={[
-                        { label: intl.formatMessage(messages.projectsCrumb), to: '/' },
-                        { label: projectName, to: `/projects/${projectSlug}` },
+                        { label: intl.formatMessage(messages.sessionsCrumb), to: '/' },
+                        { label: projectName },
                         { label: intl.formatMessage(messages.notFound) },
                     ]}
                     showSettings={false}
@@ -281,12 +299,23 @@ export function SessionView({ projectSlug, projectName, sessionId }: SessionView
         <div className={styles.root}>
             <PageHeader
                 crumbs={[
-                    { label: intl.formatMessage(messages.projectsCrumb), to: '/' },
-                    { label: projectName, to: `/projects/${projectSlug}` },
+                    { label: intl.formatMessage(messages.sessionsCrumb), to: '/' },
+                    { label: projectName },
                     { label: session.name },
                 ]}
                 showSettings={false}
             />
+            <div className={styles.tabs}>
+                <SegmentedControl
+                    ariaLabel={intl.formatMessage(messages.viewTabs)}
+                    value={tab}
+                    onChange={setTab}
+                    options={[
+                        { value: 'agent', label: intl.formatMessage(messages.agentView) },
+                        { value: 'review', label: intl.formatMessage(messages.reviewView) },
+                    ]}
+                />
+            </div>
             <div className={styles.meta}>
                 <p className={styles.metaText}>
                     {intl.formatMessage(messages.meta, {
@@ -300,18 +329,16 @@ export function SessionView({ projectSlug, projectName, sessionId }: SessionView
                     {statusLabel(status, intl.formatMessage)}
                 </span>
             </div>
-            <div className={styles.terminalWrap}>
+            <div className={tab === 'agent' ? styles.terminalWrap : styles.terminalHidden}>
                 <div ref={terminalRef} className={styles.terminal} />
             </div>
-            <div className={styles.keyboardBar}>
-                <IconButton
-                    label={intl.formatMessage(messages.openKeyboard)}
-                    onClick={openKeyboard}
-                    disabled={inputDisabled}
-                >
-                    <KeyboardIcon />
-                </IconButton>
-            </div>
+            {tab === 'review' ? (
+                <div className={styles.reviewPane}>
+                    <Suspense fallback={<p className={styles.centered}>{intl.formatMessage(messages.loading)}</p>}>
+                        <SessionCodeView sessionId={session.id} />
+                    </Suspense>
+                </div>
+            ) : null}
         </div>
     );
 }

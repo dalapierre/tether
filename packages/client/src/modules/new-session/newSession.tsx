@@ -2,6 +2,7 @@ import { Button } from '@client/components/button';
 import { IconButton } from '@client/components/icon-button';
 import { PageHeader } from '@client/components/page-header';
 import { AGENTS, isAgentId, type AgentId } from '@client/libs/agents/agents';
+import { listRepositories, type Repository } from '@client/libs/api/repositories';
 import { createSession } from '@client/libs/api/sessions';
 import { getSettings } from '@client/libs/api/settings';
 import { showToast } from '@client/modules/toast';
@@ -11,20 +12,27 @@ import { messages } from './newSession.messages';
 import { styles } from './newSession.styles';
 import type { NewSessionProps } from './newSession.types';
 
-export function NewSession({ projectName, repositoryId, onClose, onStarted }: NewSessionProps) {
+export function NewSession({ onClose, onStarted }: NewSessionProps) {
     const intl = useIntl();
     const [name, setName] = useState('');
+    const [repositoryId, setRepositoryId] = useState('');
+    const [branch, setBranch] = useState('');
     const [agent, setAgent] = useState<AgentId>('cursor');
+    const [repositories, setRepositories] = useState<Repository[]>([]);
     const [loading, setLoading] = useState(true);
     const [starting, setStarting] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
 
-        getSettings()
-            .then((settings) => {
+        Promise.all([getSettings(), listRepositories()])
+            .then(([settings, items]) => {
                 if (cancelled) return;
                 setAgent(isAgentId(settings.agent) ? settings.agent : 'cursor');
+                setRepositories(items);
+                if (items.length === 1) {
+                    setRepositoryId(items[0].id);
+                }
             })
             .catch((err: unknown) => {
                 if (!cancelled) {
@@ -47,14 +55,16 @@ export function NewSession({ projectName, repositoryId, onClose, onStarted }: Ne
 
     async function handleStart() {
         const trimmedName = name.trim();
-        if (!trimmedName || !agent || starting) return;
+        if (!trimmedName || !repositoryId || !agent || starting) return;
 
         setStarting(true);
         try {
+            const trimmedBranch = branch.trim();
             const session = await createSession({
                 repositoryId,
                 name: trimmedName,
                 agent,
+                ...(trimmedBranch ? { branch: trimmedBranch } : {}),
             });
             onStarted(session);
         } catch (err: unknown) {
@@ -63,7 +73,7 @@ export function NewSession({ projectName, repositoryId, onClose, onStarted }: Ne
         }
     }
 
-    const canStart = !loading && !starting && name.trim().length > 0 && Boolean(agent);
+    const canStart = !loading && !starting && name.trim().length > 0 && Boolean(repositoryId) && Boolean(agent);
 
     return (
         <div
@@ -73,7 +83,10 @@ export function NewSession({ projectName, repositoryId, onClose, onStarted }: Ne
             aria-label={intl.formatMessage(messages.ariaLabel)}
         >
             <PageHeader
-                crumbs={[{ label: projectName, onClick: onClose }, { label: intl.formatMessage(messages.crumb) }]}
+                crumbs={[
+                    { label: intl.formatMessage(messages.sessionsCrumb), onClick: onClose },
+                    { label: intl.formatMessage(messages.crumb) },
+                ]}
                 showSettings={false}
                 actions={
                     <IconButton label={intl.formatMessage(messages.close)} onClick={onClose} disabled={starting}>
@@ -103,6 +116,43 @@ export function NewSession({ projectName, repositoryId, onClose, onStarted }: Ne
                                 autoComplete='off'
                                 spellCheck={false}
                                 autoFocus
+                                disabled={starting}
+                            />
+                        </label>
+
+                        <label className={styles.label}>
+                            {intl.formatMessage(messages.projectLabel)}
+                            <select
+                                className={styles.select}
+                                value={repositoryId}
+                                disabled={starting || repositories.length === 0}
+                                onChange={(event) => setRepositoryId(event.target.value)}
+                            >
+                                <option value='' disabled>
+                                    {intl.formatMessage(
+                                        repositories.length === 0
+                                            ? messages.projectsEmpty
+                                            : messages.projectPlaceholder,
+                                    )}
+                                </option>
+                                {repositories.map((repository) => (
+                                    <option key={repository.id} value={repository.id}>
+                                        {repository.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+
+                        <label className={styles.label}>
+                            {intl.formatMessage(messages.branchLabel)}
+                            <input
+                                className={styles.input}
+                                type='text'
+                                value={branch}
+                                onChange={(event) => setBranch(event.target.value)}
+                                placeholder={intl.formatMessage(messages.branchPlaceholder)}
+                                autoComplete='off'
+                                spellCheck={false}
                                 disabled={starting}
                             />
                         </label>

@@ -4,15 +4,15 @@ import { ConfirmDialog } from '@client/components/confirm-dialog';
 import { PageHeader } from '@client/components/page-header';
 import { SwipeToDelete } from '@client/components/swipe-to-delete';
 import { AGENTS, type AgentId } from '@client/libs/agents/agents';
-import { getRepository } from '@client/libs/api/repositories';
+import { listRepositories, type Repository } from '@client/libs/api/repositories';
 import { deleteSession, listSessions, type Session } from '@client/libs/api/sessions';
 import { NewSession } from '@client/modules/new-session';
 import { showToast } from '@client/modules/toast';
 import { useEffect, useState } from 'react';
 import { useIntl } from 'react-intl';
-import { useNavigate, useParams } from 'react-router-dom';
-import { messages } from './projectPage.messages';
-import { styles } from './projectPage.styles';
+import { useNavigate } from 'react-router-dom';
+import { messages } from './sessionList.messages';
+import { styles } from './sessionList.styles';
 
 const POLL_MS = 2000;
 
@@ -21,13 +21,11 @@ function harnessLabel(agent: AgentId, formatMessage: ReturnType<typeof useIntl>[
     return match ? formatMessage(match.labelMessage) : agent;
 }
 
-export function ProjectPage() {
+export function SessionList() {
     const intl = useIntl();
     const navigate = useNavigate();
-    const { slug } = useParams<{ slug: string }>();
-    const [name, setName] = useState<string | null>(null);
-    const [failed, setFailed] = useState(false);
     const [creating, setCreating] = useState(false);
+    const [repositories, setRepositories] = useState<Repository[]>([]);
     const [sessions, setSessions] = useState<Session[]>([]);
     const [sessionsLoading, setSessionsLoading] = useState(true);
     const [revealedId, setRevealedId] = useState<string | null>(null);
@@ -35,56 +33,30 @@ export function ProjectPage() {
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!slug) {
-            setName(null);
-            setFailed(true);
-            showToast('generic-error', intl.formatMessage(messages.notFound));
-            return;
-        }
-
         let cancelled = false;
 
-        getRepository(slug)
-            .then((repository) => {
-                if (cancelled) return;
-                if (!repository) {
-                    setName(null);
-                    setFailed(true);
-                    showToast('generic-error', intl.formatMessage(messages.notFound));
-                    return;
-                }
-                setName(repository.name);
-                setFailed(false);
-            })
-            .catch((err: unknown) => {
+        listRepositories()
+            .then((items) => {
                 if (!cancelled) {
-                    setName(null);
-                    setFailed(true);
-                    showToast(
-                        'generic-error',
-                        err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed),
-                    );
+                    setRepositories(items);
                 }
+            })
+            .catch(() => {
+                // Project names are optional display; session list still works.
             });
 
         return () => {
             cancelled = true;
         };
-    }, [slug, intl]);
+    }, []);
 
     useEffect(() => {
-        if (!slug || failed) {
-            setSessions([]);
-            setSessionsLoading(false);
-            return;
-        }
-
         let cancelled = false;
         let timer: ReturnType<typeof setTimeout> | undefined;
 
         async function refresh(initial: boolean) {
             try {
-                const items = await listSessions(slug!);
+                const items = await listSessions();
                 if (cancelled) return;
                 setSessions(items);
             } catch (err: unknown) {
@@ -113,7 +85,7 @@ export function ProjectPage() {
             cancelled = true;
             if (timer) clearTimeout(timer);
         };
-    }, [slug, failed, intl]);
+    }, [intl]);
 
     async function confirmDelete() {
         const session = pendingDelete;
@@ -134,36 +106,30 @@ export function ProjectPage() {
         }
     }
 
-    if (creating && name && slug) {
+    if (creating) {
         return (
             <NewSession
-                projectName={name}
-                repositoryId={slug}
                 onClose={() => setCreating(false)}
                 onStarted={(session) => {
                     setCreating(false);
-                    navigate(`/projects/${slug}/sessions/${session.id}`);
+                    navigate(`/projects/${session.repositoryId}/sessions/${session.id}`);
                 }}
             />
         );
     }
 
-    const showEmpty = !failed && !sessionsLoading && sessions.length === 0;
+    const projectNames = new Map(repositories.map((repository) => [repository.id, repository.name]));
+    const showEmpty = !sessionsLoading && sessions.length === 0;
 
     return (
-        <main className={styles.main}>
-            <PageHeader
-                crumbs={[
-                    { label: intl.formatMessage(messages.projectsCrumb), to: '/' },
-                    { label: name ?? intl.formatMessage(messages.loadingCrumb) },
-                ]}
-            />
+        <div className={styles.root}>
+            <PageHeader crumbs={[{ label: intl.formatMessage(messages.sessionsCrumb) }]} />
             <div className={showEmpty || sessionsLoading ? styles.bodyEmpty : styles.body}>
                 {sessionsLoading ? (
                     <p className={styles.placeholder}>{intl.formatMessage(messages.loadingSessions)}</p>
                 ) : null}
                 {showEmpty ? <p className={styles.placeholder}>{intl.formatMessage(messages.noSessions)}</p> : null}
-                {!sessionsLoading && !failed
+                {!sessionsLoading
                     ? sessions.map((session) => (
                           <SwipeToDelete
                               key={session.id}
@@ -178,9 +144,10 @@ export function ProjectPage() {
                               <Card
                                   title={session.name}
                                   indicator={session.status}
-                                  onClick={() => navigate(`/projects/${slug}/sessions/${session.id}`)}
+                                  onClick={() => navigate(`/projects/${session.repositoryId}/sessions/${session.id}`)}
                               >
                                   {intl.formatMessage(messages.sessionMeta, {
+                                      project: projectNames.get(session.repositoryId) ?? session.repositoryId,
                                       harness: harnessLabel(session.agent, intl.formatMessage),
                                       branch: session.branch,
                                   })}
@@ -189,13 +156,11 @@ export function ProjectPage() {
                       ))
                     : null}
             </div>
-            {!failed ? (
-                <div className={styles.footer}>
-                    <Button type='button' onClick={() => setCreating(true)} disabled={!name}>
-                        {intl.formatMessage(messages.newSession)}
-                    </Button>
-                </div>
-            ) : null}
+            <div className={styles.footer}>
+                <Button type='button' onClick={() => setCreating(true)}>
+                    {intl.formatMessage(messages.newSession)}
+                </Button>
+            </div>
             {pendingDelete ? (
                 <ConfirmDialog
                     message={intl.formatMessage(messages.deleteConfirm, { name: pendingDelete.name })}
@@ -208,6 +173,6 @@ export function ProjectPage() {
                     }}
                 />
             ) : null}
-        </main>
+        </div>
     );
 }

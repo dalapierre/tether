@@ -1,25 +1,27 @@
 import { defineMessages, type NoMessageValues } from 'react-intl';
 
 type Messages = {
-    projectsCrumb: NoMessageValues;
+    sessionsCrumb: NoMessageValues;
     loadingCrumb: NoMessageValues;
     loading: NoMessageValues;
     loadFailed: NoMessageValues;
     notFound: NoMessageValues;
     connecting: NoMessageValues;
     disconnected: NoMessageValues;
-    openKeyboard: NoMessageValues;
     statusReady: NoMessageValues;
     statusBusy: NoMessageValues;
     statusError: NoMessageValues;
     meta: { harness: string; branch: string };
+    viewTabs: NoMessageValues;
+    agentView: NoMessageValues;
+    reviewView: NoMessageValues;
 };
 
 export const messages = defineMessages<Messages>(
     {
-        projectsCrumb: {
-            id: 'sessionView.projectsCrumb',
-            defaultMessage: 'projects',
+        sessionsCrumb: {
+            id: 'sessionView.sessionsCrumb',
+            defaultMessage: 'sessions',
         },
         loadingCrumb: {
             id: 'sessionView.loadingCrumb',
@@ -45,10 +47,6 @@ export const messages = defineMessages<Messages>(
             id: 'sessionView.disconnected',
             defaultMessage: 'Disconnected',
         },
-        openKeyboard: {
-            id: 'sessionView.openKeyboard',
-            defaultMessage: 'Open keyboard',
-        },
         statusReady: {
             id: 'sessionView.statusReady',
             defaultMessage: 'Ready',
@@ -64,6 +62,18 @@ export const messages = defineMessages<Messages>(
         meta: {
             id: 'sessionView.meta',
             defaultMessage: '{harness} · {branch}',
+        },
+        viewTabs: {
+            id: 'sessionView.viewTabs',
+            defaultMessage: 'Session view',
+        },
+        agentView: {
+            id: 'sessionView.agentView',
+            defaultMessage: 'Agent',
+        },
+        reviewView: {
+            id: 'sessionView.reviewView',
+            defaultMessage: 'Review',
         },
     },
     { typed: true },

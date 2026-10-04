@@ -1,4 +1,9 @@
-import { addRepository, listAvailableRepositories, listRepositories } from '@server/libs/repositories/store.js';
+import {
+    addRepository,
+    listAvailableRepositories,
+    listRepositories,
+    removeRepository,
+} from '@server/libs/repositories/store.js';
 import { Router } from 'express';
 
 export const repositoriesRouter = Router();
@@ -47,5 +52,19 @@ repositoriesRouter.post('/', async (req, res) => {
             console.error('Failed to add repository', err);
         }
         res.status(status).json({ error: status === 500 ? 'Failed to add repository' : message });
+    }
+});
+
+repositoriesRouter.delete('/:id', async (req, res) => {
+    try {
+        const deleted = await removeRepository(req.params.id);
+        if (!deleted) {
+            res.status(404).json({ error: 'Repository not found' });
+            return;
+        }
+        res.status(204).send();
+    } catch (err: unknown) {
+        console.error('Failed to remove repository', err);
+        res.status(500).json({ error: 'Failed to remove repository' });
     }
 });

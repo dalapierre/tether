@@ -20,9 +20,9 @@ export function getWorktreesDir(): string {
     return path.join(getTetherHomeDir(), 'worktrees');
 }
 
-/** Directory for a repository's session worktrees: `~/.tether/worktrees/<repoId>`. */
-export function getRepositoryWorktreesDir(repositoryId: string): string {
-    return path.join(getWorktreesDir(), repositoryId);
+/** Directory for a project's session worktrees: `~/.tether/worktrees/<project-name>`. */
+export function getRepositoryWorktreesDir(projectName: string): string {
+    return path.join(getWorktreesDir(), projectName);
 }
 
 /** Former on-disk location under the server package (for one-time migrations). */

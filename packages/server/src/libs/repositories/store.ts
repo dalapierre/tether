@@ -194,3 +194,13 @@ export async function addRepository(repoPath: string): Promise<Repository> {
     await writeAll(repositories);
     return repository;
 }
+
+export async function removeRepository(id: string): Promise<boolean> {
+    const repositories = await readAll();
+    const next = repositories.filter((repository) => repository.id !== id);
+    if (next.length === repositories.length) {
+        return false;
+    }
+    await writeAll(next);
+    return true;
+}

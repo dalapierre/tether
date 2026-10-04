@@ -1,5 +1,5 @@
 export const styles = {
-    root: 'fixed inset-0 z-20 flex flex-col bg-zinc-950 text-zinc-100',
+    root: 'fixed inset-0 z-40 flex flex-col bg-zinc-950 text-zinc-100',
     content: 'flex min-h-0 flex-1 flex-col gap-2 overflow-auto px-4',
     empty: 'mt-8 text-center text-sm text-zinc-500',
     link: 'border-0 bg-transparent p-0 text-zinc-300 underline underline-offset-2',
