@@ -84,8 +84,9 @@ This applies to components under `components/`, `modules/`, and `pages/` alike.
 
 ### UI (mobile-first)
 
-Tether is primarily accessed from a phone. Design and implement the UI **mobile-first**:
+Tether is primarily accessed from a phone. Design and implement the UI **mobile-first**, and aim for **UI friendliness that mimics a native mobile app**:
 
 - Default layouts, spacing, and touch targets for a small screen; enhance for larger viewports only when needed.
 - Prefer simple, single-column flows that work well with thumbs.
+- Favor mobile-app patterns: full-bleed screens, bottom navigation or sticky primary actions, generous tap targets, and clear visual hierarchy over dense web chrome (sidebars, multi-panel dashboards, hover-only menus).
 - Avoid dense desktop-oriented patterns (multi-column dashboards, hover-only affordances) unless they degrade gracefully on mobile.
