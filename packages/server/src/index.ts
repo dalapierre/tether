@@ -1,5 +1,6 @@
 import { requireAuth } from '@server/middleware/requireAuth.js';
 import { authRouter } from '@server/routes/auth.js';
+import { repositoriesRouter } from '@server/routes/repositories.js';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
@@ -27,6 +28,8 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/auth', authRouter);
 
 app.use('/api', requireAuth);
+
+app.use('/api/repositories', repositoriesRouter);
 
 // Command handling will be implemented here later.
 app.post('/api/commands', (_req, res) => {
