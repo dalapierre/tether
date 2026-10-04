@@ -5,6 +5,7 @@ import { AGENTS, isAgentId, type AgentId } from '@client/libs/agents/agents';
 import { ApiError } from '@client/libs/api/client';
 import { getSettings, updateSettings } from '@client/libs/api/settings';
 import { clearAccessToken } from '@client/libs/auth/session';
+import { showToast } from '@client/modules/toast';
 import { useEffect, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { useNavigate } from 'react-router-dom';
@@ -19,8 +20,6 @@ export function Settings({ onClose }: SettingsProps) {
     const [agent, setAgent] = useState<AgentId>('cursor');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [savedMessage, setSavedMessage] = useState<string | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -30,12 +29,14 @@ export function Settings({ onClose }: SettingsProps) {
                 if (!cancelled) {
                     setDevDir(settings.devDir);
                     setAgent(isAgentId(settings.agent) ? settings.agent : 'cursor');
-                    setError(null);
                 }
             })
             .catch((err: unknown) => {
                 if (!cancelled) {
-                    setError(err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed));
+                    showToast(
+                        'generic-error',
+                        err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed),
+                    );
                 }
             })
             .finally(() => {
@@ -50,8 +51,6 @@ export function Settings({ onClose }: SettingsProps) {
     }, [intl]);
 
     async function handleSave() {
-        setError(null);
-        setSavedMessage(null);
         setSaving(true);
 
         try {
@@ -61,12 +60,15 @@ export function Settings({ onClose }: SettingsProps) {
             });
             setDevDir(settings.devDir);
             setAgent(settings.agent);
-            setSavedMessage(intl.formatMessage(messages.saved));
+            showToast('settings-saved');
         } catch (err: unknown) {
             if (err instanceof ApiError) {
-                setError(err.message);
+                showToast('generic-error', err.message);
             } else {
-                setError(err instanceof Error ? err.message : intl.formatMessage(messages.saveFailed));
+                showToast(
+                    'generic-error',
+                    err instanceof Error ? err.message : intl.formatMessage(messages.saveFailed),
+                );
             }
         } finally {
             setSaving(false);
@@ -135,9 +137,6 @@ export function Settings({ onClose }: SettingsProps) {
                                     ))}
                                 </select>
                             </label>
-
-                            {error ? <p className={styles.error}>{error}</p> : null}
-                            {savedMessage ? <p className={styles.success}>{savedMessage}</p> : null}
                         </div>
 
                         <div className={styles.actions}>

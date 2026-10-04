@@ -3,14 +3,24 @@ import { TOASTS, type ToastArgs, type ToastId } from './toasts';
 
 type Listener = () => void;
 
+const TOAST_DURATION_MS = 5000;
+
 let toasts: ActiveToast[] = [];
 const listeners = new Set<Listener>();
+const dismissTimers = new Map<string, ReturnType<typeof setTimeout>>();
 let nextInstanceId = 0;
 
 function emit() {
     for (const listener of listeners) {
         listener();
     }
+}
+
+function clearDismissTimer(instanceId: string) {
+    const timer = dismissTimers.get(instanceId);
+    if (timer === undefined) return;
+    clearTimeout(timer);
+    dismissTimers.delete(instanceId);
 }
 
 export function showToast<Id extends ToastId>(id: Id, ...args: ToastArgs<Id>): string {
@@ -23,6 +33,7 @@ export function showToast<Id extends ToastId>(id: Id, ...args: ToastArgs<Id>): s
     const toast: ActiveToast = {
         instanceId,
         id,
+        type: definition.type,
         title: definition.title,
         message: definition.message,
         values,
@@ -30,10 +41,19 @@ export function showToast<Id extends ToastId>(id: Id, ...args: ToastArgs<Id>): s
 
     toasts = [toast, ...toasts];
     emit();
+
+    dismissTimers.set(
+        instanceId,
+        setTimeout(() => {
+            dismissToast(instanceId);
+        }, TOAST_DURATION_MS),
+    );
+
     return instanceId;
 }
 
 export function dismissToast(instanceId: string) {
+    clearDismissTimer(instanceId);
     const next = toasts.filter((toast) => toast.instanceId !== instanceId);
     if (next.length === toasts.length) return;
     toasts = next;

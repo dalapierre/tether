@@ -1,6 +1,7 @@
 import { login } from '@client/libs/api/auth';
 import { ApiError } from '@client/libs/api/client';
 import { isAuthenticated } from '@client/libs/auth/session';
+import { showToast } from '@client/modules/toast';
 import { useState, type FormEvent } from 'react';
 import { useIntl } from 'react-intl';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
@@ -12,7 +13,6 @@ export function LoginPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const [accessKey, setAccessKey] = useState('');
-    const [error, setError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
 
     if (isAuthenticated()) {
@@ -21,7 +21,6 @@ export function LoginPage() {
 
     async function onSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        setError(null);
         setSubmitting(true);
 
         try {
@@ -30,9 +29,12 @@ export function LoginPage() {
             navigate(from, { replace: true });
         } catch (err: unknown) {
             if (err instanceof ApiError) {
-                setError(err.message);
+                showToast('generic-error', err.message);
             } else {
-                setError(err instanceof Error ? err.message : intl.formatMessage(messages.loginFailed));
+                showToast(
+                    'generic-error',
+                    err instanceof Error ? err.message : intl.formatMessage(messages.loginFailed),
+                );
             }
         } finally {
             setSubmitting(false);
@@ -56,7 +58,6 @@ export function LoginPage() {
                             required
                         />
                     </label>
-                    {error ? <p className={styles.error}>{error}</p> : null}
                     <button className={styles.button} type='submit' disabled={submitting || !accessKey.trim()}>
                         {submitting ? intl.formatMessage(messages.signingIn) : intl.formatMessage(messages.signIn)}
                     </button>

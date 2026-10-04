@@ -4,6 +4,7 @@ import { PageHeader } from '@client/components/page-header';
 import { listRepositories, type Repository } from '@client/libs/api/repositories';
 import { AddRepository } from '@client/modules/add-repository';
 import { useSettings } from '@client/modules/settings';
+import { showToast } from '@client/modules/toast';
 import { useEffect, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { useNavigate } from 'react-router-dom';
@@ -16,7 +17,7 @@ export function ProjectList() {
     const { openSettings } = useSettings();
     const [repositories, setRepositories] = useState<Repository[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [failed, setFailed] = useState(false);
     const [adding, setAdding] = useState(false);
 
     useEffect(() => {
@@ -26,12 +27,16 @@ export function ProjectList() {
             .then((items) => {
                 if (!cancelled) {
                     setRepositories(items);
-                    setError(null);
+                    setFailed(false);
                 }
             })
             .catch((err: unknown) => {
                 if (!cancelled) {
-                    setError(err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed));
+                    setFailed(true);
+                    showToast(
+                        'generic-error',
+                        err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed),
+                    );
                 }
             })
             .finally(() => {
@@ -48,6 +53,7 @@ export function ProjectList() {
     function handleAdded(repository: Repository) {
         setRepositories((current) => [...current, repository].sort((a, b) => a.name.localeCompare(b.name)));
         setAdding(false);
+        showToast('repository-added', repository.name);
     }
 
     if (adding) {
@@ -59,8 +65,7 @@ export function ProjectList() {
             <PageHeader crumbs={[{ label: intl.formatMessage(messages.projectsCrumb) }]} />
             <div className={styles.content}>
                 {loading ? <p className={styles.loading}>{intl.formatMessage(messages.loading)}</p> : null}
-                {!loading && error ? <p className={styles.error}>{error}</p> : null}
-                {!loading && !error && repositories.length === 0 ? (
+                {!loading && !failed && repositories.length === 0 ? (
                     <p className={styles.empty}>
                         {intl.formatMessage(messages.empty, {
                             devDirLink: (chunks) => (
@@ -71,7 +76,7 @@ export function ProjectList() {
                         })}
                     </p>
                 ) : null}
-                {!loading && !error
+                {!loading && !failed
                     ? repositories.map((repository) => (
                           <Card
                               key={repository.id}
@@ -81,7 +86,7 @@ export function ProjectList() {
                       ))
                     : null}
             </div>
-            {!loading && !error ? (
+            {!loading && !failed ? (
                 <div className={styles.footer}>
                     <Button type='button' onClick={() => setAdding(true)}>
                         {intl.formatMessage(messages.newProject)}

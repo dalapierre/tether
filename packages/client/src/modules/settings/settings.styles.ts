@@ -8,8 +8,6 @@ export const styles = {
     input: 'mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-zinc-100 outline-none focus:border-zinc-500',
     select: 'mt-1 w-full appearance-none rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-zinc-100 outline-none focus:border-zinc-500',
     hint: 'text-xs text-zinc-500',
-    error: 'text-sm text-red-400',
-    success: 'text-sm text-emerald-400',
     actions: 'mt-auto pt-10 pb-6',
     footer: 'px-4 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]',
 };

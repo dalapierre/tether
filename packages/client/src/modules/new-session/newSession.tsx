@@ -3,6 +3,7 @@ import { IconButton } from '@client/components/icon-button';
 import { PageHeader } from '@client/components/page-header';
 import { AGENTS, isAgentId, type AgentId } from '@client/libs/agents/agents';
 import { getSettings } from '@client/libs/api/settings';
+import { showToast } from '@client/modules/toast';
 import { useEffect, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { messages } from './newSession.messages';
@@ -14,7 +15,6 @@ export function NewSession({ projectName, onClose, onStarted }: NewSessionProps)
     const [name, setName] = useState('');
     const [agent, setAgent] = useState<AgentId>('cursor');
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -23,11 +23,13 @@ export function NewSession({ projectName, onClose, onStarted }: NewSessionProps)
             .then((settings) => {
                 if (cancelled) return;
                 setAgent(isAgentId(settings.agent) ? settings.agent : 'cursor');
-                setError(null);
             })
             .catch((err: unknown) => {
                 if (!cancelled) {
-                    setError(err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed));
+                    showToast(
+                        'generic-error',
+                        err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed),
+                    );
                 }
             })
             .finally(() => {
@@ -47,7 +49,7 @@ export function NewSession({ projectName, onClose, onStarted }: NewSessionProps)
         onStarted({ name: trimmedName, agent });
     }
 
-    const canStart = !loading && !error && name.trim().length > 0 && Boolean(agent);
+    const canStart = !loading && name.trim().length > 0 && Boolean(agent);
 
     return (
         <div
@@ -109,8 +111,6 @@ export function NewSession({ projectName, onClose, onStarted }: NewSessionProps)
                                 ))}
                             </select>
                         </label>
-
-                        {error ? <p className={styles.error}>{error}</p> : null}
                     </form>
                 ) : null}
             </div>

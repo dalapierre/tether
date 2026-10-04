@@ -3,8 +3,6 @@ export const styles = {
     content: 'flex min-h-0 flex-1 flex-col gap-2 overflow-auto px-4',
     empty: 'mt-8 text-center text-sm text-zinc-500',
     link: 'border-0 bg-transparent p-0 text-zinc-300 underline underline-offset-2',
-    error: 'text-sm text-red-400',
-    confirmError: 'mt-4 text-sm text-red-400',
     loading: 'mt-8 text-center text-sm text-zinc-500',
     option: 'w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-4 text-left text-base font-medium text-zinc-100 transition-colors active:bg-zinc-800',
     optionSelected: 'border-zinc-100 bg-zinc-800',

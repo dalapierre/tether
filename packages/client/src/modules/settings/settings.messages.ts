@@ -29,10 +29,6 @@ export const messages = defineMessages({
         id: 'settings.saveFailed',
         defaultMessage: 'Failed to save settings',
     },
-    saved: {
-        id: 'settings.saved',
-        defaultMessage: 'Settings saved.',
-    },
     devDirLabel: {
         id: 'settings.devDirLabel',
         defaultMessage: 'Development directory',

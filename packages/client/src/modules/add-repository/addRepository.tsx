@@ -4,6 +4,7 @@ import { PageHeader } from '@client/components/page-header';
 import { ApiError } from '@client/libs/api/client';
 import { addRepository, listAvailableRepositories, type AvailableRepository } from '@client/libs/api/repositories';
 import { useSettings } from '@client/modules/settings';
+import { showToast } from '@client/modules/toast';
 import { useEffect, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { messages } from './addRepository.messages';
@@ -18,7 +19,7 @@ export function AddRepository({ onClose, onAdded }: AddRepositoryProps) {
     const [step, setStep] = useState<Step>('select');
     const [available, setAvailable] = useState<AvailableRepository[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [failed, setFailed] = useState(false);
     const [selected, setSelected] = useState<AvailableRepository | null>(null);
     const [submitting, setSubmitting] = useState(false);
 
@@ -29,12 +30,16 @@ export function AddRepository({ onClose, onAdded }: AddRepositoryProps) {
             .then((repositories) => {
                 if (!cancelled) {
                     setAvailable(repositories);
-                    setError(null);
+                    setFailed(false);
                 }
             })
             .catch((err: unknown) => {
                 if (!cancelled) {
-                    setError(err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed));
+                    setFailed(true);
+                    showToast(
+                        'generic-error',
+                        err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed),
+                    );
                 }
             })
             .finally(() => {
@@ -55,20 +60,17 @@ export function AddRepository({ onClose, onAdded }: AddRepositoryProps) {
 
     function handleNext() {
         if (!selected) return;
-        setError(null);
         setStep('confirm');
     }
 
     function handleBack() {
         if (submitting) return;
-        setError(null);
         setStep('select');
     }
 
     async function handleConfirm() {
         if (!selected || submitting) return;
 
-        setError(null);
         setSubmitting(true);
 
         try {
@@ -76,9 +78,9 @@ export function AddRepository({ onClose, onAdded }: AddRepositoryProps) {
             onAdded(repository);
         } catch (err: unknown) {
             if (err instanceof ApiError) {
-                setError(err.message);
+                showToast('generic-error', err.message);
             } else {
-                setError(err instanceof Error ? err.message : intl.formatMessage(messages.addFailed));
+                showToast('generic-error', err instanceof Error ? err.message : intl.formatMessage(messages.addFailed));
             }
         } finally {
             setSubmitting(false);
@@ -111,8 +113,7 @@ export function AddRepository({ onClose, onAdded }: AddRepositoryProps) {
                 <>
                     <div className={styles.content}>
                         {loading ? <p className={styles.loading}>{intl.formatMessage(messages.loading)}</p> : null}
-                        {!loading && error ? <p className={styles.error}>{error}</p> : null}
-                        {!loading && !error && available.length === 0 ? (
+                        {!loading && !failed && available.length === 0 ? (
                             <p className={styles.empty}>
                                 {intl.formatMessage(messages.empty, {
                                     settingsLink: (chunks) => (
@@ -123,7 +124,7 @@ export function AddRepository({ onClose, onAdded }: AddRepositoryProps) {
                                 })}
                             </p>
                         ) : null}
-                        {!loading && !error
+                        {!loading && !failed
                             ? available.map((repository) => {
                                   const isSelected = selected?.path === repository.path;
                                   return (
@@ -153,7 +154,6 @@ export function AddRepository({ onClose, onAdded }: AddRepositoryProps) {
                             {intl.formatMessage(messages.confirmQuestion, { name: selected?.name ?? '' })}
                         </p>
                         {selected ? <p className={styles.confirmPath}>{selected.path}</p> : null}
-                        {error ? <p className={styles.confirmError}>{error}</p> : null}
                     </div>
                     <div className={styles.footer}>
                         <div className={styles.footerRow}>

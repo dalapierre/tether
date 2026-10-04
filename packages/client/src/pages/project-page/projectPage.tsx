@@ -2,6 +2,7 @@ import { Button } from '@client/components/button';
 import { PageHeader } from '@client/components/page-header';
 import { getRepository } from '@client/libs/api/repositories';
 import { NewSession } from '@client/modules/new-session';
+import { showToast } from '@client/modules/toast';
 import { useEffect, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { useParams } from 'react-router-dom';
@@ -12,13 +13,14 @@ export function ProjectPage() {
     const intl = useIntl();
     const { slug } = useParams<{ slug: string }>();
     const [name, setName] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
+    const [failed, setFailed] = useState(false);
     const [creating, setCreating] = useState(false);
 
     useEffect(() => {
         if (!slug) {
             setName(null);
-            setError(intl.formatMessage(messages.notFound));
+            setFailed(true);
+            showToast('generic-error', intl.formatMessage(messages.notFound));
             return;
         }
 
@@ -29,16 +31,21 @@ export function ProjectPage() {
                 if (cancelled) return;
                 if (!repository) {
                     setName(null);
-                    setError(intl.formatMessage(messages.notFound));
+                    setFailed(true);
+                    showToast('generic-error', intl.formatMessage(messages.notFound));
                     return;
                 }
                 setName(repository.name);
-                setError(null);
+                setFailed(false);
             })
             .catch((err: unknown) => {
                 if (!cancelled) {
                     setName(null);
-                    setError(err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed));
+                    setFailed(true);
+                    showToast(
+                        'generic-error',
+                        err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed),
+                    );
                 }
             });
 
@@ -68,12 +75,11 @@ export function ProjectPage() {
                 ]}
             />
             <div className={styles.body}>
-                {error ? <p className={styles.error}>{error}</p> : null}
-                {!error ? <p className={styles.placeholder}>{intl.formatMessage(messages.noSessions)}</p> : null}
+                {!failed ? <p className={styles.placeholder}>{intl.formatMessage(messages.noSessions)}</p> : null}
             </div>
-            {!error ? (
+            {!failed ? (
                 <div className={styles.footer}>
-                    <Button type='button' onClick={() => setCreating(true)}>
+                    <Button type='button' onClick={() => setCreating(true)} disabled={!name}>
                         {intl.formatMessage(messages.newSession)}
                     </Button>
                 </div>
