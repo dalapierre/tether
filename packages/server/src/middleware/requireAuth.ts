@@ -1,4 +1,4 @@
-import { verifyAccessToken } from '@server/libs/auth_tokens.js';
+import { verifyAccessToken } from '@server/libs/authTokens.js';
 import type { NextFunction, Request, Response } from 'express';
 
 function extractBearerToken(header: string | undefined): string | null {

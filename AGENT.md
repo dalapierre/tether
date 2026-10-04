@@ -6,7 +6,7 @@ Conventions for working in this repository.
 
 ### File naming
 
-- **Files** use `snake_case` (e.g. `health_check.ts`).
+- **Files** use `camelCase` (e.g. `healthCheck.ts`).
 - **Directories** use `dash-separated` (kebab-case) when the name is more than one word (e.g. `chat-module/`, `home-page/`). Single-word directories stay lowercase (e.g. `components/`).
 
 ### Path aliases
@@ -22,7 +22,7 @@ Examples:
 
 ```ts
 import { fetchHealth } from '@client/libs/api/health';
-import { someUtil } from '@server/utils/some_util';
+import { someUtil } from '@server/utils/someUtil';
 ```
 
 - **Client**: alias is configured in `packages/client/vite.config.ts` and `packages/client/tsconfig.json`.
@@ -56,28 +56,36 @@ Every React component in the client follows the same structure. Place each compo
 | File | Purpose |
 | --- | --- |
 | `index.ts` | Public exports — the component and any public types |
-| `{component_name}.tsx` | The React component definition |
-| `{component_name}.styles.ts` | Tailwind CSS class strings and other stylistic rules (keeps style concerns visible and separate) |
-| `{component_name}.types.ts` | Private and public types for the component. Export public types from `index.ts` |
+| `{componentName}.tsx` | The React component definition |
+| `{componentName}.styles.ts` | Tailwind CSS class strings and other stylistic rules (keeps style concerns visible and separate) |
+| `{componentName}.types.ts` | Private and public types for the component. Export public types from `index.ts` |
 
 Example:
 
 ```
 components/status-badge/
   index.ts
-  status_badge.tsx
-  status_badge.styles.ts
-  status_badge.types.ts
+  statusBadge.tsx
+  statusBadge.styles.ts
+  statusBadge.types.ts
 ```
 
 ```ts
-// status_badge.types.ts
+// statusBadge.types.ts
 export type StatusBadgeProps = { label: string };
 type InternalState = { hovered: boolean }; // private — not re-exported
 
 // index.ts
-export { StatusBadge } from './status_badge';
-export type { StatusBadgeProps } from './status_badge.types';
+export { StatusBadge } from './statusBadge';
+export type { StatusBadgeProps } from './statusBadge.types';
 ```
 
 This applies to components under `components/`, `modules/`, and `pages/` alike.
+
+### UI (mobile-first)
+
+Tether is primarily accessed from a phone. Design and implement the UI **mobile-first**:
+
+- Default layouts, spacing, and touch targets for a small screen; enhance for larger viewports only when needed.
+- Prefer simple, single-column flows that work well with thumbs.
+- Avoid dense desktop-oriented patterns (multi-column dashboards, hover-only affordances) unless they degrade gracefully on mobile.

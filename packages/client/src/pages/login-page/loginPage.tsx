@@ -3,7 +3,7 @@ import { ApiError } from '@client/libs/api/client';
 import { isAuthenticated } from '@client/libs/auth/session';
 import { useState, type FormEvent } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { styles } from './login_page.styles';
+import { styles } from './loginPage.styles';
 
 export function LoginPage() {
     const navigate = useNavigate();

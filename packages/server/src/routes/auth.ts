@@ -1,4 +1,4 @@
-import { createAccessToken, isAccessKeyConfigured, validateAccessKey } from '@server/libs/auth_tokens.js';
+import { createAccessToken, isAccessKeyConfigured, validateAccessKey } from '@server/libs/authTokens.js';
 import { Router } from 'express';
 
 export const authRouter = Router();

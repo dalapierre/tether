@@ -1,2 +1,2 @@
-export { RequireAuth } from './require_auth';
-export type { RequireAuthProps } from './require_auth.types';
+export { RequireAuth } from './requireAuth';
+export type { RequireAuthProps } from './requireAuth.types';

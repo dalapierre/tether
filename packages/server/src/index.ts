@@ -1,4 +1,4 @@
-import { requireAuth } from '@server/middleware/require_auth.js';
+import { requireAuth } from '@server/middleware/requireAuth.js';
 import { authRouter } from '@server/routes/auth.js';
 import cors from 'cors';
 import dotenv from 'dotenv';
