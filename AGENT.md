@@ -47,7 +47,7 @@ Rules:
 - **`libs/`** — Shared non-UI code: API clients, domain helpers, types, utilities.
 - **`pages/`** — Thin route wrappers. A page wires modules and components together and provides layout/structure only; keep business logic in `libs/` or `modules/`.
 
-Routing uses `react-router-dom`. Register routes in `app.tsx` and put each screen under `pages/`.
+Routing uses `react-router-dom`. Register routes in `modules/app/` and put each screen under `pages/`.
 
 ### React components (client)
 

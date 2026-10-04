@@ -1,7 +1,7 @@
 import HomePage from '@client/pages/home_page';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 
-export default function App() {
+export function App() {
     return (
         <BrowserRouter>
             <Routes>
