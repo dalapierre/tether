@@ -7,5 +7,6 @@ export type ButtonProps = {
     variant?: ButtonVariant;
     type?: ButtonHTMLAttributes<HTMLButtonElement>['type'];
     disabled?: boolean;
+    fullWidth?: boolean;
     onClick?: ButtonHTMLAttributes<HTMLButtonElement>['onClick'];
 };

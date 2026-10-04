@@ -121,6 +121,11 @@ export async function listRepositories(): Promise<Repository[]> {
     return [...repositories].sort((a, b) => a.name.localeCompare(b.name));
 }
 
+export async function getRepository(id: string): Promise<Repository | null> {
+    const repositories = await readAll();
+    return repositories.find((repository) => repository.id === id) ?? null;
+}
+
 export async function listAvailableRepositories(): Promise<AvailableRepository[]> {
     const { devDir } = await getSettings();
     const trimmed = devDir.trim();

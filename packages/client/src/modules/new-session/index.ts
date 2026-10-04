@@ -1,2 +1,2 @@
 export { NewSession } from './newSession';
-export type { NewSessionDraft, NewSessionProps } from './newSession.types';
+export type { NewSessionProps } from './newSession.types';

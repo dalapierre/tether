@@ -1,6 +1,6 @@
 import type { ButtonVariant } from './button.types';
 
-const base = 'w-full rounded-md px-3 py-2.5 font-medium disabled:opacity-60';
+const base = 'rounded-md px-3 py-2.5 font-medium disabled:opacity-60';
 
 const variants: Record<ButtonVariant, string> = {
     primary: `${base} bg-zinc-100 text-zinc-950`,
@@ -8,5 +8,6 @@ const variants: Record<ButtonVariant, string> = {
 };
 
 export const styles = {
-    variant: (variant: ButtonVariant) => variants[variant],
+    variant: (variant: ButtonVariant, fullWidth: boolean) =>
+        `${variants[variant]}${fullWidth ? ' w-full' : ' shrink-0'}`,
 };

@@ -2,6 +2,7 @@ import { Button } from '@client/components/button';
 import { IconButton } from '@client/components/icon-button';
 import { PageHeader } from '@client/components/page-header';
 import { AGENTS, isAgentId, type AgentId } from '@client/libs/agents/agents';
+import { createSession } from '@client/libs/api/sessions';
 import { getSettings } from '@client/libs/api/settings';
 import { showToast } from '@client/modules/toast';
 import { useEffect, useState } from 'react';
@@ -10,11 +11,12 @@ import { messages } from './newSession.messages';
 import { styles } from './newSession.styles';
 import type { NewSessionProps } from './newSession.types';
 
-export function NewSession({ projectName, onClose, onStarted }: NewSessionProps) {
+export function NewSession({ projectName, repositoryId, onClose, onStarted }: NewSessionProps) {
     const intl = useIntl();
     const [name, setName] = useState('');
     const [agent, setAgent] = useState<AgentId>('cursor');
     const [loading, setLoading] = useState(true);
+    const [starting, setStarting] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -43,13 +45,25 @@ export function NewSession({ projectName, onClose, onStarted }: NewSessionProps)
         };
     }, [intl]);
 
-    function handleStart() {
+    async function handleStart() {
         const trimmedName = name.trim();
-        if (!trimmedName || !agent) return;
-        onStarted({ name: trimmedName, agent });
+        if (!trimmedName || !agent || starting) return;
+
+        setStarting(true);
+        try {
+            const session = await createSession({
+                repositoryId,
+                name: trimmedName,
+                agent,
+            });
+            onStarted(session);
+        } catch (err: unknown) {
+            showToast('generic-error', err instanceof Error ? err.message : intl.formatMessage(messages.startFailed));
+            setStarting(false);
+        }
     }
 
-    const canStart = !loading && name.trim().length > 0 && Boolean(agent);
+    const canStart = !loading && !starting && name.trim().length > 0 && Boolean(agent);
 
     return (
         <div
@@ -62,7 +76,7 @@ export function NewSession({ projectName, onClose, onStarted }: NewSessionProps)
                 crumbs={[{ label: projectName, onClick: onClose }, { label: intl.formatMessage(messages.crumb) }]}
                 showSettings={false}
                 actions={
-                    <IconButton label={intl.formatMessage(messages.close)} onClick={onClose}>
+                    <IconButton label={intl.formatMessage(messages.close)} onClick={onClose} disabled={starting}>
                         ×
                     </IconButton>
                 }
@@ -75,7 +89,7 @@ export function NewSession({ projectName, onClose, onStarted }: NewSessionProps)
                         className={styles.form}
                         onSubmit={(event) => {
                             event.preventDefault();
-                            handleStart();
+                            void handleStart();
                         }}
                     >
                         <label className={styles.label}>
@@ -89,6 +103,7 @@ export function NewSession({ projectName, onClose, onStarted }: NewSessionProps)
                                 autoComplete='off'
                                 spellCheck={false}
                                 autoFocus
+                                disabled={starting}
                             />
                         </label>
 
@@ -97,6 +112,7 @@ export function NewSession({ projectName, onClose, onStarted }: NewSessionProps)
                             <select
                                 className={styles.select}
                                 value={agent}
+                                disabled={starting}
                                 onChange={(event) => {
                                     const next = event.target.value;
                                     if (isAgentId(next)) {
@@ -115,8 +131,8 @@ export function NewSession({ projectName, onClose, onStarted }: NewSessionProps)
                 ) : null}
             </div>
             <div className={styles.footer}>
-                <Button type='button' onClick={handleStart} disabled={!canStart}>
-                    {intl.formatMessage(messages.start)}
+                <Button type='button' onClick={() => void handleStart()} disabled={!canStart}>
+                    {intl.formatMessage(starting ? messages.starting : messages.start)}
                 </Button>
             </div>
         </div>
