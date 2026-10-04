@@ -1,4 +1,5 @@
 import type { AgentId } from '@server/libs/agents/agents.js';
+import { getRepositoryWorktreesDir } from '@server/libs/paths.js';
 import { getRepository } from '@server/libs/repositories/store.js';
 import { getHarnessCommand } from '@server/libs/sessions/harness.js';
 import {
@@ -22,7 +23,7 @@ import type { WebSocket } from 'ws';
 const execFileAsync = promisify(execFile);
 
 const IDLE_READY_MS = 1500;
-const WORKTREE_PREFIX = 'tether-worktrees';
+const WORKTREE_BRANCH_PREFIX = 'tether-worktrees';
 
 type RuntimeSession = Session & {
     worktreePath: string;
@@ -80,6 +81,7 @@ async function listLocalBranches(repoPath: string): Promise<Set<string>> {
 }
 
 async function createWorktree(
+    repositoryId: string,
     repoPath: string,
     sessionName: string,
 ): Promise<{
@@ -91,14 +93,14 @@ async function createWorktree(
         takenBranches.add(session.branch);
     }
 
-    const prefix = `${WORKTREE_PREFIX}/`;
+    const prefix = `${WORKTREE_BRANCH_PREFIX}/`;
     const takenLeaves = new Set(
         [...takenBranches].map((branch) => (branch.startsWith(prefix) ? branch.slice(prefix.length) : branch)),
     );
     const leaf = uniqueSlug(slugify(sessionName) || 'session', takenLeaves);
-    const branch = `${WORKTREE_PREFIX}/${leaf}`;
+    const branch = `${WORKTREE_BRANCH_PREFIX}/${leaf}`;
 
-    const worktreesRoot = path.resolve(repoPath, '..', WORKTREE_PREFIX);
+    const worktreesRoot = getRepositoryWorktreesDir(repositoryId);
     const worktreePath = path.join(worktreesRoot, leaf);
     await mkdir(worktreesRoot, { recursive: true });
     await execFileAsync('git', ['worktree', 'add', '-b', branch, worktreePath], { cwd: repoPath });
@@ -155,7 +157,7 @@ export async function createSession(input: { repositoryId: string; name: string;
     const id = randomUUID();
     let worktree: { branch: string; worktreePath: string };
     try {
-        worktree = await createWorktree(repository.path, name);
+        worktree = await createWorktree(repository.id, repository.path, name);
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Failed to create worktree';
         throw new Error(`Failed to create worktree: ${message}`);

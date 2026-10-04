@@ -1,3 +1,4 @@
+import { getLegacyServerDataDir } from '@server/libs/paths.js';
 import {
     getSettings,
     getStoredRepositories,
@@ -7,7 +8,6 @@ import {
 import { slugify, uniqueSlug } from '@server/libs/slug/slug.js';
 import { access, readFile, readdir, unlink } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 export type Repository = StoredRepository;
 
@@ -16,8 +16,7 @@ export type AvailableRepository = {
     path: string;
 };
 
-const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
-const legacyDataFile = path.join(packageRoot, 'data', 'repositories.json');
+const legacyDataFile = path.join(getLegacyServerDataDir(), 'repositories.json');
 const uuidIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 let legacyMigrated = false;

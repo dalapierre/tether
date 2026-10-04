@@ -1,7 +1,7 @@
 import { isAgentId, type AgentId } from '@server/libs/agents/agents.js';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { getLegacyServerDataDir, getSettingsFilePath, getTetherHomeDir } from '@server/libs/paths.js';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 export type StoredRepository = {
     id: string;
@@ -22,15 +22,16 @@ type SettingsFile = {
     repositories: StoredRepository[];
 };
 
-const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
-const dataDir = path.join(packageRoot, 'data');
-const dataFile = path.join(dataDir, 'settings.json');
+const dataFile = getSettingsFilePath();
+const legacyDataFile = path.join(getLegacyServerDataDir(), 'settings.json');
 
 const defaultSettingsFile: SettingsFile = {
     devDir: '',
     agent: 'cursor',
     repositories: [],
 };
+
+let legacyMigrated = false;
 
 function isStoredRepository(value: unknown): value is StoredRepository {
     return (
@@ -62,8 +63,43 @@ function normalizeSettingsFile(value: unknown): SettingsFile {
     return { devDir, agent, repositories };
 }
 
+/** One-time: move settings from packages/server/data into ~/.tether. */
+async function migrateLegacySettings(): Promise<void> {
+    if (legacyMigrated) {
+        return;
+    }
+    legacyMigrated = true;
+
+    try {
+        await readFile(dataFile, 'utf8');
+        return;
+    } catch (err: unknown) {
+        if (!(err && typeof err === 'object' && 'code' in err && err.code === 'ENOENT')) {
+            throw err;
+        }
+    }
+
+    let legacyRaw: string;
+    try {
+        legacyRaw = await readFile(legacyDataFile, 'utf8');
+    } catch (err: unknown) {
+        if (err && typeof err === 'object' && 'code' in err && err.code === 'ENOENT') {
+            return;
+        }
+        throw err;
+    }
+
+    await mkdir(getTetherHomeDir(), { recursive: true });
+    try {
+        await rename(legacyDataFile, dataFile);
+    } catch {
+        await writeFile(dataFile, legacyRaw, 'utf8');
+    }
+}
+
 async function ensureDataFile(): Promise<void> {
-    await mkdir(dataDir, { recursive: true });
+    await migrateLegacySettings();
+    await mkdir(getTetherHomeDir(), { recursive: true });
     try {
         await readFile(dataFile, 'utf8');
     } catch (err: unknown) {
