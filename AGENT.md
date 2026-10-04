@@ -49,6 +49,15 @@ Rules:
 
 Routing uses `react-router-dom`. Register routes in `modules/app/` and put each screen under `pages/`.
 
+### Design system (client)
+
+Treat `components/` as the app's design system. Reusable UI should be defined once there and composed everywhere else — do not redefine the same button, link, container, or other shared control in each module or page.
+
+- **Put shared primitives in `components/`** — buttons, links, containers, inputs, icons wrappers, and similar building blocks with a consistent look.
+- **Reuse before reinventing** — when adding UI, check for an existing component first; extend it if it almost fits rather than copying styles into a one-off.
+- **Variants via props** — differences like primary vs secondary, disabled, size, or tone belong on the reusable component's props (and styles keyed off those props), not as separate near-duplicate components or inline redefinitions.
+- **Feature code composes, not restyles** — `modules/` and `pages/` should assemble design-system pieces; keep feature-specific layout there, shared visual language in `components/`.
+
 ### React components (client)
 
 Every React component in the client follows the same structure. Place each component in its own directory (dash-separated when multi-word). Inside that directory:
