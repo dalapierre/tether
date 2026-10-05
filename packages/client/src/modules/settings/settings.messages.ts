@@ -57,6 +57,8 @@ type Messages = {
     profileHarnessLabel: NoMessageValues;
     profileYoloModeLabel: NoMessageValues;
     profileYoloModeHint: NoMessageValues;
+    profileUseWorktreesLabel: NoMessageValues;
+    profileUseWorktreesHint: NoMessageValues;
     signOut: NoMessageValues;
     saving: NoMessageValues;
     save: NoMessageValues;
@@ -287,6 +289,14 @@ export const messages = defineMessages<Messages>(
         profileYoloModeHint: {
             id: 'settings.profileYoloModeHint',
             defaultMessage: 'Auto-approve agent commands for sessions using this profile.',
+        },
+        profileUseWorktreesLabel: {
+            id: 'settings.profileUseWorktreesLabel',
+            defaultMessage: 'Use worktrees',
+        },
+        profileUseWorktreesHint: {
+            id: 'settings.profileUseWorktreesHint',
+            defaultMessage: 'When off, sessions run directly in the repository instead of a separate worktree.',
         },
         signOut: {
             id: 'settings.signOut',

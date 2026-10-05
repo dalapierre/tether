@@ -9,6 +9,7 @@ export type AgentProfile = {
     type: AgentProfileType;
     agent: AgentId;
     yoloMode: boolean;
+    useWorktrees: boolean;
 };
 
 export type Settings = {

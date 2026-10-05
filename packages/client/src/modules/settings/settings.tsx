@@ -62,12 +62,14 @@ function emptyDraftProfile(): {
     type: AgentProfileType;
     agent: AgentId;
     yoloMode: boolean;
+    useWorktrees: boolean;
 } {
     return {
         name: '',
         type: 'coding',
         agent: 'cursor',
         yoloMode: false,
+        useWorktrees: true,
     };
 }
 
@@ -286,6 +288,7 @@ export function Settings({ onClose }: SettingsProps) {
             type: draftProfile.type,
             agent: draftProfile.agent,
             yoloMode: draftProfile.yoloMode,
+            useWorktrees: draftProfile.type === 'coding' ? draftProfile.useWorktrees : true,
         };
         const nextProfiles = [...profiles, nextProfile];
         const nextDefault = defaultProfileId || nextProfile.id;
@@ -630,6 +633,18 @@ export function Settings({ onClose }: SettingsProps) {
                             disabled={creatingProfile}
                             onChange={(checked) => setDraftProfile((current) => ({ ...current, yoloMode: checked }))}
                         />
+
+                        {draftProfile.type === 'coding' ? (
+                            <Toggle
+                                label={intl.formatMessage(messages.profileUseWorktreesLabel)}
+                                description={intl.formatMessage(messages.profileUseWorktreesHint)}
+                                checked={draftProfile.useWorktrees}
+                                disabled={creatingProfile}
+                                onChange={(checked) =>
+                                    setDraftProfile((current) => ({ ...current, useWorktrees: checked }))
+                                }
+                            />
+                        ) : null}
                     </div>
                 ) : null}
             </div>

@@ -17,6 +17,8 @@ export type AgentProfile = {
     type: AgentProfileType;
     agent: AgentId;
     yoloMode: boolean;
+    /** When false, coding sessions run in the repository checkout instead of a worktree. */
+    useWorktrees: boolean;
 };
 
 /** Public settings exposed through the settings API/UI. */
@@ -46,6 +48,7 @@ function createDefaultProfile(overrides: Partial<AgentProfile> = {}): AgentProfi
         type: 'coding',
         agent: 'cursor',
         yoloMode: false,
+        useWorktrees: true,
         ...overrides,
     };
 }
@@ -75,7 +78,7 @@ function isAgentProfileType(value: unknown): value is AgentProfileType {
 
 function isAgentProfile(value: unknown): value is AgentProfile {
     if (!value || typeof value !== 'object') return false;
-    const profile = value as AgentProfile;
+    const profile = value as Partial<AgentProfile> & Record<string, unknown>;
     return (
         typeof profile.id === 'string' &&
         profile.id.length > 0 &&
@@ -87,12 +90,20 @@ function isAgentProfile(value: unknown): value is AgentProfile {
     );
 }
 
+function normalizeProfile(profile: AgentProfile & { useWorktrees?: boolean }): AgentProfile {
+    return {
+        id: profile.id,
+        name: profile.name.trim(),
+        type: profile.type,
+        agent: profile.agent,
+        yoloMode: profile.yoloMode,
+        useWorktrees: typeof profile.useWorktrees === 'boolean' ? profile.useWorktrees : true,
+    };
+}
+
 function normalizeProfiles(value: unknown, legacyAgent?: unknown, legacyYoloMode?: unknown): AgentProfile[] {
     if (Array.isArray(value)) {
-        const profiles = value.filter(isAgentProfile).map((profile) => ({
-            ...profile,
-            name: profile.name.trim(),
-        }));
+        const profiles = value.filter(isAgentProfile).map((profile) => normalizeProfile(profile));
         if (profiles.length > 0) {
             return profiles;
         }
@@ -234,13 +245,7 @@ export function normalizeIncomingProfiles(value: unknown): AgentProfile[] | null
             return null;
         }
         seenIds.add(item.id);
-        profiles.push({
-            id: item.id,
-            name: item.name.trim(),
-            type: item.type,
-            agent: item.agent,
-            yoloMode: item.yoloMode,
-        });
+        profiles.push(normalizeProfile(item));
     }
 
     return profiles;

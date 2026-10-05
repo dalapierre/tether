@@ -35,6 +35,7 @@ const execFileAsync = promisify(execFile);
 
 type RuntimeSession = Session & {
     yoloMode: boolean;
+    useWorktrees: boolean;
     worktreePath: string;
     baseSha: string;
     pty: IPty | null;
@@ -211,21 +212,26 @@ export async function createSession(input: {
     const agent: AgentId = profile.agent;
     const type: SessionType = profile.type;
     const yoloMode = profile.yoloMode;
+    const useWorktrees = profile.type === 'coding' ? profile.useWorktrees : false;
 
     if (type === 'conversation') {
         return createConversationSession({ name, agent, yoloMode });
     }
 
     const repositoryId = input.repositoryId?.trim() ?? '';
-    const branch = input.branch?.trim() ?? '';
     if (!repositoryId) {
         throw new Error('Repository is required');
     }
-    if (!branch) {
-        throw new Error('Branch is required');
+
+    if (useWorktrees) {
+        const branch = input.branch?.trim() ?? '';
+        if (!branch) {
+            throw new Error('Branch is required');
+        }
+        return createCodingSession({ name, agent, yoloMode, useWorktrees: true, repositoryId, branch });
     }
 
-    return createCodingSession({ name, agent, yoloMode, repositoryId, branch });
+    return createCodingSession({ name, agent, yoloMode, useWorktrees: false, repositoryId });
 }
 
 async function allocateSessionId(takenIds: Set<string>, name: string): Promise<string> {
@@ -256,6 +262,7 @@ async function createConversationSession(input: { name: string; agent: AgentId; 
         status: 'busy',
         createdAt: Date.now(),
         yoloMode: input.yoloMode,
+        useWorktrees: false,
         worktreePath,
         baseSha: '',
         pty: null,
@@ -280,8 +287,9 @@ async function createCodingSession(input: {
     name: string;
     agent: AgentId;
     yoloMode: boolean;
+    useWorktrees: boolean;
     repositoryId: string;
-    branch: string;
+    branch?: string;
 }): Promise<Session> {
     const repository = await getRepository(input.repositoryId);
     if (!repository) {
@@ -289,25 +297,44 @@ async function createCodingSession(input: {
     }
 
     const takenIds = new Set(sessions.keys());
-    const worktreesRoot = getRepositoryWorktreesDir(repository.id);
-    for (const leaf of await listWorktreeLeaves(worktreesRoot)) {
-        takenIds.add(leaf);
-    }
-    for (const session of sessions.values()) {
-        if (session.repositoryId === repository.id) {
-            takenIds.add(path.basename(session.worktreePath));
+    if (input.useWorktrees) {
+        const worktreesRoot = getRepositoryWorktreesDir(repository.id);
+        for (const leaf of await listWorktreeLeaves(worktreesRoot)) {
+            takenIds.add(leaf);
+        }
+        for (const session of sessions.values()) {
+            if (session.repositoryId === repository.id && session.useWorktrees) {
+                takenIds.add(path.basename(session.worktreePath));
+            }
+        }
+    } else {
+        for (const session of sessions.values()) {
+            takenIds.add(session.id);
         }
     }
 
     const id = await allocateSessionId(takenIds, input.name);
-    let worktree: { branch: string; worktreePath: string; baseSha: string };
-    try {
-        worktree = await createWorktree(repository.id, repository.path, id, input.branch);
-    } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Failed to create worktree';
-        throw new Error(
-            message.startsWith('Failed to create worktree') ? message : `Failed to create worktree: ${message}`,
-        );
+
+    let workspace: { branch: string; worktreePath: string; baseSha: string };
+    if (input.useWorktrees) {
+        try {
+            workspace = await createWorktree(repository.id, repository.path, id, input.branch ?? '');
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Failed to create worktree';
+            throw new Error(
+                message.startsWith('Failed to create worktree') ? message : `Failed to create worktree: ${message}`,
+            );
+        }
+    } else {
+        const [{ stdout: headStdout }, { stdout: branchStdout }] = await Promise.all([
+            execFileAsync('git', ['rev-parse', 'HEAD'], { cwd: repository.path }),
+            execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: repository.path }),
+        ]);
+        workspace = {
+            branch: branchStdout.trim() || 'HEAD',
+            worktreePath: repository.path,
+            baseSha: headStdout.trim(),
+        };
     }
 
     const session: RuntimeSession = {
@@ -316,12 +343,13 @@ async function createCodingSession(input: {
         agent: input.agent,
         type: 'coding',
         repositoryId: repository.id,
-        branch: worktree.branch,
+        branch: workspace.branch,
         status: 'busy',
         createdAt: Date.now(),
         yoloMode: input.yoloMode,
-        worktreePath: worktree.worktreePath,
-        baseSha: worktree.baseSha,
+        useWorktrees: input.useWorktrees,
+        worktreePath: workspace.worktreePath,
+        baseSha: workspace.baseSha,
         pty: null,
         oscTitleState: { pending: '' },
     };
@@ -406,6 +434,11 @@ export function attachSessionTerminal(sessionId: string, socket: WebSocket): boo
 async function cleanupWorktree(session: RuntimeSession): Promise<void> {
     if (session.type === 'conversation') {
         await rm(session.worktreePath, { recursive: true, force: true }).catch(() => undefined);
+        return;
+    }
+
+    if (!session.useWorktrees) {
+        // Session worked directly in the repository; leave the checkout alone.
         return;
     }
 

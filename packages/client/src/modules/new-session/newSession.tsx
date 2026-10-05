@@ -80,16 +80,39 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
     );
 
     const isCoding = selectedProfile?.type === 'coding';
+    const usesWorktrees = isCoding && selectedProfile?.useWorktrees !== false;
 
     async function handleStart() {
         const trimmedName = name.trim();
         if (!trimmedName || !profileId || !selectedProfile || starting) return;
 
         if (selectedProfile.type === 'coding') {
-            const trimmedBranch = branch.trim();
-            if (!trimmedBranch || !repositoryId) return;
-            if (!isValidBranchName(trimmedBranch)) {
-                showToast('invalid-branch-name');
+            if (!repositoryId) return;
+
+            if (usesWorktrees) {
+                const trimmedBranch = branch.trim();
+                if (!trimmedBranch) return;
+                if (!isValidBranchName(trimmedBranch)) {
+                    showToast('invalid-branch-name');
+                    return;
+                }
+
+                setStarting(true);
+                try {
+                    const session = await createSession({
+                        profileId,
+                        name: trimmedName,
+                        repositoryId,
+                        branch: trimmedBranch,
+                    });
+                    onStarted(session);
+                } catch (err: unknown) {
+                    showToast(
+                        'generic-error',
+                        err instanceof Error ? err.message : intl.formatMessage(messages.startFailed),
+                    );
+                    setStarting(false);
+                }
                 return;
             }
 
@@ -99,7 +122,6 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                     profileId,
                     name: trimmedName,
                     repositoryId,
-                    branch: trimmedBranch,
                 });
                 onStarted(session);
             } catch (err: unknown) {
@@ -131,7 +153,8 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
         name.trim().length > 0 &&
         Boolean(profileId) &&
         Boolean(selectedProfile) &&
-        (selectedProfile?.type === 'conversation' || (branch.trim().length > 0 && Boolean(repositoryId)));
+        (selectedProfile?.type === 'conversation' ||
+            (Boolean(repositoryId) && (!usesWorktrees || branch.trim().length > 0)));
 
     return (
         <div
@@ -217,20 +240,22 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                                     </select>
                                 </label>
 
-                                <label className={styles.label}>
-                                    {intl.formatMessage(messages.branchLabel)}
-                                    <input
-                                        className={styles.input}
-                                        type='text'
-                                        value={branch}
-                                        onChange={(event) => setBranch(event.target.value)}
-                                        placeholder={intl.formatMessage(messages.branchPlaceholder)}
-                                        autoComplete='off'
-                                        spellCheck={false}
-                                        required
-                                        disabled={starting}
-                                    />
-                                </label>
+                                {usesWorktrees ? (
+                                    <label className={styles.label}>
+                                        {intl.formatMessage(messages.branchLabel)}
+                                        <input
+                                            className={styles.input}
+                                            type='text'
+                                            value={branch}
+                                            onChange={(event) => setBranch(event.target.value)}
+                                            placeholder={intl.formatMessage(messages.branchPlaceholder)}
+                                            autoComplete='off'
+                                            spellCheck={false}
+                                            required
+                                            disabled={starting}
+                                        />
+                                    </label>
+                                ) : null}
                             </>
                         ) : null}
                     </form>
