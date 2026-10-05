@@ -455,117 +455,205 @@ export function Settings({ onClose }: SettingsProps) {
             role='dialog'
             aria-modal='true'
             aria-label={intl.formatMessage(messages.ariaLabel)}
-        >
-            <PageHeader
-                crumbs={crumbs}
-                showSettings={false}
-                onBack={view === 'root' ? undefined : goBack}
-                actions={
-                    <IconButton label={intl.formatMessage(messages.close)} onClick={onClose}>
-                        ×
-                    </IconButton>
+            onClick={(event) => {
+                if (event.target === event.currentTarget) {
+                    onClose();
                 }
-            />
-            <div className={styles.body}>
-                {view === 'root' ? (
-                    <>
-                        <div className={styles.categories}>
-                            <button type='button' className={styles.categoryButton} onClick={() => setView('general')}>
-                                <span className={styles.categoryText}>
-                                    <span className={styles.categoryLabel}>
-                                        {intl.formatMessage(messages.categoryGeneral)}
+            }}
+        >
+            <div className={styles.shell}>
+                <PageHeader
+                    crumbs={crumbs}
+                    showSettings={false}
+                    onBack={view === 'root' ? undefined : goBack}
+                    actions={
+                        <IconButton label={intl.formatMessage(messages.close)} onClick={onClose}>
+                            ×
+                        </IconButton>
+                    }
+                />
+                <div className={styles.body}>
+                    {view === 'root' ? (
+                        <>
+                            <div className={styles.categories}>
+                                <button
+                                    type='button'
+                                    className={styles.categoryButton}
+                                    onClick={() => setView('general')}
+                                >
+                                    <span className={styles.categoryText}>
+                                        <span className={styles.categoryLabel}>
+                                            {intl.formatMessage(messages.categoryGeneral)}
+                                        </span>
+                                        <span className={styles.categoryDescription}>
+                                            {intl.formatMessage(messages.categoryGeneralDescription)}
+                                        </span>
                                     </span>
-                                    <span className={styles.categoryDescription}>
-                                        {intl.formatMessage(messages.categoryGeneralDescription)}
+                                    <CategoryChevron />
+                                </button>
+                                <button
+                                    type='button'
+                                    className={styles.categoryButton}
+                                    onClick={() => setView('repos')}
+                                >
+                                    <span className={styles.categoryText}>
+                                        <span className={styles.categoryLabel}>
+                                            {intl.formatMessage(messages.categoryRepos)}
+                                        </span>
+                                        <span className={styles.categoryDescription}>
+                                            {intl.formatMessage(messages.categoryReposDescription)}
+                                        </span>
                                     </span>
-                                </span>
-                                <CategoryChevron />
-                            </button>
-                            <button type='button' className={styles.categoryButton} onClick={() => setView('repos')}>
-                                <span className={styles.categoryText}>
-                                    <span className={styles.categoryLabel}>
-                                        {intl.formatMessage(messages.categoryRepos)}
+                                    <CategoryChevron />
+                                </button>
+                                <button
+                                    type='button'
+                                    className={styles.categoryButton}
+                                    onClick={() => setView('agents')}
+                                >
+                                    <span className={styles.categoryText}>
+                                        <span className={styles.categoryLabel}>
+                                            {intl.formatMessage(messages.categoryAgents)}
+                                        </span>
+                                        <span className={styles.categoryDescription}>
+                                            {intl.formatMessage(messages.categoryAgentsDescription)}
+                                        </span>
                                     </span>
-                                    <span className={styles.categoryDescription}>
-                                        {intl.formatMessage(messages.categoryReposDescription)}
-                                    </span>
-                                </span>
-                                <CategoryChevron />
-                            </button>
-                            <button type='button' className={styles.categoryButton} onClick={() => setView('agents')}>
-                                <span className={styles.categoryText}>
-                                    <span className={styles.categoryLabel}>
-                                        {intl.formatMessage(messages.categoryAgents)}
-                                    </span>
-                                    <span className={styles.categoryDescription}>
-                                        {intl.formatMessage(messages.categoryAgentsDescription)}
-                                    </span>
-                                </span>
-                                <CategoryChevron />
-                            </button>
+                                    <CategoryChevron />
+                                </button>
+                            </div>
+
+                            <div className={styles.actions}>
+                                <Button type='button' variant='secondary' onClick={onSignOut}>
+                                    {intl.formatMessage(messages.signOut)}
+                                </Button>
+                            </div>
+                        </>
+                    ) : null}
+
+                    {view !== 'root' && loading ? (
+                        <p className={styles.loading}>{intl.formatMessage(messages.loading)}</p>
+                    ) : null}
+
+                    {view === 'general' && !loading ? (
+                        <div className={styles.fields}>
+                            <label className={styles.label}>
+                                {intl.formatMessage(messages.devDirLabel)}
+                                <input
+                                    className={styles.input}
+                                    type='text'
+                                    value={devDir}
+                                    onChange={(event) => setDevDir(event.target.value)}
+                                    placeholder={intl.formatMessage(messages.devDirPlaceholder)}
+                                    autoComplete='off'
+                                    spellCheck={false}
+                                />
+                            </label>
+                            <p className={styles.hint}>{intl.formatMessage(messages.devDirHint)}</p>
                         </div>
+                    ) : null}
 
-                        <div className={styles.actions}>
-                            <Button type='button' variant='secondary' onClick={onSignOut}>
-                                {intl.formatMessage(messages.signOut)}
-                            </Button>
+                    {view === 'repos' && !loading ? (
+                        <div className={styles.fields}>
+                            <div>
+                                <p className={styles.label}>{intl.formatMessage(messages.addRepositoryLabel)}</p>
+                                <SearchSelect
+                                    options={availableOptions}
+                                    onSelect={(option) => {
+                                        void handleAdd(option.value);
+                                    }}
+                                    placeholder={intl.formatMessage(messages.addRepositoryPlaceholder)}
+                                    emptyMessage={intl.formatMessage(messages.addRepositoryEmpty)}
+                                    noResultsMessage={intl.formatMessage(messages.addRepositoryNoResults)}
+                                    disabled={Boolean(addingPath)}
+                                    ariaLabel={intl.formatMessage(messages.addRepositoryLabel)}
+                                />
+                            </div>
+                            <div className={styles.repositoriesList}>
+                                <p className={styles.label}>{intl.formatMessage(messages.repositoriesLabel)}</p>
+                                <div className={styles.repositories}>
+                                    {repositories.length === 0 ? (
+                                        <p className={styles.repositoryEmpty}>
+                                            {intl.formatMessage(messages.repositoriesEmpty)}
+                                        </p>
+                                    ) : (
+                                        repositories.map((repository) => (
+                                            <div key={repository.id} className={styles.repositoryRow}>
+                                                <span className={styles.repositoryName}>{repository.name}</span>
+                                                <IconButton
+                                                    label={intl.formatMessage(messages.removeRepository)}
+                                                    disabled={removingId === repository.id}
+                                                    onClick={() => setPendingRemoveRepo(repository)}
+                                                >
+                                                    ×
+                                                </IconButton>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
                         </div>
-                    </>
-                ) : null}
+                    ) : null}
 
-                {view !== 'root' && loading ? (
-                    <p className={styles.loading}>{intl.formatMessage(messages.loading)}</p>
-                ) : null}
+                    {view === 'agents' && !loading ? (
+                        <div className={styles.fields}>
+                            <label className={styles.label}>
+                                {intl.formatMessage(messages.defaultProfileLabel)}
+                                <select
+                                    className={styles.select}
+                                    value={defaultProfileId}
+                                    onChange={(event) => setDefaultProfileId(event.target.value)}
+                                >
+                                    {profiles.map((profile) => (
+                                        <option key={profile.id} value={profile.id}>
+                                            {profile.name.trim() || profile.id}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
 
-                {view === 'general' && !loading ? (
-                    <div className={styles.fields}>
-                        <label className={styles.label}>
-                            {intl.formatMessage(messages.devDirLabel)}
-                            <input
-                                className={styles.input}
-                                type='text'
-                                value={devDir}
-                                onChange={(event) => setDevDir(event.target.value)}
-                                placeholder={intl.formatMessage(messages.devDirPlaceholder)}
-                                autoComplete='off'
-                                spellCheck={false}
-                            />
-                        </label>
-                        <p className={styles.hint}>{intl.formatMessage(messages.devDirHint)}</p>
-                    </div>
-                ) : null}
-
-                {view === 'repos' && !loading ? (
-                    <div className={styles.fields}>
-                        <div>
-                            <p className={styles.label}>{intl.formatMessage(messages.addRepositoryLabel)}</p>
-                            <SearchSelect
-                                options={availableOptions}
-                                onSelect={(option) => {
-                                    void handleAdd(option.value);
-                                }}
-                                placeholder={intl.formatMessage(messages.addRepositoryPlaceholder)}
-                                emptyMessage={intl.formatMessage(messages.addRepositoryEmpty)}
-                                noResultsMessage={intl.formatMessage(messages.addRepositoryNoResults)}
-                                disabled={Boolean(addingPath)}
-                                ariaLabel={intl.formatMessage(messages.addRepositoryLabel)}
-                            />
+                            <div className={styles.categories}>
+                                <button
+                                    type='button'
+                                    className={styles.categoryButton}
+                                    onClick={() => setView('profiles')}
+                                >
+                                    <span className={styles.categoryText}>
+                                        <span className={styles.categoryLabel}>
+                                            {intl.formatMessage(messages.categoryProfiles)}
+                                        </span>
+                                        <span className={styles.categoryDescription}>
+                                            {intl.formatMessage(messages.categoryProfilesDescription)}
+                                        </span>
+                                    </span>
+                                    <CategoryChevron />
+                                </button>
+                            </div>
                         </div>
-                        <div className={styles.repositoriesList}>
-                            <p className={styles.label}>{intl.formatMessage(messages.repositoriesLabel)}</p>
+                    ) : null}
+
+                    {view === 'profiles' && !loading ? (
+                        <div className={styles.fields}>
+                            <p className={styles.label}>{intl.formatMessage(messages.profilesLabel)}</p>
                             <div className={styles.repositories}>
-                                {repositories.length === 0 ? (
+                                {profiles.length === 0 ? (
                                     <p className={styles.repositoryEmpty}>
-                                        {intl.formatMessage(messages.repositoriesEmpty)}
+                                        {intl.formatMessage(messages.profilesEmpty)}
                                     </p>
                                 ) : (
-                                    repositories.map((repository) => (
-                                        <div key={repository.id} className={styles.repositoryRow}>
-                                            <span className={styles.repositoryName}>{repository.name}</span>
+                                    profiles.map((profile) => (
+                                        <div key={profile.id} className={styles.profileRow}>
+                                            <button
+                                                type='button'
+                                                className={styles.profileRowButton}
+                                                onClick={() => openEditProfile(profile)}
+                                            >
+                                                {profile.name.trim() || profile.id}
+                                            </button>
                                             <IconButton
-                                                label={intl.formatMessage(messages.removeRepository)}
-                                                disabled={removingId === repository.id}
-                                                onClick={() => setPendingRemoveRepo(repository)}
+                                                label={intl.formatMessage(messages.removeProfile)}
+                                                disabled={profiles.length <= 1 || removingId === profile.id}
+                                                onClick={() => setPendingRemoveProfile(profile)}
                                             >
                                                 ×
                                             </IconButton>
@@ -574,189 +662,128 @@ export function Settings({ onClose }: SettingsProps) {
                                 )}
                             </div>
                         </div>
-                    </div>
-                ) : null}
+                    ) : null}
 
-                {view === 'agents' && !loading ? (
-                    <div className={styles.fields}>
-                        <label className={styles.label}>
-                            {intl.formatMessage(messages.defaultProfileLabel)}
-                            <select
-                                className={styles.select}
-                                value={defaultProfileId}
-                                onChange={(event) => setDefaultProfileId(event.target.value)}
-                            >
-                                {profiles.map((profile) => (
-                                    <option key={profile.id} value={profile.id}>
-                                        {profile.name.trim() || profile.id}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-
-                        <div className={styles.categories}>
-                            <button type='button' className={styles.categoryButton} onClick={() => setView('profiles')}>
-                                <span className={styles.categoryText}>
-                                    <span className={styles.categoryLabel}>
-                                        {intl.formatMessage(messages.categoryProfiles)}
-                                    </span>
-                                    <span className={styles.categoryDescription}>
-                                        {intl.formatMessage(messages.categoryProfilesDescription)}
-                                    </span>
-                                </span>
-                                <CategoryChevron />
-                            </button>
-                        </div>
-                    </div>
-                ) : null}
-
-                {view === 'profiles' && !loading ? (
-                    <div className={styles.fields}>
-                        <p className={styles.label}>{intl.formatMessage(messages.profilesLabel)}</p>
-                        <div className={styles.repositories}>
-                            {profiles.length === 0 ? (
-                                <p className={styles.repositoryEmpty}>{intl.formatMessage(messages.profilesEmpty)}</p>
-                            ) : (
-                                profiles.map((profile) => (
-                                    <div key={profile.id} className={styles.profileRow}>
-                                        <button
-                                            type='button'
-                                            className={styles.profileRowButton}
-                                            onClick={() => openEditProfile(profile)}
-                                        >
-                                            {profile.name.trim() || profile.id}
-                                        </button>
-                                        <IconButton
-                                            label={intl.formatMessage(messages.removeProfile)}
-                                            disabled={profiles.length <= 1 || removingId === profile.id}
-                                            onClick={() => setPendingRemoveProfile(profile)}
-                                        >
-                                            ×
-                                        </IconButton>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-                ) : null}
-
-                {showProfileForm ? (
-                    <div className={styles.fields}>
-                        <label className={styles.label}>
-                            {intl.formatMessage(messages.profileNameLabel)}
-                            <input
-                                className={styles.input}
-                                type='text'
-                                value={draftProfile.name}
-                                onChange={(event) =>
-                                    setDraftProfile((current) => ({ ...current, name: event.target.value }))
-                                }
-                                placeholder={intl.formatMessage(messages.profileNamePlaceholder)}
-                                autoComplete='off'
-                                spellCheck={false}
-                                autoFocus
-                                disabled={profileFormBusy}
-                            />
-                        </label>
-
-                        <label className={styles.label}>
-                            {intl.formatMessage(messages.profileTypeLabel)}
-                            <select
-                                className={styles.select}
-                                value={draftProfile.type}
-                                disabled={profileFormBusy}
-                                onChange={(event) => {
-                                    const next = event.target.value;
-                                    if (next === 'coding' || next === 'conversation') {
-                                        setDraftProfile((current) => ({ ...current, type: next }));
+                    {showProfileForm ? (
+                        <div className={styles.fields}>
+                            <label className={styles.label}>
+                                {intl.formatMessage(messages.profileNameLabel)}
+                                <input
+                                    className={styles.input}
+                                    type='text'
+                                    value={draftProfile.name}
+                                    onChange={(event) =>
+                                        setDraftProfile((current) => ({ ...current, name: event.target.value }))
                                     }
-                                }}
-                            >
-                                <option value='coding'>{intl.formatMessage(messages.profileTypeCoding)}</option>
-                                <option value='conversation'>
-                                    {intl.formatMessage(messages.profileTypeConversation)}
-                                </option>
-                            </select>
-                        </label>
+                                    placeholder={intl.formatMessage(messages.profileNamePlaceholder)}
+                                    autoComplete='off'
+                                    spellCheck={false}
+                                    autoFocus
+                                    disabled={profileFormBusy}
+                                />
+                            </label>
 
-                        <label className={styles.label}>
-                            {intl.formatMessage(messages.profileHarnessLabel)}
-                            <select
-                                className={styles.select}
-                                value={draftProfile.agent}
-                                disabled={profileFormBusy}
-                                onChange={(event) => {
-                                    const next = event.target.value;
-                                    if (isAgentId(next)) {
-                                        setDraftProfile((current) => ({ ...current, agent: next }));
-                                    }
-                                }}
-                            >
-                                {AGENTS.map((option) => (
-                                    <option key={option.id} value={option.id}>
-                                        {intl.formatMessage(option.labelMessage)}
+                            <label className={styles.label}>
+                                {intl.formatMessage(messages.profileTypeLabel)}
+                                <select
+                                    className={styles.select}
+                                    value={draftProfile.type}
+                                    disabled={profileFormBusy}
+                                    onChange={(event) => {
+                                        const next = event.target.value;
+                                        if (next === 'coding' || next === 'conversation') {
+                                            setDraftProfile((current) => ({ ...current, type: next }));
+                                        }
+                                    }}
+                                >
+                                    <option value='coding'>{intl.formatMessage(messages.profileTypeCoding)}</option>
+                                    <option value='conversation'>
+                                        {intl.formatMessage(messages.profileTypeConversation)}
                                     </option>
-                                ))}
-                            </select>
-                        </label>
+                                </select>
+                            </label>
 
-                        <Toggle
-                            label={intl.formatMessage(messages.profileYoloModeLabel)}
-                            description={intl.formatMessage(messages.profileYoloModeHint)}
-                            checked={draftProfile.yoloMode}
-                            disabled={profileFormBusy}
-                            onChange={(checked) => setDraftProfile((current) => ({ ...current, yoloMode: checked }))}
-                        />
+                            <label className={styles.label}>
+                                {intl.formatMessage(messages.profileHarnessLabel)}
+                                <select
+                                    className={styles.select}
+                                    value={draftProfile.agent}
+                                    disabled={profileFormBusy}
+                                    onChange={(event) => {
+                                        const next = event.target.value;
+                                        if (isAgentId(next)) {
+                                            setDraftProfile((current) => ({ ...current, agent: next }));
+                                        }
+                                    }}
+                                >
+                                    {AGENTS.map((option) => (
+                                        <option key={option.id} value={option.id}>
+                                            {intl.formatMessage(option.labelMessage)}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
 
-                        {draftProfile.type === 'coding' ? (
                             <Toggle
-                                label={intl.formatMessage(messages.profileUseWorktreesLabel)}
-                                description={intl.formatMessage(messages.profileUseWorktreesHint)}
-                                checked={draftProfile.useWorktrees}
+                                label={intl.formatMessage(messages.profileYoloModeLabel)}
+                                description={intl.formatMessage(messages.profileYoloModeHint)}
+                                checked={draftProfile.yoloMode}
                                 disabled={profileFormBusy}
                                 onChange={(checked) =>
-                                    setDraftProfile((current) => ({ ...current, useWorktrees: checked }))
+                                    setDraftProfile((current) => ({ ...current, yoloMode: checked }))
                                 }
                             />
-                        ) : null}
+
+                            {draftProfile.type === 'coding' ? (
+                                <Toggle
+                                    label={intl.formatMessage(messages.profileUseWorktreesLabel)}
+                                    description={intl.formatMessage(messages.profileUseWorktreesHint)}
+                                    checked={draftProfile.useWorktrees}
+                                    disabled={profileFormBusy}
+                                    onChange={(checked) =>
+                                        setDraftProfile((current) => ({ ...current, useWorktrees: checked }))
+                                    }
+                                />
+                            ) : null}
+                        </div>
+                    ) : null}
+                </div>
+                {showSaveButton ? (
+                    <div className={styles.footer}>
+                        <Button type='button' onClick={() => void handleSave()} disabled={saving}>
+                            {saving ? intl.formatMessage(messages.saving) : intl.formatMessage(messages.save)}
+                        </Button>
+                    </div>
+                ) : null}
+                {view === 'profiles' && !loading ? (
+                    <div className={styles.footer}>
+                        <Button
+                            type='button'
+                            onClick={() => {
+                                setEditingProfileId(null);
+                                setDraftProfile(emptyDraftProfile());
+                                setView('new-profile');
+                            }}
+                        >
+                            {intl.formatMessage(messages.addProfile)}
+                        </Button>
+                    </div>
+                ) : null}
+                {view === 'new-profile' && !loading ? (
+                    <div className={styles.footer}>
+                        <Button type='button' onClick={() => void handleCreateProfile()} disabled={!canCreateProfile}>
+                            {intl.formatMessage(creatingProfile ? messages.creatingProfile : messages.createProfile)}
+                        </Button>
+                    </div>
+                ) : null}
+                {view === 'edit-profile' && !loading && canSaveProfile ? (
+                    <div className={styles.footer}>
+                        <Button type='button' onClick={() => void handleSaveProfile()} disabled={savingProfile}>
+                            {savingProfile ? intl.formatMessage(messages.saving) : intl.formatMessage(messages.save)}
+                        </Button>
                     </div>
                 ) : null}
             </div>
-            {showSaveButton ? (
-                <div className={styles.footer}>
-                    <Button type='button' onClick={() => void handleSave()} disabled={saving}>
-                        {saving ? intl.formatMessage(messages.saving) : intl.formatMessage(messages.save)}
-                    </Button>
-                </div>
-            ) : null}
-            {view === 'profiles' && !loading ? (
-                <div className={styles.footer}>
-                    <Button
-                        type='button'
-                        onClick={() => {
-                            setEditingProfileId(null);
-                            setDraftProfile(emptyDraftProfile());
-                            setView('new-profile');
-                        }}
-                    >
-                        {intl.formatMessage(messages.addProfile)}
-                    </Button>
-                </div>
-            ) : null}
-            {view === 'new-profile' && !loading ? (
-                <div className={styles.footer}>
-                    <Button type='button' onClick={() => void handleCreateProfile()} disabled={!canCreateProfile}>
-                        {intl.formatMessage(creatingProfile ? messages.creatingProfile : messages.createProfile)}
-                    </Button>
-                </div>
-            ) : null}
-            {view === 'edit-profile' && !loading && canSaveProfile ? (
-                <div className={styles.footer}>
-                    <Button type='button' onClick={() => void handleSaveProfile()} disabled={savingProfile}>
-                        {savingProfile ? intl.formatMessage(messages.saving) : intl.formatMessage(messages.save)}
-                    </Button>
-                </div>
-            ) : null}
             {pendingRemoveRepo ? (
                 <ConfirmDialog
                     message={intl.formatMessage(messages.removeRepositoryConfirm, {

@@ -5,10 +5,17 @@ import {
     type SessionDiffFile,
     type SessionFileDiff,
 } from '@client/libs/api/sessions';
+import { PanelResizeHandle, panelResizeHandleMessages } from '@client/components/panel-resize-handle';
+import { useIsDesktop } from '@client/libs/dom/useMediaQuery';
+import {
+    clampFileTreeWidthPx,
+    getFileTreeWidthPx,
+    setFileTreeWidthPx,
+} from '@client/libs/layout/reviewLayoutPreferences';
 import { setupMonaco } from '@client/libs/monaco/setup';
 import { showToast } from '@client/modules/toast';
 import { DiffEditor } from '@monaco-editor/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { buildFileTree, type FileTreeDirNode, type FileTreeNode } from './buildFileTree';
 import { messages } from './sessionCodeView.messages';
@@ -119,11 +126,13 @@ function FileRow({
     file,
     name,
     depth,
+    selected,
     onSelect,
 }: {
     file: SessionDiffFile;
     name: string;
     depth: number;
+    selected: boolean;
     onSelect: (path: string) => void;
 }) {
     const intl = useIntl();
@@ -131,9 +140,10 @@ function FileRow({
     return (
         <button
             type='button'
-            className={`${styles.treeRow} ${styles.fileButton}`}
+            className={`${styles.treeRow} ${styles.fileButton}${selected ? ` ${styles.treeRowSelected}` : ''}`}
             style={{ paddingLeft: TREE_BASE_PAD_PX + depth * TREE_INDENT_PX }}
             onClick={() => onSelect(file.path)}
+            aria-current={selected ? 'true' : undefined}
         >
             <span className={styles.chevronSpacer} />
             <span className={`${styles.statusBadge} ${statusClass(file.status)}`}>
@@ -164,12 +174,14 @@ function FileRow({
 function FileTree({
     nodes,
     depth,
+    selectedPath,
     collapsedPaths,
     onToggle,
     onSelect,
 }: {
     nodes: FileTreeNode[];
     depth: number;
+    selectedPath: string | null;
     collapsedPaths: Set<string>;
     onToggle: (path: string) => void;
     onSelect: (path: string) => void;
@@ -184,6 +196,7 @@ function FileTree({
                             file={node.file}
                             name={node.name}
                             depth={depth}
+                            selected={selectedPath === node.file.path}
                             onSelect={onSelect}
                         />
                     );
@@ -197,6 +210,7 @@ function FileTree({
                             <FileTree
                                 nodes={node.children}
                                 depth={depth + 1}
+                                selectedPath={selectedPath}
                                 collapsedPaths={collapsedPaths}
                                 onToggle={onToggle}
                                 onSelect={onSelect}
@@ -209,16 +223,29 @@ function FileTree({
     );
 }
 
-export function SessionCodeView({ sessionId }: SessionCodeViewProps) {
+export function SessionCodeView({ sessionId, onHasFilesChange }: SessionCodeViewProps) {
     const intl = useIntl();
+    const isDesktop = useIsDesktop();
     const [files, setFiles] = useState<SessionDiffFile[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedPath, setSelectedPath] = useState<string | null>(null);
     const [fileDiff, setFileDiff] = useState<SessionFileDiff | null>(null);
     const [fileLoading, setFileLoading] = useState(false);
     const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(() => new Set());
+    const [fileTreeWidth, setFileTreeWidth] = useState(getFileTreeWidthPx);
+    const fileTreeWidthRef = useRef(fileTreeWidth);
 
     const tree = useMemo(() => buildFileTree(files), [files]);
+    fileTreeWidthRef.current = fileTreeWidth;
+
+    const persistFileTreeWidth = useCallback(() => {
+        setFileTreeWidthPx(fileTreeWidthRef.current);
+    }, []);
+    const hasFiles = files.length > 0;
+
+    useEffect(() => {
+        onHasFilesChange?.(hasFiles);
+    }, [hasFiles, onHasFilesChange]);
 
     useEffect(() => {
         let cancelled = false;
@@ -315,90 +342,117 @@ export function SessionCodeView({ sessionId }: SessionCodeViewProps) {
         });
     }
 
+    const editorEmptyMessage =
+        !loading && !hasFiles ? intl.formatMessage(messages.empty) : intl.formatMessage(messages.selectFile);
+
+    const showEditor = isDesktop || Boolean(selectedPath);
+    const listPanelClass = selectedPath ? styles.listPanelMobileHidden : styles.listPanel;
+    const editorPanelClass = showEditor ? styles.editorPanel : styles.editorPanelMobileHidden;
+
+    const listPanelWrapStyle = isDesktop ? { width: fileTreeWidth } : undefined;
+
     return (
         <div className={styles.root}>
-            <div className={selectedPath ? styles.panelHidden : styles.panel}>
-                <div className={styles.toolbar}>
-                    <p className={styles.toolbarTitle}>
-                        {loading
-                            ? intl.formatMessage(messages.loading)
-                            : intl.formatMessage(messages.filesChanged, { count: files.length })}
-                    </p>
-                    <button type='button' className={styles.refreshButton} onClick={refresh} disabled={loading}>
-                        {intl.formatMessage(messages.refresh)}
-                    </button>
-                </div>
-                {loading ? (
-                    <p className={styles.centered}>{intl.formatMessage(messages.loading)}</p>
-                ) : files.length === 0 ? (
-                    <p className={styles.centered}>{intl.formatMessage(messages.empty)}</p>
-                ) : (
-                    <div className={styles.fileList}>
-                        <FileTree
-                            nodes={tree}
-                            depth={0}
-                            collapsedPaths={collapsedPaths}
-                            onToggle={toggleFolder}
-                            onSelect={setSelectedPath}
-                        />
+            <div className={styles.listPanelWrap} style={listPanelWrapStyle}>
+                <div className={listPanelClass}>
+                    <div className={styles.toolbar}>
+                        <p className={styles.toolbarTitle}>
+                            {loading
+                                ? intl.formatMessage(messages.loading)
+                                : intl.formatMessage(messages.filesChanged, { count: files.length })}
+                        </p>
+                        <div className={styles.toolbarActions}>
+                            <button type='button' className={styles.refreshButton} onClick={refresh} disabled={loading}>
+                                {intl.formatMessage(messages.refresh)}
+                            </button>
+                        </div>
                     </div>
-                )}
-            </div>
-
-            {selectedPath ? (
-                <div className={styles.panel}>
-                    <div className={styles.fileHeader}>
-                        <button type='button' className={styles.backButton} onClick={() => setSelectedPath(null)}>
-                            <BackIcon />
-                            {intl.formatMessage(messages.backToFiles)}
-                        </button>
-                        <span className={styles.fileHeaderPath}>{selectedPath}</span>
-                    </div>
-                    {fileLoading || !fileDiff ? (
+                    {loading ? (
                         <p className={styles.centered}>{intl.formatMessage(messages.loading)}</p>
-                    ) : fileDiff.binary ? (
-                        <p className={styles.centered}>{intl.formatMessage(messages.binaryFile)}</p>
+                    ) : files.length === 0 ? (
+                        <p className={styles.centered}>{intl.formatMessage(messages.empty)}</p>
                     ) : (
-                        <div className={styles.editorWrap}>
-                            <div className={styles.editorFill}>
-                                <DiffEditor
-                                    height='100%'
-                                    width='100%'
-                                    original={fileDiff.original}
-                                    modified={fileDiff.modified}
-                                    language={fileDiff.language}
-                                    theme='vs-dark'
-                                    options={{
-                                        readOnly: true,
-                                        renderSideBySide: false,
-                                        wordWrap: 'on',
-                                        wrappingIndent: 'same',
-                                        fontSize: 11,
-                                        lineHeight: 16,
-                                        minimap: { enabled: false },
-                                        scrollBeyondLastLine: false,
-                                        renderOverviewRuler: false,
-                                        overviewRulerLanes: 0,
-                                        scrollbar: {
-                                            verticalScrollbarSize: 6,
-                                            horizontalScrollbarSize: 6,
-                                        },
-                                        padding: { top: 8, bottom: 8 },
-                                        glyphMargin: false,
-                                        folding: false,
-                                        lineDecorationsWidth: 8,
-                                        lineNumbersMinChars: 3,
-                                        renderLineHighlight: 'none',
-                                        contextmenu: false,
-                                        automaticLayout: true,
-                                        originalEditable: false,
-                                    }}
-                                />
-                            </div>
+                        <div className={styles.fileList}>
+                            <FileTree
+                                nodes={tree}
+                                depth={0}
+                                selectedPath={selectedPath}
+                                collapsedPaths={collapsedPaths}
+                                onToggle={toggleFolder}
+                                onSelect={setSelectedPath}
+                            />
                         </div>
                     )}
                 </div>
-            ) : null}
+                {isDesktop ? (
+                    <PanelResizeHandle
+                        edge='trailing'
+                        className={styles.fileTreeResize}
+                        ariaLabel={intl.formatMessage(panelResizeHandleMessages.resizeFileTree)}
+                        onResize={(delta) => setFileTreeWidth((width) => clampFileTreeWidthPx(width + delta))}
+                        onResizeEnd={persistFileTreeWidth}
+                    />
+                ) : null}
+            </div>
+
+            <div className={editorPanelClass}>
+                {selectedPath ? (
+                    <>
+                        <div className={styles.fileHeader}>
+                            <button type='button' className={styles.backButton} onClick={() => setSelectedPath(null)}>
+                                <BackIcon />
+                                {intl.formatMessage(messages.backToFiles)}
+                            </button>
+                            <span className={styles.fileHeaderPath}>{selectedPath}</span>
+                        </div>
+                        {fileLoading || !fileDiff ? (
+                            <p className={styles.centered}>{intl.formatMessage(messages.loading)}</p>
+                        ) : fileDiff.binary ? (
+                            <p className={styles.centered}>{intl.formatMessage(messages.binaryFile)}</p>
+                        ) : (
+                            <div className={styles.editorWrap}>
+                                <div className={styles.editorFill}>
+                                    <DiffEditor
+                                        height='100%'
+                                        width='100%'
+                                        original={fileDiff.original}
+                                        modified={fileDiff.modified}
+                                        language={fileDiff.language}
+                                        theme='vs-dark'
+                                        options={{
+                                            readOnly: true,
+                                            renderSideBySide: isDesktop,
+                                            wordWrap: 'on',
+                                            wrappingIndent: 'same',
+                                            fontSize: isDesktop ? 13 : 11,
+                                            lineHeight: isDesktop ? 18 : 16,
+                                            minimap: { enabled: false },
+                                            scrollBeyondLastLine: false,
+                                            renderOverviewRuler: false,
+                                            overviewRulerLanes: 0,
+                                            scrollbar: {
+                                                verticalScrollbarSize: 6,
+                                                horizontalScrollbarSize: 6,
+                                            },
+                                            padding: { top: 8, bottom: 8 },
+                                            glyphMargin: false,
+                                            folding: false,
+                                            lineDecorationsWidth: 8,
+                                            lineNumbersMinChars: 3,
+                                            renderLineHighlight: 'none',
+                                            contextmenu: false,
+                                            automaticLayout: true,
+                                            originalEditable: false,
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                        )}
+                    </>
+                ) : (
+                    <p className={styles.centered}>{editorEmptyMessage}</p>
+                )}
+            </div>
         </div>
     );
 }

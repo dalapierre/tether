@@ -13,7 +13,7 @@ Typical use: the app runs on your computer on the LAN; you open it from your pho
 When making product or architecture decisions, prefer:
 
 - **Server-side execution** — agent runs, tooling, git, and PR workflows happen on the host PC.
-- **Phone-first remote control** — the client is for prompting, monitoring, and review on a small screen.
+- **Phone-first remote control** — the client is for prompting, monitoring, and review on a small screen; desktop browsers get the same flows with wider multi-pane layouts.
 - **Local-network access** — connect to the machine running Tether over LAN; keep the control plane usable away from the desk.
 
 ## Project file setup
@@ -27,8 +27,8 @@ When making product or architecture decisions, prefer:
 
 Use absolute imports via package aliases instead of deep relative paths (`../../../`).
 
-| Alias | Resolves to |
-| --- | --- |
+| Alias       | Resolves to             |
+| ----------- | ----------------------- |
 | `@client/*` | `packages/client/src/*` |
 | `@server/*` | `packages/server/src/*` |
 
@@ -76,13 +76,13 @@ Treat `components/` as the app's design system. Reusable UI should be defined on
 
 Every React component in the client follows the same structure. Place each component in its own directory (dash-separated when multi-word). Inside that directory:
 
-| File | Purpose |
-| --- | --- |
-| `index.ts` | Public exports — the component and any public types |
-| `{componentName}.tsx` | The React component definition |
-| `{componentName}.styles.ts` | Tailwind CSS class strings and other stylistic rules (keeps style concerns visible and separate) |
-| `{componentName}.types.ts` | Private and public types for the component. Export public types from `index.ts` |
-| `{componentName}.messages.ts` | `defineMessages` catalog for all user-facing strings in the component |
+| File                          | Purpose                                                                                          |
+| ----------------------------- | ------------------------------------------------------------------------------------------------ |
+| `index.ts`                    | Public exports — the component and any public types                                              |
+| `{componentName}.tsx`         | The React component definition                                                                   |
+| `{componentName}.styles.ts`   | Tailwind CSS class strings and other stylistic rules (keeps style concerns visible and separate) |
+| `{componentName}.types.ts`    | Private and public types for the component. Export public types from `index.ts`                  |
+| `{componentName}.messages.ts` | `defineMessages` catalog for all user-facing strings in the component                            |
 
 Example:
 
@@ -127,14 +127,14 @@ Never hardcode user-facing strings in the client. All copy — labels, buttons, 
 - Dynamic values from the user or API (repository names, server error bodies) may be passed as `values` or shown as-is; the surrounding template and any fallback copy must still be a defined message.
 - When a message has ICU placeholders or rich-text tags, declare the values contract and pass `{ typed: true }` (use `MessageTag` for tags, `NoMessageValues` for plain messages in that catalog).
 
-### UI (mobile-first)
+### UI (phone + desktop)
 
-Tether is primarily accessed from a phone. Design and implement the UI **mobile-first**, and aim for **UI friendliness that mimics a native mobile app**:
+Tether is primarily accessed from a phone, but the client also supports desktop browsers. Design and implement the UI **mobile-first**, then enhance for larger viewports:
 
-- Default layouts, spacing, and touch targets for a small screen; enhance for larger viewports only when needed.
-- Prefer simple, single-column flows that work well with thumbs.
-- Favor mobile-app patterns: full-bleed screens, bottom navigation or sticky primary actions, generous tap targets, and clear visual hierarchy over dense web chrome (sidebars, multi-panel dashboards, hover-only menus).
-- Avoid dense desktop-oriented patterns (multi-column dashboards, hover-only affordances) unless they degrade gracefully on mobile.
+- **Phone (default)** — layouts, spacing, and touch targets for a small screen. Aim for UI friendliness that mimics a native mobile app: full-bleed screens, sticky primary actions, generous tap targets, and clear visual hierarchy. Prefer simple single-column flows that work well with thumbs.
+- **Desktop (`md` / 768px and up)** — keep the same flows and visual language, but use the extra space: readable max-widths for lists and forms, centered modal-style overlays for settings and new session, and multi-pane layouts where they help (e.g. agent terminal beside code review, file tree beside diff).
+- Do not change phone behavior when adding desktop layouts — desktop enhancements are additive via responsive breakpoints (and `useIsDesktop` when JS must diverge).
+- Avoid hover-only affordances as the sole way to complete a task; desktop may add hover polish, but phone must remain fully usable.
 
 ### Network calls (auth by default)
 

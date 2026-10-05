@@ -1,20 +1,30 @@
 import { PageHeader } from '@client/components/page-header';
+import { PanelResizeHandle, panelResizeHandleMessages } from '@client/components/panel-resize-handle';
 import { SegmentedControl } from '@client/components/segmented-control';
 import { AGENTS, type AgentId } from '@client/libs/agents/agents';
 import {
     connectSessionTerminal,
     getSession,
+    getSessionDiff,
     sendTerminalMessage,
     type ServerTerminalMessage,
     type Session,
     type SessionStatus,
 } from '@client/libs/api/sessions';
+import { useIsDesktop } from '@client/libs/dom/useMediaQuery';
+import {
+    clampReviewPaneWidthPx,
+    getReviewPaneWidthPx,
+    getReviewPanelOpen,
+    setReviewPanelOpen,
+    setReviewPaneWidthPx,
+} from '@client/libs/layout/reviewLayoutPreferences';
 import { attachTouchScroll } from '@client/libs/terminal/touchScroll';
 import { showToast } from '@client/modules/toast';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { useNavigate } from 'react-router-dom';
 import { messages } from './sessionView.messages';
@@ -114,6 +124,7 @@ function syncTerminalLayout(options: {
 export function SessionView({ sessionId }: SessionViewProps) {
     const intl = useIntl();
     const navigate = useNavigate();
+    const isDesktop = useIsDesktop();
     const [session, setSession] = useState<Session | null>(null);
     const [loading, setLoading] = useState(true);
     const [failed, setFailed] = useState(false);
@@ -121,10 +132,44 @@ export function SessionView({ sessionId }: SessionViewProps) {
     const [connection, setConnection] = useState<ConnectionState>('connecting');
     const [tab, setTab] = useState<SessionTab>('agent');
     const [reviewVisited, setReviewVisited] = useState(false);
+    const [hasReviewFiles, setHasReviewFiles] = useState(false);
+    const [desktopReviewOpen, setDesktopReviewOpen] = useState(false);
+    const [reviewPaneWidth, setReviewPaneWidth] = useState(getReviewPaneWidthPx);
+    const reviewPaneWidthRef = useRef(reviewPaneWidth);
     const terminalRef = useRef<HTMLDivElement | null>(null);
     const socketRef = useRef<WebSocket | null>(null);
     const termRef = useRef<Terminal | null>(null);
     const fitAddonRef = useRef<FitAddon | null>(null);
+
+    const onHasFilesChange = useCallback((hasFiles: boolean) => {
+        setHasReviewFiles(hasFiles);
+    }, []);
+
+    const showDesktopReview = isDesktop && desktopReviewOpen;
+
+    reviewPaneWidthRef.current = reviewPaneWidth;
+
+    const persistReviewPaneWidth = useCallback(() => {
+        setReviewPaneWidthPx(reviewPaneWidthRef.current);
+    }, []);
+
+    function toggleDesktopReview() {
+        setDesktopReviewOpen((open) => {
+            const next = !open;
+            setReviewPanelOpen(sessionId, next);
+            if (next) {
+                setReviewVisited(true);
+            }
+            return next;
+        });
+    }
+
+    useEffect(() => {
+        const storedOpen = getReviewPanelOpen(sessionId);
+        setDesktopReviewOpen(storedOpen === true);
+        setReviewVisited(storedOpen === true);
+        setHasReviewFiles(false);
+    }, [sessionId]);
 
     useEffect(() => {
         let cancelled = false;
@@ -306,7 +351,55 @@ export function SessionView({ sessionId }: SessionViewProps) {
     }, [loading, failed, session, intl]);
 
     useEffect(() => {
-        if (tab !== 'agent') return;
+        if (!session || session.type !== 'coding') {
+            setHasReviewFiles(false);
+            return;
+        }
+
+        let cancelled = false;
+
+        const check = () => {
+            getSessionDiff(session.id)
+                .then((diff) => {
+                    if (!cancelled) {
+                        setHasReviewFiles(diff.files.length > 0);
+                    }
+                })
+                .catch(() => {
+                    // Keep the last known state; tab enablement is best-effort.
+                });
+        };
+
+        check();
+        const timer = window.setInterval(check, 4000);
+        return () => {
+            cancelled = true;
+            window.clearInterval(timer);
+        };
+    }, [session]);
+
+    useEffect(() => {
+        if (!hasReviewFiles) {
+            return;
+        }
+
+        setReviewVisited(true);
+
+        const storedOpen = getReviewPanelOpen(sessionId);
+        if (storedOpen === null) {
+            setDesktopReviewOpen(true);
+            setReviewPanelOpen(sessionId, true);
+        }
+    }, [hasReviewFiles, sessionId]);
+
+    useEffect(() => {
+        if (!hasReviewFiles && tab === 'review') {
+            setTab('agent');
+        }
+    }, [hasReviewFiles, tab]);
+
+    useEffect(() => {
+        if (!isDesktop && tab !== 'agent') return;
         const fitAddon = fitAddonRef.current;
         const term = termRef.current;
         if (!fitAddon || !term) return;
@@ -320,7 +413,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                 refresh: true,
             });
         });
-    }, [tab]);
+    }, [tab, isDesktop, showDesktopReview, reviewPaneWidth]);
 
     if (loading) {
         return (
@@ -368,7 +461,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                 showSettings={false}
                 onBack={() => navigate('/')}
             />
-            {session.type === 'coding' ? (
+            {session.type === 'coding' && !isDesktop ? (
                 <div className={styles.tabs}>
                     <SegmentedControl
                         ariaLabel={intl.formatMessage(messages.viewTabs)}
@@ -381,7 +474,11 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         }}
                         options={[
                             { value: 'agent', label: intl.formatMessage(messages.agentView) },
-                            { value: 'review', label: intl.formatMessage(messages.reviewView) },
+                            {
+                                value: 'review',
+                                label: intl.formatMessage(messages.reviewView),
+                                disabled: !hasReviewFiles,
+                            },
                         ]}
                     />
                 </div>
@@ -398,28 +495,54 @@ export function SessionView({ sessionId }: SessionViewProps) {
                           })}
                     {connectionLabel ? ` · ${connectionLabel}` : ''}
                 </p>
-                <span className={styles.status}>
-                    <span className={`${styles.statusDot} ${statusDotClass(status)}`} aria-hidden='true' />
-                    {statusLabel(status, intl.formatMessage)}
-                </span>
+                <div className={styles.metaEnd}>
+                    {session.type === 'coding' ? (
+                        <button type='button' className={styles.reviewToggle} onClick={toggleDesktopReview}>
+                            {intl.formatMessage(desktopReviewOpen ? messages.closeReview : messages.openReview)}
+                        </button>
+                    ) : null}
+                    <span className={styles.status}>
+                        <span className={`${styles.statusDot} ${statusDotClass(status)}`} aria-hidden='true' />
+                        {statusLabel(status, intl.formatMessage)}
+                    </span>
+                </div>
             </div>
             <div className={styles.content}>
                 <div
-                    className={session.type === 'conversation' || tab === 'agent' ? styles.pane : styles.paneInactive}
-                    aria-hidden={session.type === 'coding' && tab !== 'agent'}
+                    className={
+                        session.type === 'conversation' || isDesktop || tab === 'agent'
+                            ? styles.pane
+                            : styles.paneInactive
+                    }
+                    aria-hidden={session.type === 'coding' && !isDesktop && tab !== 'agent'}
                 >
                     <div className={styles.terminalWrap}>
                         <div ref={terminalRef} className={styles.terminal} />
                     </div>
                 </div>
-                {session.type === 'coding' && reviewVisited ? (
+                {session.type === 'coding' && reviewVisited && (!isDesktop || showDesktopReview) ? (
                     <div
-                        className={tab === 'review' ? styles.pane : styles.paneInactive}
-                        aria-hidden={tab !== 'review'}
+                        className={isDesktop || tab === 'review' ? styles.paneReview : styles.paneInactive}
+                        aria-hidden={!isDesktop && tab !== 'review'}
+                        style={isDesktop && showDesktopReview ? { width: reviewPaneWidth } : undefined}
                     >
-                        <Suspense fallback={<p className={styles.centered}>{intl.formatMessage(messages.loading)}</p>}>
-                            <SessionCodeView sessionId={session.id} />
-                        </Suspense>
+                        {isDesktop && showDesktopReview ? (
+                            <PanelResizeHandle
+                                edge='leading'
+                                ariaLabel={intl.formatMessage(panelResizeHandleMessages.resizeReviewPanel)}
+                                onResize={(delta) =>
+                                    setReviewPaneWidth((width) => clampReviewPaneWidthPx(width - delta))
+                                }
+                                onResizeEnd={persistReviewPaneWidth}
+                            />
+                        ) : null}
+                        <div className={styles.reviewBody}>
+                            <Suspense
+                                fallback={<p className={styles.centered}>{intl.formatMessage(messages.loading)}</p>}
+                            >
+                                <SessionCodeView sessionId={session.id} onHasFilesChange={onHasFilesChange} />
+                            </Suspense>
+                        </div>
                     </div>
                 ) : null}
             </div>

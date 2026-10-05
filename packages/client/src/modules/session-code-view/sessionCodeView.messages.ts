@@ -4,6 +4,7 @@ type Messages = {
     loading: NoMessageValues;
     loadFailed: NoMessageValues;
     empty: NoMessageValues;
+    selectFile: NoMessageValues;
     refresh: NoMessageValues;
     backToFiles: NoMessageValues;
     binaryFile: NoMessageValues;
@@ -31,6 +32,10 @@ export const messages = defineMessages<Messages>(
         empty: {
             id: 'sessionCodeView.empty',
             defaultMessage: 'No code changes yet',
+        },
+        selectFile: {
+            id: 'sessionCodeView.selectFile',
+            defaultMessage: 'Select a file to review',
         },
         refresh: {
             id: 'sessionCodeView.refresh',

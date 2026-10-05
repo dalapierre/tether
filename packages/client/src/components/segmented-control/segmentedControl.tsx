@@ -17,6 +17,7 @@ export function SegmentedControl<T extends string>({ options, value, onChange, a
                         type='button'
                         role='tab'
                         aria-selected={active}
+                        disabled={option.disabled}
                         className={`${styles.option} ${active ? styles.optionActive : styles.optionInactive}`}
                         onClick={() => onChange(option.value)}
                     >

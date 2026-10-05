@@ -16,6 +16,8 @@ type Messages = {
     viewTabs: NoMessageValues;
     agentView: NoMessageValues;
     reviewView: NoMessageValues;
+    openReview: NoMessageValues;
+    closeReview: NoMessageValues;
 };
 
 export const messages = defineMessages<Messages>(
@@ -79,6 +81,14 @@ export const messages = defineMessages<Messages>(
         reviewView: {
             id: 'sessionView.reviewView',
             defaultMessage: 'Review',
+        },
+        openReview: {
+            id: 'sessionView.openReview',
+            defaultMessage: 'Review',
+        },
+        closeReview: {
+            id: 'sessionView.closeReview',
+            defaultMessage: 'Close review',
         },
     },
     { typed: true },
