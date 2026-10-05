@@ -24,12 +24,14 @@ export type AgentProfile = {
 /** Public settings exposed through the settings API/UI. */
 export type Settings = {
     devDir: string;
+    defaultAgent: AgentId;
     defaultProfileId: string;
     profiles: AgentProfile[];
 };
 
 type SettingsFile = {
     devDir: string;
+    defaultAgent: AgentId;
     defaultProfileId: string;
     profiles: AgentProfile[];
     /** Persisted added repositories — not exposed via the settings API/UI. */
@@ -53,8 +55,11 @@ function createDefaultProfile(overrides: Partial<AgentProfile> = {}): AgentProfi
     };
 }
 
+const DEFAULT_AGENT: AgentId = 'cursor';
+
 const defaultSettingsFile: SettingsFile = {
     devDir: '',
+    defaultAgent: DEFAULT_AGENT,
     defaultProfileId: DEFAULT_PROFILE_ID,
     profiles: [createDefaultProfile()],
     repositories: [],
@@ -124,9 +129,14 @@ function resolveDefaultProfileId(value: unknown, profiles: AgentProfile[]): stri
     return profiles[0]?.id ?? DEFAULT_PROFILE_ID;
 }
 
+function resolveDefaultAgent(value: unknown): AgentId {
+    return isAgentId(value) ? value : DEFAULT_AGENT;
+}
+
 function toPublicSettings(file: SettingsFile): Settings {
     return {
         devDir: file.devDir,
+        defaultAgent: file.defaultAgent,
         defaultProfileId: file.defaultProfileId,
         profiles: file.profiles.map((profile) => ({ ...profile })),
     };
@@ -144,10 +154,11 @@ function normalizeSettingsFile(value: unknown): SettingsFile {
     const record = value as Record<string, unknown>;
     const devDir = typeof record.devDir === 'string' ? record.devDir : '';
     const profiles = normalizeProfiles(record.profiles, record.agent, record.yoloMode);
+    const defaultAgent = resolveDefaultAgent(record.defaultAgent ?? record.agent);
     const defaultProfileId = resolveDefaultProfileId(record.defaultProfileId, profiles);
     const repositories = Array.isArray(record.repositories) ? record.repositories.filter(isStoredRepository) : [];
 
-    return { devDir, defaultProfileId, profiles, repositories };
+    return { devDir, defaultAgent, defaultProfileId, profiles, repositories };
 }
 
 /** One-time: move settings from packages/server/data into ~/.tether. */
@@ -253,16 +264,19 @@ export function normalizeIncomingProfiles(value: unknown): AgentProfile[] | null
 
 export async function updateSettings(patch: {
     devDir?: string;
+    defaultAgent?: AgentId;
     defaultProfileId?: string;
     profiles?: AgentProfile[];
 }): Promise<Settings> {
     const current = await readSettingsFile();
     const profiles = patch.profiles ?? current.profiles;
+    const defaultAgent = resolveDefaultAgent(patch.defaultAgent ?? current.defaultAgent);
     const defaultProfileId = resolveDefaultProfileId(patch.defaultProfileId ?? current.defaultProfileId, profiles);
 
     const next: SettingsFile = {
         ...current,
         devDir: typeof patch.devDir === 'string' ? patch.devDir : current.devDir,
+        defaultAgent,
         defaultProfileId,
         profiles,
     };

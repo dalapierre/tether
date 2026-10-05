@@ -14,6 +14,7 @@ export type AgentProfile = {
 
 export type Settings = {
     devDir: string;
+    defaultAgent: AgentId;
     defaultProfileId: string;
     profiles: AgentProfile[];
 };

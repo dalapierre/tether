@@ -4,7 +4,8 @@ import { IconButton } from '@client/components/icon-button';
 import { PageHeader } from '@client/components/page-header';
 import { SearchSelect } from '@client/components/search-select';
 import { Toggle } from '@client/components/toggle';
-import { AGENTS, isAgentId, type AgentId } from '@client/libs/agents/agents';
+import { agentLabelMessage, isAgentId, type AgentId } from '@client/libs/agents/agents';
+import { listAvailableAgents, type AvailableAgent } from '@client/libs/api/agents';
 import { ApiError } from '@client/libs/api/client';
 import {
     addRepository,
@@ -65,11 +66,11 @@ function createLocalProfileId(existing: AgentProfile[]): string {
     return id;
 }
 
-function emptyDraftProfile(): ProfileDraft {
+function emptyDraftProfile(defaultAgent: AgentId = 'cursor'): ProfileDraft {
     return {
         name: '',
         type: 'coding',
-        agent: 'cursor',
+        agent: defaultAgent,
         yoloMode: false,
         useWorktrees: true,
     };
@@ -95,22 +96,40 @@ function profileDraftEquals(draft: ProfileDraft, profile: AgentProfile): boolean
     );
 }
 
+function resolveHarnessIds(availableAgents: AvailableAgent[], selectedAgent: AgentId): AgentId[] {
+    const ids = availableAgents.map((agent) => agent.id);
+    if (!ids.includes(selectedAgent) && isAgentId(selectedAgent)) {
+        return [selectedAgent, ...ids];
+    }
+    return ids;
+}
+
+function pickHarness(availableAgents: AvailableAgent[], preferred: AgentId): AgentId {
+    if (availableAgents.some((agent) => agent.id === preferred)) {
+        return preferred;
+    }
+    return availableAgents[0]?.id ?? preferred;
+}
+
 export function Settings({ onClose }: SettingsProps) {
     const intl = useIntl();
     const navigate = useNavigate();
     const [view, setView] = useState<SettingsView>('root');
     const [devDir, setDevDir] = useState('');
+    const [defaultAgent, setDefaultAgent] = useState<AgentId>('cursor');
     const [defaultProfileId, setDefaultProfileId] = useState('');
     const [profiles, setProfiles] = useState<AgentProfile[]>([]);
     const [savedDevDir, setSavedDevDir] = useState('');
+    const [savedDefaultAgent, setSavedDefaultAgent] = useState<AgentId>('cursor');
     const [savedDefaultProfileId, setSavedDefaultProfileId] = useState('');
     const [repositories, setRepositories] = useState<Repository[]>([]);
     const [available, setAvailable] = useState<AvailableRepository[]>([]);
+    const [availableAgents, setAvailableAgents] = useState<AvailableAgent[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [creatingProfile, setCreatingProfile] = useState(false);
     const [savingProfile, setSavingProfile] = useState(false);
-    const [draftProfile, setDraftProfile] = useState(emptyDraftProfile);
+    const [draftProfile, setDraftProfile] = useState(() => emptyDraftProfile());
     const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
     const [addingPath, setAddingPath] = useState<string | null>(null);
     const [pendingRemoveRepo, setPendingRemoveRepo] = useState<Repository | null>(null);
@@ -120,15 +139,18 @@ export function Settings({ onClose }: SettingsProps) {
     useEffect(() => {
         let cancelled = false;
 
-        Promise.all([getSettings(), listRepositories()])
-            .then(async ([settings, items]) => {
+        Promise.all([getSettings(), listRepositories(), listAvailableAgents()])
+            .then(async ([settings, items, agents]) => {
                 if (cancelled) return;
                 setDevDir(settings.devDir);
+                setDefaultAgent(settings.defaultAgent);
                 setDefaultProfileId(settings.defaultProfileId);
                 setProfiles(settings.profiles);
                 setSavedDevDir(settings.devDir);
+                setSavedDefaultAgent(settings.defaultAgent);
                 setSavedDefaultProfileId(settings.defaultProfileId);
                 setRepositories(items);
+                setAvailableAgents(agents);
 
                 try {
                     const availableItems = await listAvailableRepositories();
@@ -163,7 +185,7 @@ export function Settings({ onClose }: SettingsProps) {
     const goBack = useCallback(() => {
         if (view === 'new-profile' || view === 'edit-profile') {
             setView('profiles');
-            setDraftProfile(emptyDraftProfile());
+            setDraftProfile(emptyDraftProfile(pickHarness(availableAgents, defaultAgent)));
             setEditingProfileId(null);
             return;
         }
@@ -176,7 +198,7 @@ export function Settings({ onClose }: SettingsProps) {
             return;
         }
         onClose();
-    }, [onClose, view]);
+    }, [availableAgents, defaultAgent, onClose, view]);
 
     useEffect(() => {
         function onKeyDown(event: KeyboardEvent) {
@@ -231,7 +253,7 @@ export function Settings({ onClose }: SettingsProps) {
             label: intl.formatMessage(messages.categoryProfilesCrumb),
             onClick: () => {
                 setView('profiles');
-                setDraftProfile(emptyDraftProfile());
+                setDraftProfile(emptyDraftProfile(pickHarness(availableAgents, defaultAgent)));
                 setEditingProfileId(null);
             },
         };
@@ -241,19 +263,22 @@ export function Settings({ onClose }: SettingsProps) {
         }
 
         return [root, agentsCrumb, profilesCrumb, { label: intl.formatMessage(messages.categoryNewProfileCrumb) }];
-    }, [intl, view]);
+    }, [availableAgents, defaultAgent, intl, view]);
 
     async function persistProfiles(nextProfiles: AgentProfile[], nextDefaultProfileId: string): Promise<boolean> {
         try {
             const settings = await updateSettings({
                 devDir: devDir.trim(),
+                defaultAgent,
                 defaultProfileId: nextDefaultProfileId,
                 profiles: nextProfiles,
             });
             setDevDir(settings.devDir);
+            setDefaultAgent(settings.defaultAgent);
             setDefaultProfileId(settings.defaultProfileId);
             setProfiles(settings.profiles);
             setSavedDevDir(settings.devDir);
+            setSavedDefaultAgent(settings.defaultAgent);
             setSavedDefaultProfileId(settings.defaultProfileId);
             return true;
         } catch (err: unknown) {
@@ -273,23 +298,37 @@ export function Settings({ onClose }: SettingsProps) {
         setSaving(true);
 
         try {
+            const nextProfiles =
+                view === 'agents' && defaultAgent !== savedDefaultAgent
+                    ? profiles.map((profile) =>
+                          profile.id === defaultProfileId ? { ...profile, agent: defaultAgent } : profile,
+                      )
+                    : profiles;
+
             const settings = await updateSettings({
                 devDir: devDir.trim(),
+                defaultAgent,
                 defaultProfileId,
-                profiles,
+                profiles: nextProfiles,
             });
             setDevDir(settings.devDir);
+            setDefaultAgent(settings.defaultAgent);
             setDefaultProfileId(settings.defaultProfileId);
             setProfiles(settings.profiles);
             setSavedDevDir(settings.devDir);
+            setSavedDefaultAgent(settings.defaultAgent);
             setSavedDefaultProfileId(settings.defaultProfileId);
             showToast('settings-saved');
 
             try {
-                const availableItems = await listAvailableRepositories();
+                const [availableItems, agents] = await Promise.all([
+                    listAvailableRepositories(),
+                    listAvailableAgents(),
+                ]);
                 setAvailable(availableItems);
+                setAvailableAgents(agents);
             } catch {
-                // Keep the current available list if refresh fails.
+                // Keep the current lists if refresh fails.
             }
         } catch (err: unknown) {
             if (err instanceof ApiError) {
@@ -332,7 +371,7 @@ export function Settings({ onClose }: SettingsProps) {
 
         if (!ok) return;
 
-        setDraftProfile(emptyDraftProfile());
+        setDraftProfile(emptyDraftProfile(pickHarness(availableAgents, defaultAgent)));
         setView('profiles');
     }
 
@@ -359,7 +398,7 @@ export function Settings({ onClose }: SettingsProps) {
 
         if (!ok) return;
 
-        setDraftProfile(emptyDraftProfile());
+        setDraftProfile(emptyDraftProfile(pickHarness(availableAgents, defaultAgent)));
         setEditingProfileId(null);
         setView('profiles');
     }
@@ -436,7 +475,7 @@ export function Settings({ onClose }: SettingsProps) {
     }
 
     const generalDirty = devDir.trim() !== savedDevDir;
-    const agentsDirty = defaultProfileId !== savedDefaultProfileId;
+    const agentsDirty = defaultAgent !== savedDefaultAgent || defaultProfileId !== savedDefaultProfileId;
     const showSaveButton = !loading && ((view === 'general' && generalDirty) || (view === 'agents' && agentsDirty));
     const canCreateProfile = draftProfile.name.trim().length > 0 && !creatingProfile;
     const editingProfile = editingProfileId
@@ -448,6 +487,14 @@ export function Settings({ onClose }: SettingsProps) {
     const canSaveProfile =
         editProfileDirty && draftProfile.name.trim().length > 0 && !savingProfile && Boolean(editingProfile);
     const showProfileForm = (view === 'new-profile' || view === 'edit-profile') && !loading;
+    const harnessOptions = useMemo(
+        () => resolveHarnessIds(availableAgents, draftProfile.agent),
+        [availableAgents, draftProfile.agent],
+    );
+    const defaultHarnessOptions = useMemo(
+        () => resolveHarnessIds(availableAgents, defaultAgent),
+        [availableAgents, defaultAgent],
+    );
 
     const sectionHeader = useMemo(() => {
         switch (view) {
@@ -645,6 +692,33 @@ export function Settings({ onClose }: SettingsProps) {
                     {view === 'agents' && !loading ? (
                         <div className={styles.fields}>
                             <label className={styles.label}>
+                                {intl.formatMessage(messages.defaultHarnessLabel)}
+                                <select
+                                    className={styles.select}
+                                    value={defaultAgent}
+                                    onChange={(event) => {
+                                        const next = event.target.value;
+                                        if (defaultHarnessOptions.includes(next as AgentId)) {
+                                            setDefaultAgent(next as AgentId);
+                                        }
+                                    }}
+                                    disabled={defaultHarnessOptions.length === 0}
+                                >
+                                    {defaultHarnessOptions.length === 0 ? (
+                                        <option value={defaultAgent}>
+                                            {intl.formatMessage(messages.harnessesEmpty)}
+                                        </option>
+                                    ) : (
+                                        defaultHarnessOptions.map((agentId) => (
+                                            <option key={agentId} value={agentId}>
+                                                {intl.formatMessage(agentLabelMessage(agentId))}
+                                            </option>
+                                        ))
+                                    )}
+                                </select>
+                            </label>
+
+                            <label className={styles.label}>
                                 {intl.formatMessage(messages.defaultProfileLabel)}
                                 <select
                                     className={styles.select}
@@ -755,19 +829,25 @@ export function Settings({ onClose }: SettingsProps) {
                                 <select
                                     className={styles.select}
                                     value={draftProfile.agent}
-                                    disabled={profileFormBusy}
+                                    disabled={profileFormBusy || harnessOptions.length === 0}
                                     onChange={(event) => {
                                         const next = event.target.value;
-                                        if (isAgentId(next)) {
-                                            setDraftProfile((current) => ({ ...current, agent: next }));
+                                        if (harnessOptions.includes(next as AgentId)) {
+                                            setDraftProfile((current) => ({ ...current, agent: next as AgentId }));
                                         }
                                     }}
                                 >
-                                    {AGENTS.map((option) => (
-                                        <option key={option.id} value={option.id}>
-                                            {intl.formatMessage(option.labelMessage)}
+                                    {harnessOptions.length === 0 ? (
+                                        <option value={draftProfile.agent}>
+                                            {intl.formatMessage(messages.harnessesEmpty)}
                                         </option>
-                                    ))}
+                                    ) : (
+                                        harnessOptions.map((agentId) => (
+                                            <option key={agentId} value={agentId}>
+                                                {intl.formatMessage(agentLabelMessage(agentId))}
+                                            </option>
+                                        ))
+                                    )}
                                 </select>
                             </label>
 
@@ -808,7 +888,7 @@ export function Settings({ onClose }: SettingsProps) {
                             type='button'
                             onClick={() => {
                                 setEditingProfileId(null);
-                                setDraftProfile(emptyDraftProfile());
+                                setDraftProfile(emptyDraftProfile(pickHarness(availableAgents, defaultAgent)));
                                 setView('new-profile');
                             }}
                         >

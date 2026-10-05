@@ -3,7 +3,7 @@ import { IconButton } from '@client/components/icon-button';
 import { PageHeader } from '@client/components/page-header';
 import { PanelResizeHandle, panelResizeHandleMessages } from '@client/components/panel-resize-handle';
 import { SegmentedControl } from '@client/components/segmented-control';
-import { AGENTS, type AgentId } from '@client/libs/agents/agents';
+import { agentLabelMessage, type AgentId } from '@client/libs/agents/agents';
 import { getRepository } from '@client/libs/api/repositories';
 import {
     connectSessionTerminal,
@@ -109,8 +109,7 @@ function ClearInputIcon() {
 }
 
 function harnessLabel(agent: AgentId, formatMessage: ReturnType<typeof useIntl>['formatMessage']): string {
-    const match = AGENTS.find((item) => item.id === agent);
-    return match ? formatMessage(match.labelMessage) : agent;
+    return formatMessage(agentLabelMessage(agent));
 }
 
 function statusLabel(status: SessionStatus, formatMessage: ReturnType<typeof useIntl>['formatMessage']): string {

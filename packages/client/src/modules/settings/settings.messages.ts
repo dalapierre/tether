@@ -44,6 +44,8 @@ type Messages = {
     removeRepositoryConfirmCancel: NoMessageValues;
     removeRepositoryFailed: NoMessageValues;
     defaultProfileLabel: NoMessageValues;
+    defaultHarnessLabel: NoMessageValues;
+    harnessesEmpty: NoMessageValues;
     profilesLabel: NoMessageValues;
     profilesEmpty: NoMessageValues;
     addProfile: NoMessageValues;
@@ -241,9 +243,17 @@ export const messages = defineMessages<Messages>(
             id: 'settings.removeRepositoryFailed',
             defaultMessage: 'Failed to remove repository',
         },
+        defaultHarnessLabel: {
+            id: 'settings.defaultHarnessLabel',
+            defaultMessage: 'Default harness',
+        },
         defaultProfileLabel: {
             id: 'settings.defaultProfileLabel',
             defaultMessage: 'Default profile',
+        },
+        harnessesEmpty: {
+            id: 'settings.harnessesEmpty',
+            defaultMessage: 'No CLI coding agents found on this machine.',
         },
         profilesLabel: {
             id: 'settings.profilesLabel',

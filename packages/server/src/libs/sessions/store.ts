@@ -166,6 +166,9 @@ function spawnHarness(session: RuntimeSession): void {
         session.pty = term;
         setStatus(session, 'busy');
 
+        const argv = [harness.command, ...harness.args].join(' ');
+        appendOutput(session.id, `\r\n[starting ${session.agent}: ${argv}]\r\n`);
+
         term.onData((data) => {
             appendOutput(session.id, data);
             applyAgentStatusFromOutput(session, data);

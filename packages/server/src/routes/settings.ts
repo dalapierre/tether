@@ -1,3 +1,4 @@
+import { isAgentId } from '@server/libs/agents/agents.js';
 import { getSettings, normalizeIncomingProfiles, updateSettings } from '@server/libs/settings/store.js';
 import { Router } from 'express';
 
@@ -15,12 +16,23 @@ settingsRouter.get('/', async (_req, res) => {
 
 settingsRouter.put('/', async (req, res) => {
     const devDir = typeof req.body?.devDir === 'string' ? req.body.devDir.trim() : undefined;
+    const defaultAgentRaw = typeof req.body?.defaultAgent === 'string' ? req.body.defaultAgent.trim() : undefined;
     const defaultProfileId =
         typeof req.body?.defaultProfileId === 'string' ? req.body.defaultProfileId.trim() : undefined;
     const profiles = normalizeIncomingProfiles(req.body?.profiles);
 
     if (devDir === undefined) {
         res.status(400).json({ error: 'devDir is required' });
+        return;
+    }
+
+    if (defaultAgentRaw === undefined) {
+        res.status(400).json({ error: 'defaultAgent is required' });
+        return;
+    }
+
+    if (!isAgentId(defaultAgentRaw)) {
+        res.status(400).json({ error: 'defaultAgent must be a supported harness' });
         return;
     }
 
@@ -40,7 +52,12 @@ settingsRouter.put('/', async (req, res) => {
     }
 
     try {
-        const settings = await updateSettings({ devDir, defaultProfileId, profiles });
+        const settings = await updateSettings({
+            devDir,
+            defaultAgent: defaultAgentRaw,
+            defaultProfileId,
+            profiles,
+        });
         res.json({ settings });
     } catch (err: unknown) {
         console.error('Failed to save settings', err);

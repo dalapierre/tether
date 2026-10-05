@@ -5,4 +5,16 @@ export const messages = defineMessages({
         id: 'agents.cursor',
         defaultMessage: 'Cursor',
     },
+    claude: {
+        id: 'agents.claude',
+        defaultMessage: 'Claude Code',
+    },
+    codex: {
+        id: 'agents.codex',
+        defaultMessage: 'Codex',
+    },
+    opencode: {
+        id: 'agents.opencode',
+        defaultMessage: 'OpenCode',
+    },
 });

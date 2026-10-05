@@ -18,5 +18,26 @@ export function getHarnessCommand(agent: AgentId, options: HarnessOptions = {}):
             }
             return { command: 'agent', args };
         }
+        case 'claude': {
+            const args: string[] = [];
+            if (options.yoloMode) {
+                args.push('--dangerously-skip-permissions');
+            }
+            return { command: 'claude', args };
+        }
+        case 'codex': {
+            const args: string[] = [];
+            if (options.yoloMode) {
+                args.push('--ask-for-approval', 'never');
+            }
+            return { command: 'codex', args };
+        }
+        case 'opencode': {
+            const args: string[] = [];
+            if (options.yoloMode) {
+                args.push('--auto');
+            }
+            return { command: 'opencode', args };
+        }
     }
 }
