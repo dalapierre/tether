@@ -48,7 +48,14 @@ function statusLabel(status: DiffFileStatus, formatMessage: ReturnType<typeof us
 
 function BackIcon() {
     return (
-        <svg className={styles.backIcon} viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.75'>
+        <svg
+            className={styles.backIcon}
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='2'
+            aria-hidden='true'
+        >
             <path strokeLinecap='round' strokeLinejoin='round' d='M15.75 19.5 8.25 12l7.5-7.5' />
         </svg>
     );
@@ -341,13 +348,9 @@ export function SessionCodeView({ sessionId }: SessionCodeViewProps) {
             {selectedPath ? (
                 <div className={styles.panel}>
                     <div className={styles.fileHeader}>
-                        <button
-                            type='button'
-                            className={styles.backButton}
-                            onClick={() => setSelectedPath(null)}
-                            aria-label={intl.formatMessage(messages.backToFiles)}
-                        >
+                        <button type='button' className={styles.backButton} onClick={() => setSelectedPath(null)}>
                             <BackIcon />
+                            {intl.formatMessage(messages.backToFiles)}
                         </button>
                         <span className={styles.fileHeaderPath}>{selectedPath}</span>
                     </div>

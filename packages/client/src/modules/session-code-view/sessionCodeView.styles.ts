@@ -28,8 +28,9 @@ export const styles = {
     additions: 'text-emerald-400',
     deletions: 'text-red-400',
     fileHeader: 'flex shrink-0 items-center gap-2 border-b border-zinc-800 px-2 py-1.5',
-    backButton: 'inline-flex shrink-0 items-center justify-center rounded-md p-2 text-zinc-300 active:bg-zinc-900',
-    backIcon: 'h-5 w-5',
+    backButton:
+        'inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-zinc-100 active:bg-zinc-800',
+    backIcon: 'h-5 w-5 shrink-0',
     fileHeaderPath: 'min-w-0 flex-1 truncate font-mono text-xs text-zinc-200',
     editorWrap: 'relative min-h-0 flex-1',
     editorFill: 'absolute inset-0',
