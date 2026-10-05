@@ -18,6 +18,10 @@ export const styles = {
     repositoryRow:
         'flex items-center justify-between gap-1 rounded-md border border-zinc-800 bg-zinc-900 py-0.5 pl-3 pr-0.5',
     repositoryName: 'min-w-0 truncate text-sm text-zinc-100',
+    profileRow:
+        'flex items-center justify-between gap-1 rounded-md border border-zinc-800 bg-zinc-900 py-0.5 pl-0.5 pr-0.5',
+    profileRowButton:
+        'min-w-0 flex-1 truncate rounded-md px-2.5 py-2 text-left text-sm text-zinc-100 transition-colors active:bg-zinc-800',
     repositoryEmpty: 'text-sm text-zinc-500',
     repositoriesList: 'mt-3',
     actions: 'mt-auto pt-10 pb-6',

@@ -20,6 +20,7 @@ type Messages = {
     categoryProfilesCrumb: NoMessageValues;
     categoryProfilesDescription: NoMessageValues;
     categoryNewProfileCrumb: NoMessageValues;
+    categoryEditProfileCrumb: NoMessageValues;
     devDirLabel: NoMessageValues;
     devDirPlaceholder: NoMessageValues;
     devDirHint: NoMessageValues;
@@ -141,6 +142,10 @@ export const messages = defineMessages<Messages>(
         categoryNewProfileCrumb: {
             id: 'settings.categoryNewProfileCrumb',
             defaultMessage: 'new profile',
+        },
+        categoryEditProfileCrumb: {
+            id: 'settings.categoryEditProfileCrumb',
+            defaultMessage: 'edit profile',
         },
         devDirLabel: {
             id: 'settings.devDirLabel',

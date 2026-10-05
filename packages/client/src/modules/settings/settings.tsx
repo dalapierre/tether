@@ -24,11 +24,19 @@ import { messages } from './settings.messages';
 import { styles } from './settings.styles';
 import type { SettingsProps } from './settings.types';
 
-type SettingsView = 'root' | 'general' | 'repos' | 'agents' | 'profiles' | 'new-profile';
+type SettingsView = 'root' | 'general' | 'repos' | 'agents' | 'profiles' | 'new-profile' | 'edit-profile';
 
 type HeaderCrumb = {
     label: string;
     onClick?: () => void;
+};
+
+type ProfileDraft = {
+    name: string;
+    type: AgentProfileType;
+    agent: AgentId;
+    yoloMode: boolean;
+    useWorktrees: boolean;
 };
 
 function CategoryChevron() {
@@ -57,13 +65,7 @@ function createLocalProfileId(existing: AgentProfile[]): string {
     return id;
 }
 
-function emptyDraftProfile(): {
-    name: string;
-    type: AgentProfileType;
-    agent: AgentId;
-    yoloMode: boolean;
-    useWorktrees: boolean;
-} {
+function emptyDraftProfile(): ProfileDraft {
     return {
         name: '',
         type: 'coding',
@@ -71,6 +73,26 @@ function emptyDraftProfile(): {
         yoloMode: false,
         useWorktrees: true,
     };
+}
+
+function draftFromProfile(profile: AgentProfile): ProfileDraft {
+    return {
+        name: profile.name,
+        type: profile.type,
+        agent: profile.agent,
+        yoloMode: profile.yoloMode,
+        useWorktrees: profile.useWorktrees,
+    };
+}
+
+function profileDraftEquals(draft: ProfileDraft, profile: AgentProfile): boolean {
+    return (
+        draft.name.trim() === profile.name.trim() &&
+        draft.type === profile.type &&
+        draft.agent === profile.agent &&
+        draft.yoloMode === profile.yoloMode &&
+        draft.useWorktrees === profile.useWorktrees
+    );
 }
 
 export function Settings({ onClose }: SettingsProps) {
@@ -87,7 +109,9 @@ export function Settings({ onClose }: SettingsProps) {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [creatingProfile, setCreatingProfile] = useState(false);
+    const [savingProfile, setSavingProfile] = useState(false);
     const [draftProfile, setDraftProfile] = useState(emptyDraftProfile);
+    const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
     const [addingPath, setAddingPath] = useState<string | null>(null);
     const [pendingRemoveRepo, setPendingRemoveRepo] = useState<Repository | null>(null);
     const [pendingRemoveProfile, setPendingRemoveProfile] = useState<AgentProfile | null>(null);
@@ -137,9 +161,10 @@ export function Settings({ onClose }: SettingsProps) {
     }, [intl]);
 
     const goBack = useCallback(() => {
-        if (view === 'new-profile') {
+        if (view === 'new-profile' || view === 'edit-profile') {
             setView('profiles');
             setDraftProfile(emptyDraftProfile());
+            setEditingProfileId(null);
             return;
         }
         if (view === 'profiles') {
@@ -202,18 +227,20 @@ export function Settings({ onClose }: SettingsProps) {
             return [root, agentsCrumb, { label: intl.formatMessage(messages.categoryProfilesCrumb) }];
         }
 
-        return [
-            root,
-            agentsCrumb,
-            {
-                label: intl.formatMessage(messages.categoryProfilesCrumb),
-                onClick: () => {
-                    setView('profiles');
-                    setDraftProfile(emptyDraftProfile());
-                },
+        const profilesCrumb: HeaderCrumb = {
+            label: intl.formatMessage(messages.categoryProfilesCrumb),
+            onClick: () => {
+                setView('profiles');
+                setDraftProfile(emptyDraftProfile());
+                setEditingProfileId(null);
             },
-            { label: intl.formatMessage(messages.categoryNewProfileCrumb) },
-        ];
+        };
+
+        if (view === 'edit-profile') {
+            return [root, agentsCrumb, profilesCrumb, { label: intl.formatMessage(messages.categoryEditProfileCrumb) }];
+        }
+
+        return [root, agentsCrumb, profilesCrumb, { label: intl.formatMessage(messages.categoryNewProfileCrumb) }];
     }, [intl, view]);
 
     async function persistProfiles(nextProfiles: AgentProfile[], nextDefaultProfileId: string): Promise<boolean> {
@@ -278,6 +305,12 @@ export function Settings({ onClose }: SettingsProps) {
         }
     }
 
+    function openEditProfile(profile: AgentProfile) {
+        setEditingProfileId(profile.id);
+        setDraftProfile(draftFromProfile(profile));
+        setView('edit-profile');
+    }
+
     async function handleCreateProfile() {
         const name = draftProfile.name.trim();
         if (!name || creatingProfile) return;
@@ -300,6 +333,34 @@ export function Settings({ onClose }: SettingsProps) {
         if (!ok) return;
 
         setDraftProfile(emptyDraftProfile());
+        setView('profiles');
+    }
+
+    async function handleSaveProfile() {
+        const name = draftProfile.name.trim();
+        if (!name || !editingProfileId || savingProfile) return;
+
+        const nextProfiles = profiles.map((profile) =>
+            profile.id === editingProfileId
+                ? {
+                      ...profile,
+                      name,
+                      type: draftProfile.type,
+                      agent: draftProfile.agent,
+                      yoloMode: draftProfile.yoloMode,
+                      useWorktrees: draftProfile.type === 'coding' ? draftProfile.useWorktrees : true,
+                  }
+                : profile,
+        );
+
+        setSavingProfile(true);
+        const ok = await persistProfiles(nextProfiles, defaultProfileId);
+        setSavingProfile(false);
+
+        if (!ok) return;
+
+        setDraftProfile(emptyDraftProfile());
+        setEditingProfileId(null);
         setView('profiles');
     }
 
@@ -378,6 +439,15 @@ export function Settings({ onClose }: SettingsProps) {
     const agentsDirty = defaultProfileId !== savedDefaultProfileId;
     const showSaveButton = !loading && ((view === 'general' && generalDirty) || (view === 'agents' && agentsDirty));
     const canCreateProfile = draftProfile.name.trim().length > 0 && !creatingProfile;
+    const editingProfile = editingProfileId
+        ? (profiles.find((profile) => profile.id === editingProfileId) ?? null)
+        : null;
+    const profileFormBusy = creatingProfile || savingProfile;
+    const editProfileDirty =
+        view === 'edit-profile' && editingProfile !== null && !profileDraftEquals(draftProfile, editingProfile);
+    const canSaveProfile =
+        editProfileDirty && draftProfile.name.trim().length > 0 && !savingProfile && Boolean(editingProfile);
+    const showProfileForm = (view === 'new-profile' || view === 'edit-profile') && !loading;
 
     return (
         <div
@@ -548,10 +618,14 @@ export function Settings({ onClose }: SettingsProps) {
                                 <p className={styles.repositoryEmpty}>{intl.formatMessage(messages.profilesEmpty)}</p>
                             ) : (
                                 profiles.map((profile) => (
-                                    <div key={profile.id} className={styles.repositoryRow}>
-                                        <span className={styles.repositoryName}>
+                                    <div key={profile.id} className={styles.profileRow}>
+                                        <button
+                                            type='button'
+                                            className={styles.profileRowButton}
+                                            onClick={() => openEditProfile(profile)}
+                                        >
                                             {profile.name.trim() || profile.id}
-                                        </span>
+                                        </button>
                                         <IconButton
                                             label={intl.formatMessage(messages.removeProfile)}
                                             disabled={profiles.length <= 1 || removingId === profile.id}
@@ -566,7 +640,7 @@ export function Settings({ onClose }: SettingsProps) {
                     </div>
                 ) : null}
 
-                {view === 'new-profile' && !loading ? (
+                {showProfileForm ? (
                     <div className={styles.fields}>
                         <label className={styles.label}>
                             {intl.formatMessage(messages.profileNameLabel)}
@@ -581,7 +655,7 @@ export function Settings({ onClose }: SettingsProps) {
                                 autoComplete='off'
                                 spellCheck={false}
                                 autoFocus
-                                disabled={creatingProfile}
+                                disabled={profileFormBusy}
                             />
                         </label>
 
@@ -590,7 +664,7 @@ export function Settings({ onClose }: SettingsProps) {
                             <select
                                 className={styles.select}
                                 value={draftProfile.type}
-                                disabled={creatingProfile}
+                                disabled={profileFormBusy}
                                 onChange={(event) => {
                                     const next = event.target.value;
                                     if (next === 'coding' || next === 'conversation') {
@@ -610,7 +684,7 @@ export function Settings({ onClose }: SettingsProps) {
                             <select
                                 className={styles.select}
                                 value={draftProfile.agent}
-                                disabled={creatingProfile}
+                                disabled={profileFormBusy}
                                 onChange={(event) => {
                                     const next = event.target.value;
                                     if (isAgentId(next)) {
@@ -630,7 +704,7 @@ export function Settings({ onClose }: SettingsProps) {
                             label={intl.formatMessage(messages.profileYoloModeLabel)}
                             description={intl.formatMessage(messages.profileYoloModeHint)}
                             checked={draftProfile.yoloMode}
-                            disabled={creatingProfile}
+                            disabled={profileFormBusy}
                             onChange={(checked) => setDraftProfile((current) => ({ ...current, yoloMode: checked }))}
                         />
 
@@ -639,7 +713,7 @@ export function Settings({ onClose }: SettingsProps) {
                                 label={intl.formatMessage(messages.profileUseWorktreesLabel)}
                                 description={intl.formatMessage(messages.profileUseWorktreesHint)}
                                 checked={draftProfile.useWorktrees}
-                                disabled={creatingProfile}
+                                disabled={profileFormBusy}
                                 onChange={(checked) =>
                                     setDraftProfile((current) => ({ ...current, useWorktrees: checked }))
                                 }
@@ -660,6 +734,7 @@ export function Settings({ onClose }: SettingsProps) {
                     <Button
                         type='button'
                         onClick={() => {
+                            setEditingProfileId(null);
                             setDraftProfile(emptyDraftProfile());
                             setView('new-profile');
                         }}
@@ -672,6 +747,13 @@ export function Settings({ onClose }: SettingsProps) {
                 <div className={styles.footer}>
                     <Button type='button' onClick={() => void handleCreateProfile()} disabled={!canCreateProfile}>
                         {intl.formatMessage(creatingProfile ? messages.creatingProfile : messages.createProfile)}
+                    </Button>
+                </div>
+            ) : null}
+            {view === 'edit-profile' && !loading && canSaveProfile ? (
+                <div className={styles.footer}>
+                    <Button type='button' onClick={() => void handleSaveProfile()} disabled={savingProfile}>
+                        {savingProfile ? intl.formatMessage(messages.saving) : intl.formatMessage(messages.save)}
                     </Button>
                 </div>
             ) : null}
