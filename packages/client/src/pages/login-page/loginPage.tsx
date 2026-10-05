@@ -53,6 +53,8 @@ export function LoginPage() {
                             className={styles.input}
                             type='password'
                             autoComplete='current-password'
+                            autoCapitalize='off'
+                            autoCorrect='off'
                             value={accessKey}
                             onChange={(event) => setAccessKey(event.target.value)}
                             required

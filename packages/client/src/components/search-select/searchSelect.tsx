@@ -163,6 +163,8 @@ export function SearchSelect<T extends string>({
                 placeholder={placeholder}
                 disabled={disabled || loading}
                 autoComplete='off'
+                autoCapitalize='off'
+                autoCorrect='off'
                 spellCheck={false}
                 onChange={(event) => {
                     const next = event.target.value;

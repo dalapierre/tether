@@ -640,6 +640,8 @@ export function Settings({ onClose }: SettingsProps) {
                                     onChange={(event) => setDevDir(event.target.value)}
                                     placeholder={intl.formatMessage(messages.devDirPlaceholder)}
                                     autoComplete='off'
+                                    autoCapitalize='off'
+                                    autoCorrect='off'
                                     spellCheck={false}
                                 />
                             </label>
@@ -798,6 +800,8 @@ export function Settings({ onClose }: SettingsProps) {
                                     }
                                     placeholder={intl.formatMessage(messages.profileNamePlaceholder)}
                                     autoComplete='off'
+                                    autoCapitalize='off'
+                                    autoCorrect='off'
                                     spellCheck={false}
                                     autoFocus
                                     disabled={profileFormBusy}

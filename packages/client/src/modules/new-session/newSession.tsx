@@ -242,6 +242,8 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                                     onChange={(event) => setName(event.target.value)}
                                     placeholder={intl.formatMessage(messages.namePlaceholder)}
                                     autoComplete='off'
+                                    autoCapitalize='off'
+                                    autoCorrect='off'
                                     spellCheck={false}
                                     autoFocus
                                     disabled={starting}
