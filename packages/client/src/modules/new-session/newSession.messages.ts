@@ -7,6 +7,8 @@ type Messages = {
     close: NoMessageValues;
     loading: NoMessageValues;
     loadFailed: NoMessageValues;
+    title: NoMessageValues;
+    description: NoMessageValues;
     nameLabel: NoMessageValues;
     namePlaceholder: NoMessageValues;
     profileLabel: NoMessageValues;
@@ -48,6 +50,14 @@ export const messages = defineMessages<Messages>(
         loadFailed: {
             id: 'newSession.loadFailed',
             defaultMessage: 'Failed to load form',
+        },
+        title: {
+            id: 'newSession.title',
+            defaultMessage: 'New session',
+        },
+        description: {
+            id: 'newSession.description',
+            defaultMessage: 'Start an agent session on this machine.',
         },
         nameLabel: {
             id: 'newSession.nameLabel',

@@ -449,6 +449,46 @@ export function Settings({ onClose }: SettingsProps) {
         editProfileDirty && draftProfile.name.trim().length > 0 && !savingProfile && Boolean(editingProfile);
     const showProfileForm = (view === 'new-profile' || view === 'edit-profile') && !loading;
 
+    const sectionHeader = useMemo(() => {
+        switch (view) {
+            case 'root':
+                return {
+                    title: intl.formatMessage(messages.rootTitle),
+                    description: intl.formatMessage(messages.rootDescription),
+                };
+            case 'general':
+                return {
+                    title: intl.formatMessage(messages.categoryGeneral),
+                    description: intl.formatMessage(messages.categoryGeneralDescription),
+                };
+            case 'repos':
+                return {
+                    title: intl.formatMessage(messages.categoryRepos),
+                    description: intl.formatMessage(messages.categoryReposDescription),
+                };
+            case 'agents':
+                return {
+                    title: intl.formatMessage(messages.categoryAgents),
+                    description: intl.formatMessage(messages.categoryAgentsDescription),
+                };
+            case 'profiles':
+                return {
+                    title: intl.formatMessage(messages.categoryProfiles),
+                    description: intl.formatMessage(messages.categoryProfilesDescription),
+                };
+            case 'new-profile':
+                return {
+                    title: intl.formatMessage(messages.categoryNewProfile),
+                    description: intl.formatMessage(messages.categoryNewProfileDescription),
+                };
+            case 'edit-profile':
+                return {
+                    title: intl.formatMessage(messages.categoryEditProfile),
+                    description: intl.formatMessage(messages.categoryEditProfileDescription),
+                };
+        }
+    }, [intl, view]);
+
     return (
         <div
             className={styles.root}
@@ -473,6 +513,13 @@ export function Settings({ onClose }: SettingsProps) {
                     }
                 />
                 <div className={styles.body}>
+                    {!loading || view === 'root' ? (
+                        <div className={styles.sectionHeader}>
+                            <h2 className={styles.sectionTitle}>{sectionHeader.title}</h2>
+                            <p className={styles.sectionDescription}>{sectionHeader.description}</p>
+                        </div>
+                    ) : null}
+
                     {view === 'root' ? (
                         <>
                             <div className={styles.categories}>

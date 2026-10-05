@@ -7,6 +7,8 @@ type Messages = {
     loading: NoMessageValues;
     loadFailed: NoMessageValues;
     saveFailed: NoMessageValues;
+    rootTitle: NoMessageValues;
+    rootDescription: NoMessageValues;
     categoryGeneral: NoMessageValues;
     categoryGeneralCrumb: NoMessageValues;
     categoryGeneralDescription: NoMessageValues;
@@ -19,8 +21,12 @@ type Messages = {
     categoryProfiles: NoMessageValues;
     categoryProfilesCrumb: NoMessageValues;
     categoryProfilesDescription: NoMessageValues;
+    categoryNewProfile: NoMessageValues;
     categoryNewProfileCrumb: NoMessageValues;
+    categoryNewProfileDescription: NoMessageValues;
+    categoryEditProfile: NoMessageValues;
     categoryEditProfileCrumb: NoMessageValues;
+    categoryEditProfileDescription: NoMessageValues;
     devDirLabel: NoMessageValues;
     devDirPlaceholder: NoMessageValues;
     devDirHint: NoMessageValues;
@@ -91,6 +97,14 @@ export const messages = defineMessages<Messages>(
             id: 'settings.saveFailed',
             defaultMessage: 'Failed to save settings',
         },
+        rootTitle: {
+            id: 'settings.rootTitle',
+            defaultMessage: 'Settings',
+        },
+        rootDescription: {
+            id: 'settings.rootDescription',
+            defaultMessage: 'Configure how Tether runs on this machine.',
+        },
         categoryGeneral: {
             id: 'settings.categoryGeneral',
             defaultMessage: 'General',
@@ -139,13 +153,29 @@ export const messages = defineMessages<Messages>(
             id: 'settings.categoryProfilesDescription',
             defaultMessage: 'Create and manage agent profiles.',
         },
+        categoryNewProfile: {
+            id: 'settings.categoryNewProfile',
+            defaultMessage: 'New profile',
+        },
         categoryNewProfileCrumb: {
             id: 'settings.categoryNewProfileCrumb',
             defaultMessage: 'new profile',
         },
+        categoryNewProfileDescription: {
+            id: 'settings.categoryNewProfileDescription',
+            defaultMessage: 'Create an agent profile for new sessions.',
+        },
+        categoryEditProfile: {
+            id: 'settings.categoryEditProfile',
+            defaultMessage: 'Edit profile',
+        },
         categoryEditProfileCrumb: {
             id: 'settings.categoryEditProfileCrumb',
             defaultMessage: 'edit profile',
+        },
+        categoryEditProfileDescription: {
+            id: 'settings.categoryEditProfileDescription',
+            defaultMessage: 'Update this profile’s harness and defaults.',
         },
         devDirLabel: {
             id: 'settings.devDirLabel',

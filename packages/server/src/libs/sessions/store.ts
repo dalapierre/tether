@@ -9,6 +9,7 @@ import {
 import {
     getSessionDiffSummary,
     getSessionFileDiff,
+    resolveReviewBaseSha,
     type SessionDiffSummary,
     type SessionFileDiff,
 } from '@server/libs/sessions/diff.js';
@@ -40,6 +41,8 @@ type RuntimeSession = Session & {
     createdBranch: boolean;
     worktreePath: string;
     baseSha: string;
+    /** Sticky: once true, review baseSha no longer auto-advances on upstream sync. */
+    hadLocalCommits: boolean;
     pty: IPty | null;
     oscTitleState: OscTitleParseState;
 };
@@ -255,6 +258,7 @@ async function createConversationSession(input: { name: string; agent: AgentId; 
         createdBranch: false,
         worktreePath,
         baseSha: '',
+        hadLocalCommits: false,
         pty: null,
         oscTitleState: { pending: '' },
     };
@@ -342,6 +346,7 @@ async function createCodingSession(input: {
         createdBranch: workspace.createdBranch,
         worktreePath: workspace.worktreePath,
         baseSha: workspace.baseSha,
+        hadLocalCommits: false,
         pty: null,
         oscTitleState: { pending: '' },
     };
@@ -372,16 +377,28 @@ export function getSession(id: string): Session | null {
     return session ? toPublic(session) : null;
 }
 
+async function syncReviewBase(session: RuntimeSession): Promise<string> {
+    const next = await resolveReviewBaseSha(session.worktreePath, session.branch, {
+        baseSha: session.baseSha,
+        hadLocalCommits: session.hadLocalCommits,
+    });
+    session.baseSha = next.baseSha;
+    session.hadLocalCommits = next.hadLocalCommits;
+    return session.baseSha;
+}
+
 export async function getSessionDiff(id: string): Promise<SessionDiffSummary | null> {
     const session = sessions.get(id);
     if (!session || session.type !== 'coding') return null;
-    return getSessionDiffSummary(session.worktreePath, session.baseSha);
+    const baseSha = await syncReviewBase(session);
+    return getSessionDiffSummary(session.worktreePath, baseSha);
 }
 
 export async function getSessionDiffFile(id: string, filePath: string): Promise<SessionFileDiff | null> {
     const session = sessions.get(id);
     if (!session || session.type !== 'coding') return null;
-    return getSessionFileDiff(session.worktreePath, session.baseSha, filePath);
+    const baseSha = await syncReviewBase(session);
+    return getSessionFileDiff(session.worktreePath, baseSha, filePath);
 }
 
 export function attachSessionTerminal(sessionId: string, socket: WebSocket): boolean {

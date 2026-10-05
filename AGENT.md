@@ -132,7 +132,7 @@ Never hardcode user-facing strings in the client. All copy — labels, buttons, 
 Tether is primarily accessed from a phone, but the client also supports desktop browsers. Design and implement the UI **mobile-first**, then enhance for larger viewports:
 
 - **Phone (default)** — layouts, spacing, and touch targets for a small screen. Aim for UI friendliness that mimics a native mobile app: full-bleed screens, sticky primary actions, generous tap targets, and clear visual hierarchy. Prefer simple single-column flows that work well with thumbs.
-- **Desktop (`md` / 768px and up)** — keep the same flows and visual language, but use the extra space: readable max-widths for lists and forms, centered modal-style overlays for settings and new session, and multi-pane layouts where they help (e.g. agent terminal beside code review, file tree beside diff).
+- **Desktop (`md` / 768px and up)** — keep the same flows and visual language, but use the extra space: readable max-widths for lists and forms, and multi-pane layouts where they help (e.g. agent terminal beside code review, file tree beside diff). Keep settings, new session, and similar overlays as full-page modals (same as phone), not centered card dialogs; center their content with a max width so it does not stretch edge-to-edge.
 - Do not change phone behavior when adding desktop layouts — desktop enhancements are additive via responsive breakpoints (and `useIsDesktop` when JS must diverge).
 - Avoid hover-only affordances as the sole way to complete a task; desktop may add hover polish, but phone must remain fully usable.
 

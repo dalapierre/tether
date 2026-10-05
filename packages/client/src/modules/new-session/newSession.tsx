@@ -218,6 +218,11 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                     }
                 />
                 <div className={styles.body}>
+                    <div className={styles.sectionHeader}>
+                        <h2 className={styles.sectionTitle}>{intl.formatMessage(messages.title)}</h2>
+                        <p className={styles.sectionDescription}>{intl.formatMessage(messages.description)}</p>
+                    </div>
+
                     {loading ? <p className={styles.loading}>{intl.formatMessage(messages.loading)}</p> : null}
 
                     {!loading ? (

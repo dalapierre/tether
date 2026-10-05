@@ -1,7 +1,10 @@
 export const styles = {
-    root: 'fixed inset-0 z-30 flex flex-col bg-zinc-950 text-zinc-100 md:items-center md:justify-center md:bg-black/60 md:p-6',
-    shell: 'flex min-h-0 flex-1 flex-col bg-zinc-950 md:max-h-[min(44rem,100%)] md:w-full md:max-w-xl md:flex-none md:overflow-hidden md:rounded-xl md:border md:border-zinc-800 md:shadow-2xl',
-    body: 'flex min-h-0 flex-1 flex-col overflow-auto px-4',
+    root: 'fixed inset-0 z-30 flex flex-col bg-zinc-950 text-zinc-100',
+    shell: 'flex min-h-0 flex-1 flex-col bg-zinc-950',
+    body: 'flex min-h-0 flex-1 flex-col overflow-auto px-4 md:mx-auto md:w-full md:max-w-2xl',
+    sectionHeader: 'mt-6',
+    sectionTitle: 'text-2xl font-semibold tracking-tight text-zinc-100',
+    sectionDescription: 'mt-1.5 text-sm text-zinc-500',
     loading: 'mt-8 text-sm text-zinc-500',
     categories: 'mt-6 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900',
     categoryButton:
@@ -10,7 +13,7 @@ export const styles = {
     categoryLabel: 'text-sm text-zinc-100',
     categoryDescription: 'text-xs text-zinc-500',
     categoryChevron: 'h-4 w-4 shrink-0 text-zinc-500',
-    fields: 'mt-8 flex flex-col gap-3',
+    fields: 'mt-6 flex flex-col gap-3',
     label: 'block text-sm text-zinc-400',
     input: 'mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-zinc-100 outline-none focus:border-zinc-500',
     select: 'mt-1 w-full appearance-none rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-zinc-100 outline-none focus:border-zinc-500',
@@ -26,5 +29,5 @@ export const styles = {
     repositoryEmpty: 'text-sm text-zinc-500',
     repositoriesList: 'mt-3',
     actions: 'mt-auto pt-10 pb-6',
-    footer: 'px-4 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:pb-4',
+    footer: 'px-4 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:mx-auto md:w-full md:max-w-2xl md:pb-4',
 };
