@@ -27,14 +27,37 @@ function SettingsIcon() {
     );
 }
 
-export function PageHeader({ crumbs, actions, showSettings = true }: PageHeaderProps) {
+function BackIcon() {
+    return (
+        <svg
+            className={styles.backIcon}
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='2'
+            aria-hidden='true'
+        >
+            <path strokeLinecap='round' strokeLinejoin='round' d='M15.75 19.5 8.25 12l7.5-7.5' />
+        </svg>
+    );
+}
+
+export function PageHeader({ crumbs, actions, showSettings = true, onBack }: PageHeaderProps) {
     const intl = useIntl();
     const { openSettings } = useSettings();
 
     return (
         <header className={styles.header}>
             <div className={styles.start}>
-                <nav className={styles.crumbs} aria-label={intl.formatMessage(messages.breadcrumb)}>
+                {onBack ? (
+                    <IconButton label={intl.formatMessage(messages.back)} onClick={onBack}>
+                        <BackIcon />
+                    </IconButton>
+                ) : null}
+                <nav
+                    className={`${styles.crumbs}${onBack ? '' : ` ${styles.crumbsInset}`}`}
+                    aria-label={intl.formatMessage(messages.breadcrumb)}
+                >
                     {crumbs.map((crumb, index) => {
                         const isLast = index === crumbs.length - 1;
                         const key = `${crumb.label}-${index}`;

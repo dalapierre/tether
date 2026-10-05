@@ -17,7 +17,7 @@ import {
 import { getSettings, updateSettings, type AgentProfile, type AgentProfileType } from '@client/libs/api/settings';
 import { clearAccessToken } from '@client/libs/auth/session';
 import { showToast } from '@client/modules/toast';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { useNavigate } from 'react-router-dom';
 import { messages } from './settings.messages';
@@ -26,7 +26,7 @@ import type { SettingsProps } from './settings.types';
 
 type SettingsView = 'root' | 'general' | 'repos' | 'agents' | 'profiles' | 'new-profile';
 
-type PageHeaderCrumb = {
+type HeaderCrumb = {
     label: string;
     onClick?: () => void;
 };
@@ -134,39 +134,43 @@ export function Settings({ onClose }: SettingsProps) {
         };
     }, [intl]);
 
+    const goBack = useCallback(() => {
+        if (view === 'new-profile') {
+            setView('profiles');
+            setDraftProfile(emptyDraftProfile());
+            return;
+        }
+        if (view === 'profiles') {
+            setView('agents');
+            return;
+        }
+        if (view !== 'root') {
+            setView('root');
+            return;
+        }
+        onClose();
+    }, [onClose, view]);
+
     useEffect(() => {
         function onKeyDown(event: KeyboardEvent) {
             if (event.key !== 'Escape') return;
             if (pendingRemoveRepo || pendingRemoveProfile) return;
-            if (view === 'new-profile') {
-                setView('profiles');
-                setDraftProfile(emptyDraftProfile());
-                return;
-            }
-            if (view === 'profiles') {
-                setView('agents');
-                return;
-            }
-            if (view !== 'root') {
-                setView('root');
-                return;
-            }
-            onClose();
+            goBack();
         }
 
         window.addEventListener('keydown', onKeyDown);
         return () => {
             window.removeEventListener('keydown', onKeyDown);
         };
-    }, [onClose, pendingRemoveProfile, pendingRemoveRepo, view]);
+    }, [goBack, pendingRemoveProfile, pendingRemoveRepo]);
 
     const availableOptions = useMemo(
         () => available.map((repository) => ({ value: repository.path, label: repository.name })),
         [available],
     );
 
-    const crumbs = useMemo((): PageHeaderCrumb[] => {
-        const root: PageHeaderCrumb = {
+    const crumbs = useMemo((): HeaderCrumb[] => {
+        const root: HeaderCrumb = {
             label: intl.formatMessage(messages.crumb),
             onClick: view === 'root' ? undefined : () => setView('root'),
         };
@@ -187,7 +191,7 @@ export function Settings({ onClose }: SettingsProps) {
             return [root, { label: intl.formatMessage(messages.categoryAgentsCrumb) }];
         }
 
-        const agentsCrumb: PageHeaderCrumb = {
+        const agentsCrumb: HeaderCrumb = {
             label: intl.formatMessage(messages.categoryAgentsCrumb),
             onClick: () => setView('agents'),
         };
@@ -382,6 +386,7 @@ export function Settings({ onClose }: SettingsProps) {
             <PageHeader
                 crumbs={crumbs}
                 showSettings={false}
+                onBack={view === 'root' ? undefined : goBack}
                 actions={
                     <IconButton label={intl.formatMessage(messages.close)} onClick={onClose}>
                         ×
@@ -534,40 +539,26 @@ export function Settings({ onClose }: SettingsProps) {
 
                 {view === 'profiles' && !loading ? (
                     <div className={styles.fields}>
-                        <Button
-                            type='button'
-                            onClick={() => {
-                                setDraftProfile(emptyDraftProfile());
-                                setView('new-profile');
-                            }}
-                        >
-                            {intl.formatMessage(messages.addProfile)}
-                        </Button>
-
-                        <div className={styles.repositoriesList}>
-                            <p className={styles.label}>{intl.formatMessage(messages.profilesLabel)}</p>
-                            <div className={styles.repositories}>
-                                {profiles.length === 0 ? (
-                                    <p className={styles.repositoryEmpty}>
-                                        {intl.formatMessage(messages.profilesEmpty)}
-                                    </p>
-                                ) : (
-                                    profiles.map((profile) => (
-                                        <div key={profile.id} className={styles.repositoryRow}>
-                                            <span className={styles.repositoryName}>
-                                                {profile.name.trim() || profile.id}
-                                            </span>
-                                            <IconButton
-                                                label={intl.formatMessage(messages.removeProfile)}
-                                                disabled={profiles.length <= 1 || removingId === profile.id}
-                                                onClick={() => setPendingRemoveProfile(profile)}
-                                            >
-                                                ×
-                                            </IconButton>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
+                        <p className={styles.label}>{intl.formatMessage(messages.profilesLabel)}</p>
+                        <div className={styles.repositories}>
+                            {profiles.length === 0 ? (
+                                <p className={styles.repositoryEmpty}>{intl.formatMessage(messages.profilesEmpty)}</p>
+                            ) : (
+                                profiles.map((profile) => (
+                                    <div key={profile.id} className={styles.repositoryRow}>
+                                        <span className={styles.repositoryName}>
+                                            {profile.name.trim() || profile.id}
+                                        </span>
+                                        <IconButton
+                                            label={intl.formatMessage(messages.removeProfile)}
+                                            disabled={profiles.length <= 1 || removingId === profile.id}
+                                            onClick={() => setPendingRemoveProfile(profile)}
+                                        >
+                                            ×
+                                        </IconButton>
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </div>
                 ) : null}
@@ -646,6 +637,19 @@ export function Settings({ onClose }: SettingsProps) {
                 <div className={styles.footer}>
                     <Button type='button' onClick={() => void handleSave()} disabled={saving}>
                         {saving ? intl.formatMessage(messages.saving) : intl.formatMessage(messages.save)}
+                    </Button>
+                </div>
+            ) : null}
+            {view === 'profiles' && !loading ? (
+                <div className={styles.footer}>
+                    <Button
+                        type='button'
+                        onClick={() => {
+                            setDraftProfile(emptyDraftProfile());
+                            setView('new-profile');
+                        }}
+                    >
+                        {intl.formatMessage(messages.addProfile)}
                     </Button>
                 </div>
             ) : null}

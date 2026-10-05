@@ -9,4 +9,8 @@ export const messages = defineMessages({
         id: 'pageHeader.settings',
         defaultMessage: 'Settings',
     },
+    back: {
+        id: 'pageHeader.back',
+        defaultMessage: 'Back',
+    },
 });
