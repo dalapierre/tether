@@ -4,12 +4,7 @@ export const styles = {
     empty: 'mt-8 text-center text-sm text-zinc-500',
     link: 'border-0 bg-transparent p-0 text-zinc-300 underline underline-offset-2',
     loading: 'mt-8 text-center text-sm text-zinc-500',
-    option: 'w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-4 text-left text-base font-medium text-zinc-100 transition-colors active:bg-zinc-800',
+    option: 'w-full rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-4 text-left text-base font-medium text-zinc-100 transition-colors active:bg-zinc-800 disabled:opacity-50',
     optionSelected: 'border-zinc-100 bg-zinc-800',
     footer: 'flex flex-col gap-3 border-t border-zinc-900 px-4 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]',
-    footerRow: 'flex gap-3',
-    footerButton: 'flex-1',
-    confirmBody: 'flex flex-1 flex-col items-center justify-center px-6 text-center',
-    confirmQuestion: 'text-lg font-medium text-zinc-100',
-    confirmPath: 'mt-3 text-sm text-zinc-500',
 };

@@ -4,17 +4,13 @@ type Messages = {
     ariaLabel: NoMessageValues;
     settingsCrumb: NoMessageValues;
     addCrumb: NoMessageValues;
-    confirmCrumb: NoMessageValues;
     close: NoMessageValues;
     loading: NoMessageValues;
     loadFailed: NoMessageValues;
     addFailed: NoMessageValues;
     empty: { settingsLink: MessageTag };
-    next: NoMessageValues;
-    confirmQuestion: { name: string };
-    back: NoMessageValues;
+    add: NoMessageValues;
     adding: NoMessageValues;
-    confirm: NoMessageValues;
 };
 
 export const messages = defineMessages<Messages>(
@@ -30,10 +26,6 @@ export const messages = defineMessages<Messages>(
         addCrumb: {
             id: 'addRepository.addCrumb',
             defaultMessage: 'add',
-        },
-        confirmCrumb: {
-            id: 'addRepository.confirmCrumb',
-            defaultMessage: 'confirm',
         },
         close: {
             id: 'addRepository.close',
@@ -56,25 +48,13 @@ export const messages = defineMessages<Messages>(
             defaultMessage:
                 'No new repositories found. Set a development directory in <settingsLink>settings</settingsLink> first.',
         },
-        next: {
-            id: 'addRepository.next',
-            defaultMessage: 'Next',
-        },
-        confirmQuestion: {
-            id: 'addRepository.confirmQuestion',
-            defaultMessage: 'Are you sure you want to add {name}?',
-        },
-        back: {
-            id: 'addRepository.back',
-            defaultMessage: 'Back',
+        add: {
+            id: 'addRepository.add',
+            defaultMessage: 'Add',
         },
         adding: {
             id: 'addRepository.adding',
             defaultMessage: 'Adding…',
-        },
-        confirm: {
-            id: 'addRepository.confirm',
-            defaultMessage: 'Confirm',
         },
     },
     { typed: true },

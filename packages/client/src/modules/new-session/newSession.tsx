@@ -55,6 +55,19 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
         };
     }, [intl]);
 
+    useEffect(() => {
+        function onKeyDown(event: KeyboardEvent) {
+            if (event.key === 'Escape' && !starting) {
+                onClose();
+            }
+        }
+
+        window.addEventListener('keydown', onKeyDown);
+        return () => {
+            window.removeEventListener('keydown', onKeyDown);
+        };
+    }, [onClose, starting]);
+
     async function handleStart() {
         const trimmedName = name.trim();
         const trimmedBranch = branch.trim();

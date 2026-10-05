@@ -106,12 +106,57 @@ async function writeAll(repositories: Repository[]): Promise<void> {
     await setStoredRepositories(repositories);
 }
 
+const skipDirectoryNames = new Set(['node_modules', '.git']);
+
 async function isGitRepository(dirPath: string): Promise<boolean> {
     try {
         await access(path.join(dirPath, '.git'));
         return true;
     } catch {
         return false;
+    }
+}
+
+function shouldSkipDirectory(name: string): boolean {
+    return skipDirectoryNames.has(name) || name.startsWith('.');
+}
+
+async function collectGitRepositories(
+    dirPath: string,
+    rootPath: string,
+    addedPaths: Set<string>,
+    available: AvailableRepository[],
+): Promise<void> {
+    let entries;
+    try {
+        entries = await readdir(dirPath, { withFileTypes: true });
+    } catch (err: unknown) {
+        if (
+            err &&
+            typeof err === 'object' &&
+            'code' in err &&
+            (err.code === 'ENOENT' || err.code === 'EACCES' || err.code === 'EPERM')
+        ) {
+            return;
+        }
+        throw err;
+    }
+
+    for (const entry of entries) {
+        if (!entry.isDirectory() || shouldSkipDirectory(entry.name)) continue;
+
+        const repoPath = path.resolve(path.join(dirPath, entry.name));
+        if (addedPaths.has(repoPath)) continue;
+
+        if (await isGitRepository(repoPath)) {
+            available.push({
+                name: path.relative(rootPath, repoPath),
+                path: repoPath,
+            });
+            continue;
+        }
+
+        await collectGitRepositories(repoPath, rootPath, addedPaths, available);
     }
 }
 
@@ -132,27 +177,12 @@ export async function listAvailableRepositories(): Promise<AvailableRepository[]
         return [];
     }
 
-    let entries;
-    try {
-        entries = await readdir(trimmed, { withFileTypes: true });
-    } catch (err: unknown) {
-        if (err && typeof err === 'object' && 'code' in err && err.code === 'ENOENT') {
-            return [];
-        }
-        throw err;
-    }
-
+    const rootPath = path.resolve(trimmed);
     const added = await readAll();
     const addedPaths = new Set(added.map((repository) => path.resolve(repository.path)));
-
     const available: AvailableRepository[] = [];
-    for (const entry of entries) {
-        if (!entry.isDirectory()) continue;
-        const repoPath = path.resolve(path.join(trimmed, entry.name));
-        if (addedPaths.has(repoPath)) continue;
-        if (!(await isGitRepository(repoPath))) continue;
-        available.push({ name: entry.name, path: repoPath });
-    }
+
+    await collectGitRepositories(rootPath, rootPath, addedPaths, available);
 
     available.sort((a, b) => a.name.localeCompare(b.name));
     return available;
@@ -183,10 +213,10 @@ export async function addRepository(repoPath: string): Promise<Repository> {
         throw new Error('Repository is already added');
     }
 
-    const name = path.basename(resolved);
+    const name = path.relative(trimmedDevDir, resolved) || path.basename(resolved);
     const taken = new Set(repositories.map((repository) => repository.id));
     const repository: Repository = {
-        id: uniqueSlug(slugify(name), taken),
+        id: uniqueSlug(slugify(path.basename(resolved)), taken),
         name,
         path: resolved,
     };

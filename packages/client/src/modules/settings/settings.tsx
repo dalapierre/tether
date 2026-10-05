@@ -59,6 +59,19 @@ export function Settings({ onClose }: SettingsProps) {
         };
     }, [intl]);
 
+    useEffect(() => {
+        function onKeyDown(event: KeyboardEvent) {
+            if (event.key !== 'Escape') return;
+            if (adding || pendingRemove) return;
+            onClose();
+        }
+
+        window.addEventListener('keydown', onKeyDown);
+        return () => {
+            window.removeEventListener('keydown', onKeyDown);
+        };
+    }, [adding, onClose, pendingRemove]);
+
     async function handleSave() {
         setSaving(true);
 

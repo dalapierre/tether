@@ -10,11 +10,8 @@ import { messages } from './addRepository.messages';
 import { styles } from './addRepository.styles';
 import type { AddRepositoryProps } from './addRepository.types';
 
-type Step = 'select' | 'confirm';
-
 export function AddRepository({ onClose, onAdded }: AddRepositoryProps) {
     const intl = useIntl();
-    const [step, setStep] = useState<Step>('select');
     const [available, setAvailable] = useState<AvailableRepository[]>([]);
     const [loading, setLoading] = useState(true);
     const [failed, setFailed] = useState(false);
@@ -51,22 +48,25 @@ export function AddRepository({ onClose, onAdded }: AddRepositoryProps) {
         };
     }, [intl]);
 
+    useEffect(() => {
+        function onKeyDown(event: KeyboardEvent) {
+            if (event.key === 'Escape' && !submitting) {
+                onClose();
+            }
+        }
+
+        window.addEventListener('keydown', onKeyDown);
+        return () => {
+            window.removeEventListener('keydown', onKeyDown);
+        };
+    }, [onClose, submitting]);
+
     function handleClose() {
         if (submitting) return;
         onClose();
     }
 
-    function handleNext() {
-        if (!selected) return;
-        setStep('confirm');
-    }
-
-    function handleBack() {
-        if (submitting) return;
-        setStep('select');
-    }
-
-    async function handleConfirm() {
+    async function handleAdd() {
         if (!selected || submitting) return;
 
         setSubmitting(true);
@@ -80,7 +80,6 @@ export function AddRepository({ onClose, onAdded }: AddRepositoryProps) {
             } else {
                 showToast('generic-error', err instanceof Error ? err.message : intl.formatMessage(messages.addFailed));
             }
-        } finally {
             setSubmitting(false);
         }
     }
@@ -95,9 +94,7 @@ export function AddRepository({ onClose, onAdded }: AddRepositoryProps) {
             <PageHeader
                 crumbs={[
                     { label: intl.formatMessage(messages.settingsCrumb), onClick: handleClose },
-                    {
-                        label: intl.formatMessage(step === 'select' ? messages.addCrumb : messages.confirmCrumb),
-                    },
+                    { label: intl.formatMessage(messages.addCrumb) },
                 ]}
                 showSettings={false}
                 actions={
@@ -107,70 +104,42 @@ export function AddRepository({ onClose, onAdded }: AddRepositoryProps) {
                 }
             />
 
-            {step === 'select' ? (
-                <>
-                    <div className={styles.content}>
-                        {loading ? <p className={styles.loading}>{intl.formatMessage(messages.loading)}</p> : null}
-                        {!loading && !failed && available.length === 0 ? (
-                            <p className={styles.empty}>
-                                {intl.formatMessage(messages.empty, {
-                                    settingsLink: (chunks) => (
-                                        <button type='button' className={styles.link} onClick={handleClose}>
-                                            {chunks}
-                                        </button>
-                                    ),
-                                })}
-                            </p>
-                        ) : null}
-                        {!loading && !failed
-                            ? available.map((repository) => {
-                                  const isSelected = selected?.path === repository.path;
-                                  return (
-                                      <button
-                                          key={repository.path}
-                                          type='button'
-                                          className={`${styles.option}${isSelected ? ` ${styles.optionSelected}` : ''}`}
-                                          onClick={() => setSelected(repository)}
-                                          aria-pressed={isSelected}
-                                      >
-                                          {repository.name}
-                                      </button>
-                                  );
-                              })
-                            : null}
-                    </div>
-                    <div className={styles.footer}>
-                        <Button type='button' disabled={!selected} onClick={handleNext}>
-                            {intl.formatMessage(messages.next)}
-                        </Button>
-                    </div>
-                </>
-            ) : (
-                <>
-                    <div className={styles.confirmBody}>
-                        <p className={styles.confirmQuestion}>
-                            {intl.formatMessage(messages.confirmQuestion, { name: selected?.name ?? '' })}
-                        </p>
-                        {selected ? <p className={styles.confirmPath}>{selected.path}</p> : null}
-                    </div>
-                    <div className={styles.footer}>
-                        <div className={styles.footerRow}>
-                            <div className={styles.footerButton}>
-                                <Button type='button' variant='secondary' onClick={handleBack} disabled={submitting}>
-                                    {intl.formatMessage(messages.back)}
-                                </Button>
-                            </div>
-                            <div className={styles.footerButton}>
-                                <Button type='button' onClick={handleConfirm} disabled={submitting}>
-                                    {submitting
-                                        ? intl.formatMessage(messages.adding)
-                                        : intl.formatMessage(messages.confirm)}
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
-                </>
-            )}
+            <div className={styles.content}>
+                {loading ? <p className={styles.loading}>{intl.formatMessage(messages.loading)}</p> : null}
+                {!loading && !failed && available.length === 0 ? (
+                    <p className={styles.empty}>
+                        {intl.formatMessage(messages.empty, {
+                            settingsLink: (chunks) => (
+                                <button type='button' className={styles.link} onClick={handleClose}>
+                                    {chunks}
+                                </button>
+                            ),
+                        })}
+                    </p>
+                ) : null}
+                {!loading && !failed
+                    ? available.map((repository) => {
+                          const isSelected = selected?.path === repository.path;
+                          return (
+                              <button
+                                  key={repository.path}
+                                  type='button'
+                                  className={`${styles.option}${isSelected ? ` ${styles.optionSelected}` : ''}`}
+                                  onClick={() => setSelected(repository)}
+                                  aria-pressed={isSelected}
+                                  disabled={submitting}
+                              >
+                                  {repository.name}
+                              </button>
+                          );
+                      })
+                    : null}
+            </div>
+            <div className={styles.footer}>
+                <Button type='button' disabled={!selected || submitting} onClick={() => void handleAdd()}>
+                    {submitting ? intl.formatMessage(messages.adding) : intl.formatMessage(messages.add)}
+                </Button>
+            </div>
         </div>
     );
 }
