@@ -14,8 +14,6 @@ import { useNavigate } from 'react-router-dom';
 import { messages } from './sessionList.messages';
 import { styles } from './sessionList.styles';
 
-const POLL_MS = 2000;
-
 function harnessLabel(agent: AgentId, formatMessage: ReturnType<typeof useIntl>['formatMessage']): string {
     const match = AGENTS.find((item) => item.id === agent);
     return match ? formatMessage(match.labelMessage) : agent;
@@ -52,38 +50,30 @@ export function SessionList() {
 
     useEffect(() => {
         let cancelled = false;
-        let timer: ReturnType<typeof setTimeout> | undefined;
 
-        async function refresh(initial: boolean) {
-            try {
-                const items = await listSessions();
-                if (cancelled) return;
-                setSessions(items);
-            } catch (err: unknown) {
-                if (!cancelled && initial) {
+        setSessionsLoading(true);
+        listSessions()
+            .then((items) => {
+                if (!cancelled) {
+                    setSessions(items);
+                }
+            })
+            .catch((err: unknown) => {
+                if (!cancelled) {
                     showToast(
                         'generic-error',
                         err instanceof Error ? err.message : intl.formatMessage(messages.sessionsLoadFailed),
                     );
                 }
-            } finally {
-                if (!cancelled && initial) {
+            })
+            .finally(() => {
+                if (!cancelled) {
                     setSessionsLoading(false);
                 }
-                if (!cancelled) {
-                    timer = setTimeout(() => {
-                        void refresh(false);
-                    }, POLL_MS);
-                }
-            }
-        }
-
-        setSessionsLoading(true);
-        void refresh(true);
+            });
 
         return () => {
             cancelled = true;
-            if (timer) clearTimeout(timer);
         };
     }, [intl]);
 
