@@ -16,6 +16,7 @@ import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useIntl } from 'react-intl';
+import { useNavigate } from 'react-router-dom';
 import { messages } from './sessionView.messages';
 import { styles } from './sessionView.styles';
 import type { SessionViewProps } from './sessionView.types';
@@ -112,6 +113,7 @@ function syncTerminalLayout(options: {
 
 export function SessionView({ sessionId }: SessionViewProps) {
     const intl = useIntl();
+    const navigate = useNavigate();
     const [session, setSession] = useState<Session | null>(null);
     const [loading, setLoading] = useState(true);
     const [failed, setFailed] = useState(false);
@@ -329,6 +331,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         { label: intl.formatMessage(messages.loadingCrumb) },
                     ]}
                     showSettings={false}
+                    onBack={() => navigate('/')}
                 />
                 <p className={styles.centered}>{intl.formatMessage(messages.loading)}</p>
             </div>
@@ -344,6 +347,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         { label: intl.formatMessage(messages.notFound) },
                     ]}
                     showSettings={false}
+                    onBack={() => navigate('/')}
                 />
                 <p className={styles.centered}>{intl.formatMessage(messages.notFound)}</p>
             </div>
@@ -362,6 +366,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
             <PageHeader
                 crumbs={[{ label: intl.formatMessage(messages.sessionsCrumb), to: '/' }, { label: session.name }]}
                 showSettings={false}
+                onBack={() => navigate('/')}
             />
             {session.type === 'coding' ? (
                 <div className={styles.tabs}>
