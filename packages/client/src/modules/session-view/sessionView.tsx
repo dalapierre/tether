@@ -79,6 +79,9 @@ function isScrolledToBottom(term: Terminal): boolean {
     return buffer.viewportY >= buffer.baseY;
 }
 
+/** Keep in sync with server PTY resize clamp in sessions/store.ts */
+const MAX_TERMINAL_COLS = 300;
+
 function syncTerminalLayout(options: {
     host: HTMLElement | null;
     term: Terminal;
@@ -98,6 +101,10 @@ function syncTerminalLayout(options: {
     const stickToBottom = followOutput ?? isScrolledToBottom(term);
     try {
         fitAddon.fit();
+        // Cap cols to the PTY max so a narrower screen can be centered in wide hosts.
+        if (term.cols > MAX_TERMINAL_COLS) {
+            term.resize(MAX_TERMINAL_COLS, term.rows);
+        }
         if (socket && socket.readyState === WebSocket.OPEN) {
             sendTerminalMessage(socket, {
                 type: 'resize',
