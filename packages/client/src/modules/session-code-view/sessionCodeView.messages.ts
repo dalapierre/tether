@@ -2,6 +2,7 @@ import { defineMessages, type NoMessageValues } from 'react-intl';
 
 type Messages = {
     loading: NoMessageValues;
+    filesChangedTitle: NoMessageValues;
     loadFailed: NoMessageValues;
     empty: NoMessageValues;
     selectFile: NoMessageValues;
@@ -24,6 +25,10 @@ export const messages = defineMessages<Messages>(
         loading: {
             id: 'sessionCodeView.loading',
             defaultMessage: 'Loading changes…',
+        },
+        filesChangedTitle: {
+            id: 'sessionCodeView.filesChangedTitle',
+            defaultMessage: 'Files changed',
         },
         loadFailed: {
             id: 'sessionCodeView.loadFailed',

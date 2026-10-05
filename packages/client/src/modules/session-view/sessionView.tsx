@@ -20,21 +20,17 @@ import {
     setReviewPaneWidthPx,
 } from '@client/libs/layout/reviewLayoutPreferences';
 import { attachTouchScroll } from '@client/libs/terminal/touchScroll';
+import { SessionCodeView } from '@client/modules/session-code-view';
 import { showToast } from '@client/modules/toast';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { useNavigate } from 'react-router-dom';
 import { messages } from './sessionView.messages';
 import { styles } from './sessionView.styles';
 import type { SessionViewProps } from './sessionView.types';
-
-const SessionCodeView = lazy(async () => {
-    const mod = await import('@client/modules/session-code-view');
-    return { default: mod.SessionCodeView };
-});
 
 type ConnectionState = 'connecting' | 'connected' | 'disconnected';
 type SessionTab = 'agent' | 'review';
@@ -146,6 +142,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
     }, []);
 
     const showDesktopReview = isDesktop && desktopReviewOpen;
+    const reviewPaneVisible = isDesktop ? showDesktopReview : tab === 'review';
 
     reviewPaneWidthRef.current = reviewPaneWidth;
 
@@ -520,10 +517,10 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         <div ref={terminalRef} className={styles.terminal} />
                     </div>
                 </div>
-                {session.type === 'coding' && reviewVisited && (!isDesktop || showDesktopReview) ? (
+                {session.type === 'coding' && reviewVisited ? (
                     <div
-                        className={isDesktop || tab === 'review' ? styles.paneReview : styles.paneInactive}
-                        aria-hidden={!isDesktop && tab !== 'review'}
+                        className={reviewPaneVisible ? styles.paneReview : styles.paneInactive}
+                        aria-hidden={!reviewPaneVisible}
                         style={isDesktop && showDesktopReview ? { width: reviewPaneWidth } : undefined}
                     >
                         {isDesktop && showDesktopReview ? (
@@ -537,11 +534,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                             />
                         ) : null}
                         <div className={styles.reviewBody}>
-                            <Suspense
-                                fallback={<p className={styles.centered}>{intl.formatMessage(messages.loading)}</p>}
-                            >
-                                <SessionCodeView sessionId={session.id} onHasFilesChange={onHasFilesChange} />
-                            </Suspense>
+                            <SessionCodeView sessionId={session.id} onHasFilesChange={onHasFilesChange} />
                         </div>
                     </div>
                 ) : null}

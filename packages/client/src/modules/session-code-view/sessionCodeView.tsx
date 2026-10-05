@@ -6,6 +6,7 @@ import {
     type SessionFileDiff,
 } from '@client/libs/api/sessions';
 import { PanelResizeHandle, panelResizeHandleMessages } from '@client/components/panel-resize-handle';
+import { Spinner } from '@client/components/spinner';
 import { useIsDesktop } from '@client/libs/dom/useMediaQuery';
 import {
     clampFileTreeWidthPx,
@@ -228,6 +229,7 @@ export function SessionCodeView({ sessionId, onHasFilesChange }: SessionCodeView
     const isDesktop = useIsDesktop();
     const [files, setFiles] = useState<SessionDiffFile[]>([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [selectedPath, setSelectedPath] = useState<string | null>(null);
     const [fileDiff, setFileDiff] = useState<SessionFileDiff | null>(null);
     const [fileLoading, setFileLoading] = useState(false);
@@ -276,6 +278,8 @@ export function SessionCodeView({ sessionId, onHasFilesChange }: SessionCodeView
         };
     }, [sessionId, intl]);
 
+    const loadingLabel = intl.formatMessage(messages.loading);
+
     useEffect(() => {
         if (!selectedPath) {
             setFileDiff(null);
@@ -311,7 +315,7 @@ export function SessionCodeView({ sessionId, onHasFilesChange }: SessionCodeView
     }, [sessionId, selectedPath, intl]);
 
     function refresh() {
-        setLoading(true);
+        setRefreshing(true);
         getSessionDiff(sessionId)
             .then((diff) => {
                 setFiles(diff.files);
@@ -326,7 +330,7 @@ export function SessionCodeView({ sessionId, onHasFilesChange }: SessionCodeView
                 );
             })
             .finally(() => {
-                setLoading(false);
+                setRefreshing(false);
             });
     }
 
@@ -342,8 +346,8 @@ export function SessionCodeView({ sessionId, onHasFilesChange }: SessionCodeView
         });
     }
 
-    const editorEmptyMessage =
-        !loading && !hasFiles ? intl.formatMessage(messages.empty) : intl.formatMessage(messages.selectFile);
+    const listLoading = loading && files.length === 0;
+    const editorEmptyMessage = !hasFiles ? intl.formatMessage(messages.empty) : intl.formatMessage(messages.selectFile);
 
     const showEditor = isDesktop || Boolean(selectedPath);
     const listPanelClass = selectedPath ? styles.listPanelMobileHidden : styles.listPanel;
@@ -357,22 +361,27 @@ export function SessionCodeView({ sessionId, onHasFilesChange }: SessionCodeView
                 <div className={listPanelClass}>
                     <div className={styles.toolbar}>
                         <p className={styles.toolbarTitle}>
-                            {loading
-                                ? intl.formatMessage(messages.loading)
-                                : intl.formatMessage(messages.filesChanged, { count: files.length })}
+                            {hasFiles
+                                ? intl.formatMessage(messages.filesChanged, { count: files.length })
+                                : intl.formatMessage(messages.filesChangedTitle)}
                         </p>
                         <div className={styles.toolbarActions}>
-                            <button type='button' className={styles.refreshButton} onClick={refresh} disabled={loading}>
+                            <button
+                                type='button'
+                                className={styles.refreshButton}
+                                onClick={refresh}
+                                disabled={loading || refreshing}
+                            >
                                 {intl.formatMessage(messages.refresh)}
                             </button>
                         </div>
                     </div>
-                    {loading ? (
-                        <p className={styles.centered}>{intl.formatMessage(messages.loading)}</p>
+                    {listLoading ? (
+                        <Spinner label={loadingLabel} />
                     ) : files.length === 0 ? (
                         <p className={styles.centered}>{intl.formatMessage(messages.empty)}</p>
                     ) : (
-                        <div className={styles.fileList}>
+                        <div className={styles.fileList} aria-busy={refreshing}>
                             <FileTree
                                 nodes={tree}
                                 depth={0}
@@ -406,7 +415,7 @@ export function SessionCodeView({ sessionId, onHasFilesChange }: SessionCodeView
                             <span className={styles.fileHeaderPath}>{selectedPath}</span>
                         </div>
                         {fileLoading || !fileDiff ? (
-                            <p className={styles.centered}>{intl.formatMessage(messages.loading)}</p>
+                            <Spinner label={loadingLabel} />
                         ) : fileDiff.binary ? (
                             <p className={styles.centered}>{intl.formatMessage(messages.binaryFile)}</p>
                         ) : (
@@ -449,6 +458,8 @@ export function SessionCodeView({ sessionId, onHasFilesChange }: SessionCodeView
                             </div>
                         )}
                     </>
+                ) : listLoading ? (
+                    <Spinner label={loadingLabel} />
                 ) : (
                     <p className={styles.centered}>{editorEmptyMessage}</p>
                 )}
