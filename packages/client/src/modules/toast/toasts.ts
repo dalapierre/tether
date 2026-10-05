@@ -27,12 +27,6 @@ export const TOASTS = {
         title: messages.settingsSavedTitle,
         message: messages.settingsSavedMessage,
     },
-    'repository-added': {
-        type: 'success',
-        title: messages.repositoryAddedTitle,
-        message: messages.repositoryAddedMessage,
-        values: (name: string) => ({ name }),
-    },
 } as const satisfies Record<string, ToastDefinition>;
 
 export type ToastId = keyof typeof TOASTS;

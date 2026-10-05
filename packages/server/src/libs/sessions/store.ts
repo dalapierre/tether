@@ -368,3 +368,16 @@ export function deleteSession(id: string): boolean {
 
     return true;
 }
+
+/** Delete every session for a repository. Call before the repository is removed from settings. */
+export function deleteSessionsForRepository(repositoryId: string): number {
+    const ids = [...sessions.values()]
+        .filter((session) => session.repositoryId === repositoryId)
+        .map((session) => session.id);
+
+    for (const id of ids) {
+        deleteSession(id);
+    }
+
+    return ids.length;
+}

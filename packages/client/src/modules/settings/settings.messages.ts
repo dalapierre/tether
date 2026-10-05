@@ -152,7 +152,7 @@ export const messages = defineMessages<Messages>(
         },
         removeRepositoryConfirm: {
             id: 'settings.removeRepositoryConfirm',
-            defaultMessage: 'Remove {name} from Tether? Existing sessions are not deleted.',
+            defaultMessage: 'Remove {name} from Tether? All existing sessions for this repository will be deleted.',
         },
         removeRepositoryConfirmContinue: {
             id: 'settings.removeRepositoryConfirmContinue',

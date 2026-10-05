@@ -185,7 +185,6 @@ export function Settings({ onClose }: SettingsProps) {
             const repository = await addRepository(path);
             setRepositories((current) => [...current, repository].sort((a, b) => a.name.localeCompare(b.name)));
             setAvailable((current) => current.filter((item) => item.path !== path));
-            showToast('repository-added', repository.name);
         } catch (err: unknown) {
             showToast(
                 'generic-error',

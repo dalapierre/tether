@@ -231,6 +231,9 @@ export async function removeRepository(id: string): Promise<boolean> {
     if (next.length === repositories.length) {
         return false;
     }
+    // Dynamic import avoids a circular dependency with sessions/store.
+    const { deleteSessionsForRepository } = await import('@server/libs/sessions/store.js');
+    deleteSessionsForRepository(id);
     await writeAll(next);
     return true;
 }
