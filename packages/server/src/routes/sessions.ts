@@ -1,4 +1,3 @@
-import { isAgentId } from '@server/libs/agents/agents.js';
 import {
     createSession,
     deleteSession,
@@ -75,36 +74,26 @@ sessionsRouter.delete('/:id', (req, res) => {
 });
 
 sessionsRouter.post('/', async (req, res) => {
-    const repositoryId = typeof req.body?.repositoryId === 'string' ? req.body.repositoryId.trim() : '';
+    const profileId = typeof req.body?.profileId === 'string' ? req.body.profileId.trim() : '';
     const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+    const repositoryId = typeof req.body?.repositoryId === 'string' ? req.body.repositoryId.trim() : '';
     const branch = typeof req.body?.branch === 'string' ? req.body.branch.trim() : '';
-    const agent = req.body?.agent;
-    const yoloMode = typeof req.body?.yoloMode === 'boolean' ? req.body.yoloMode : false;
 
-    if (!repositoryId) {
-        res.status(400).json({ error: 'Repository is required' });
+    if (!profileId) {
+        res.status(400).json({ error: 'Profile is required' });
         return;
     }
     if (!name) {
         res.status(400).json({ error: 'Name is required' });
         return;
     }
-    if (!branch) {
-        res.status(400).json({ error: 'Branch is required' });
-        return;
-    }
-    if (!isAgentId(agent)) {
-        res.status(400).json({ error: 'Invalid agent' });
-        return;
-    }
 
     try {
         const session = await createSession({
-            repositoryId,
+            profileId,
             name,
-            branch,
-            agent,
-            yoloMode,
+            repositoryId: repositoryId || undefined,
+            branch: branch || undefined,
         });
         res.status(201).json({ session });
     } catch (err: unknown) {
@@ -112,7 +101,9 @@ sessionsRouter.post('/', async (req, res) => {
         const status =
             message === 'Name is required' ||
             message === 'Branch is required' ||
+            message === 'Repository is required' ||
             message === 'Repository not found' ||
+            message === 'Profile not found' ||
             message.startsWith('Failed to create worktree')
                 ? 400
                 : 500;

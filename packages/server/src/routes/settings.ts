@@ -1,5 +1,4 @@
-import { isAgentId } from '@server/libs/agents/agents.js';
-import { getSettings, updateSettings } from '@server/libs/settings/store.js';
+import { getSettings, normalizeIncomingProfiles, updateSettings } from '@server/libs/settings/store.js';
 import { Router } from 'express';
 
 export const settingsRouter = Router();
@@ -16,31 +15,32 @@ settingsRouter.get('/', async (_req, res) => {
 
 settingsRouter.put('/', async (req, res) => {
     const devDir = typeof req.body?.devDir === 'string' ? req.body.devDir.trim() : undefined;
-    const agentRaw = typeof req.body?.agent === 'string' ? req.body.agent.trim() : undefined;
-    const yoloMode = typeof req.body?.yoloMode === 'boolean' ? req.body.yoloMode : undefined;
+    const defaultProfileId =
+        typeof req.body?.defaultProfileId === 'string' ? req.body.defaultProfileId.trim() : undefined;
+    const profiles = normalizeIncomingProfiles(req.body?.profiles);
 
     if (devDir === undefined) {
         res.status(400).json({ error: 'devDir is required' });
         return;
     }
 
-    if (agentRaw === undefined) {
-        res.status(400).json({ error: 'agent is required' });
+    if (defaultProfileId === undefined) {
+        res.status(400).json({ error: 'defaultProfileId is required' });
         return;
     }
 
-    if (!isAgentId(agentRaw)) {
-        res.status(400).json({ error: 'Unsupported agent' });
+    if (!profiles) {
+        res.status(400).json({ error: 'profiles must be a non-empty array of valid profiles' });
         return;
     }
 
-    if (yoloMode === undefined) {
-        res.status(400).json({ error: 'yoloMode is required' });
+    if (!profiles.some((profile) => profile.id === defaultProfileId)) {
+        res.status(400).json({ error: 'defaultProfileId must match a profile' });
         return;
     }
 
     try {
-        const settings = await updateSettings({ devDir, agent: agentRaw, yoloMode });
+        const settings = await updateSettings({ devDir, defaultProfileId, profiles });
         res.json({ settings });
     } catch (err: unknown) {
         console.error('Failed to save settings', err);

@@ -1,13 +1,13 @@
 import { Button } from '@client/components/button';
 import { IconButton } from '@client/components/icon-button';
 import { PageHeader } from '@client/components/page-header';
-import { AGENTS, isAgentId, type AgentId } from '@client/libs/agents/agents';
+import { SearchSelect } from '@client/components/search-select';
 import { listRepositories, type Repository } from '@client/libs/api/repositories';
 import { createSession } from '@client/libs/api/sessions';
-import { getSettings } from '@client/libs/api/settings';
+import { getSettings, type AgentProfile } from '@client/libs/api/settings';
 import { isValidBranchName } from '@client/libs/git/branchName';
 import { showToast } from '@client/modules/toast';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { messages } from './newSession.messages';
 import { styles } from './newSession.styles';
@@ -16,10 +16,10 @@ import type { NewSessionProps } from './newSession.types';
 export function NewSession({ onClose, onStarted }: NewSessionProps) {
     const intl = useIntl();
     const [name, setName] = useState('');
+    const [profileId, setProfileId] = useState('');
     const [repositoryId, setRepositoryId] = useState('');
     const [branch, setBranch] = useState('');
-    const [agent, setAgent] = useState<AgentId>('cursor');
-    const [yoloMode, setYoloMode] = useState(false);
+    const [profiles, setProfiles] = useState<AgentProfile[]>([]);
     const [repositories, setRepositories] = useState<Repository[]>([]);
     const [loading, setLoading] = useState(true);
     const [starting, setStarting] = useState(false);
@@ -30,8 +30,8 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
         Promise.all([getSettings(), listRepositories()])
             .then(([settings, items]) => {
                 if (cancelled) return;
-                setAgent(isAgentId(settings.agent) ? settings.agent : 'cursor');
-                setYoloMode(Boolean(settings.yoloMode));
+                setProfiles(settings.profiles);
+                setProfileId(settings.defaultProfileId);
                 setRepositories(items);
                 if (items.length === 1) {
                     setRepositoryId(items[0].id);
@@ -69,24 +69,54 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
         };
     }, [onClose, starting]);
 
+    const selectedProfile = useMemo(
+        () => profiles.find((profile) => profile.id === profileId) ?? null,
+        [profiles, profileId],
+    );
+
+    const profileOptions = useMemo(
+        () => profiles.map((profile) => ({ value: profile.id, label: profile.name })),
+        [profiles],
+    );
+
+    const isCoding = selectedProfile?.type === 'coding';
+
     async function handleStart() {
         const trimmedName = name.trim();
-        const trimmedBranch = branch.trim();
-        if (!trimmedName || !trimmedBranch || !repositoryId || !agent || starting) return;
+        if (!trimmedName || !profileId || !selectedProfile || starting) return;
 
-        if (!isValidBranchName(trimmedBranch)) {
-            showToast('invalid-branch-name');
+        if (selectedProfile.type === 'coding') {
+            const trimmedBranch = branch.trim();
+            if (!trimmedBranch || !repositoryId) return;
+            if (!isValidBranchName(trimmedBranch)) {
+                showToast('invalid-branch-name');
+                return;
+            }
+
+            setStarting(true);
+            try {
+                const session = await createSession({
+                    profileId,
+                    name: trimmedName,
+                    repositoryId,
+                    branch: trimmedBranch,
+                });
+                onStarted(session);
+            } catch (err: unknown) {
+                showToast(
+                    'generic-error',
+                    err instanceof Error ? err.message : intl.formatMessage(messages.startFailed),
+                );
+                setStarting(false);
+            }
             return;
         }
 
         setStarting(true);
         try {
             const session = await createSession({
-                repositoryId,
+                profileId,
                 name: trimmedName,
-                branch: trimmedBranch,
-                agent,
-                yoloMode,
             });
             onStarted(session);
         } catch (err: unknown) {
@@ -99,9 +129,9 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
         !loading &&
         !starting &&
         name.trim().length > 0 &&
-        branch.trim().length > 0 &&
-        Boolean(repositoryId) &&
-        Boolean(agent);
+        Boolean(profileId) &&
+        Boolean(selectedProfile) &&
+        (selectedProfile?.type === 'conversation' || (branch.trim().length > 0 && Boolean(repositoryId)));
 
     return (
         <div
@@ -148,75 +178,61 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                             />
                         </label>
 
-                        <label className={styles.label}>
-                            {intl.formatMessage(messages.projectLabel)}
-                            <select
-                                className={styles.select}
-                                value={repositoryId}
-                                disabled={starting || repositories.length === 0}
-                                onChange={(event) => setRepositoryId(event.target.value)}
-                            >
-                                <option value='' disabled>
-                                    {intl.formatMessage(
-                                        repositories.length === 0
-                                            ? messages.projectsEmpty
-                                            : messages.projectPlaceholder,
-                                    )}
-                                </option>
-                                {repositories.map((repository) => (
-                                    <option key={repository.id} value={repository.id}>
-                                        {repository.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-
-                        <label className={styles.label}>
-                            {intl.formatMessage(messages.branchLabel)}
-                            <input
-                                className={styles.input}
-                                type='text'
-                                value={branch}
-                                onChange={(event) => setBranch(event.target.value)}
-                                placeholder={intl.formatMessage(messages.branchPlaceholder)}
-                                autoComplete='off'
-                                spellCheck={false}
-                                required
+                        <div>
+                            <p className={styles.label}>{intl.formatMessage(messages.profileLabel)}</p>
+                            <SearchSelect
+                                options={profileOptions}
+                                value={profileId || null}
+                                onSelect={(option) => setProfileId(option.value)}
+                                placeholder={intl.formatMessage(messages.profilePlaceholder)}
+                                emptyMessage={intl.formatMessage(messages.profilesEmpty)}
+                                noResultsMessage={intl.formatMessage(messages.profileNoResults)}
                                 disabled={starting}
+                                ariaLabel={intl.formatMessage(messages.profileLabel)}
                             />
-                        </label>
+                        </div>
 
-                        <label className={styles.label}>
-                            {intl.formatMessage(messages.agentLabel)}
-                            <select
-                                className={styles.select}
-                                value={agent}
-                                disabled={starting}
-                                onChange={(event) => {
-                                    const next = event.target.value;
-                                    if (isAgentId(next)) {
-                                        setAgent(next);
-                                    }
-                                }}
-                            >
-                                {AGENTS.map((option) => (
-                                    <option key={option.id} value={option.id}>
-                                        {intl.formatMessage(option.labelMessage)}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
+                        {isCoding ? (
+                            <>
+                                <label className={styles.label}>
+                                    {intl.formatMessage(messages.projectLabel)}
+                                    <select
+                                        className={styles.select}
+                                        value={repositoryId}
+                                        disabled={starting || repositories.length === 0}
+                                        onChange={(event) => setRepositoryId(event.target.value)}
+                                    >
+                                        <option value='' disabled>
+                                            {intl.formatMessage(
+                                                repositories.length === 0
+                                                    ? messages.projectsEmpty
+                                                    : messages.projectPlaceholder,
+                                            )}
+                                        </option>
+                                        {repositories.map((repository) => (
+                                            <option key={repository.id} value={repository.id}>
+                                                {repository.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
 
-                        <label className={styles.checkboxLabel}>
-                            <input
-                                className={styles.checkbox}
-                                type='checkbox'
-                                checked={yoloMode}
-                                disabled={starting}
-                                onChange={(event) => setYoloMode(event.target.checked)}
-                            />
-                            {intl.formatMessage(messages.yoloModeLabel)}
-                        </label>
+                                <label className={styles.label}>
+                                    {intl.formatMessage(messages.branchLabel)}
+                                    <input
+                                        className={styles.input}
+                                        type='text'
+                                        value={branch}
+                                        onChange={(event) => setBranch(event.target.value)}
+                                        placeholder={intl.formatMessage(messages.branchPlaceholder)}
+                                        autoComplete='off'
+                                        spellCheck={false}
+                                        required
+                                        disabled={starting}
+                                    />
+                                </label>
+                            </>
+                        ) : null}
                     </form>
                 ) : null}
             </div>

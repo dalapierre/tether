@@ -6,6 +6,8 @@ export type SearchSelectOption<T extends string = string> = {
 export type SearchSelectProps<T extends string = string> = {
     options: SearchSelectOption<T>[];
     onSelect: (option: SearchSelectOption<T>) => void;
+    /** When set, shows the selected option label while the input is not focused. */
+    value?: T | null;
     placeholder?: string;
     emptyMessage?: string;
     noResultsMessage?: string;

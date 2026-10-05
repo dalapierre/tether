@@ -1,5 +1,5 @@
 import type { AgentId } from '@server/libs/agents/agents.js';
-import { getRepositoryWorktreesDir } from '@server/libs/paths.js';
+import { getConversationSessionDir, getConversationsDir, getRepositoryWorktreesDir } from '@server/libs/paths.js';
 import { getRepository } from '@server/libs/repositories/store.js';
 import {
     ensureCursorStatusIndicatorsEnabled,
@@ -20,7 +20,8 @@ import {
     clearTerminal,
     parseClientMessage,
 } from '@server/libs/sessions/terminalHub.js';
-import type { Session, SessionStatus } from '@server/libs/sessions/types.js';
+import type { Session, SessionStatus, SessionType } from '@server/libs/sessions/types.js';
+import { getProfile } from '@server/libs/settings/store.js';
 import { slugify, uniqueSlug } from '@server/libs/slug/slug.js';
 import { execFile } from 'node:child_process';
 import { mkdir, readdir, rm } from 'node:fs/promises';
@@ -47,6 +48,7 @@ function toPublic(session: RuntimeSession): Session {
         id: session.id,
         name: session.name,
         agent: session.agent,
+        type: session.type,
         repositoryId: session.repositoryId,
         branch: session.branch,
         status: session.status,
@@ -131,7 +133,9 @@ async function createWorktree(
 }> {
     const takenBranches = await listLocalBranches(repoPath);
     for (const session of sessions.values()) {
-        takenBranches.add(session.branch);
+        if (session.branch) {
+            takenBranches.add(session.branch);
+        }
     }
 
     const requestedBranch = branchName.trim();
@@ -189,21 +193,96 @@ function spawnHarness(session: RuntimeSession): void {
 }
 
 export async function createSession(input: {
-    repositoryId: string;
+    profileId: string;
     name: string;
-    agent: AgentId;
-    branch: string;
-    yoloMode?: boolean;
+    repositoryId?: string;
+    branch?: string;
 }): Promise<Session> {
     const name = input.name.trim();
     if (!name) {
         throw new Error('Name is required');
     }
-    const branch = input.branch.trim();
+
+    const profile = await getProfile(input.profileId);
+    if (!profile) {
+        throw new Error('Profile not found');
+    }
+
+    const agent: AgentId = profile.agent;
+    const type: SessionType = profile.type;
+    const yoloMode = profile.yoloMode;
+
+    if (type === 'conversation') {
+        return createConversationSession({ name, agent, yoloMode });
+    }
+
+    const repositoryId = input.repositoryId?.trim() ?? '';
+    const branch = input.branch?.trim() ?? '';
+    if (!repositoryId) {
+        throw new Error('Repository is required');
+    }
     if (!branch) {
         throw new Error('Branch is required');
     }
 
+    return createCodingSession({ name, agent, yoloMode, repositoryId, branch });
+}
+
+async function allocateSessionId(takenIds: Set<string>, name: string): Promise<string> {
+    return uniqueSlug(slugify(name) || 'session', takenIds);
+}
+
+async function createConversationSession(input: { name: string; agent: AgentId; yoloMode: boolean }): Promise<Session> {
+    const takenIds = new Set(sessions.keys());
+    try {
+        for (const leaf of await listWorktreeLeaves(getConversationsDir())) {
+            takenIds.add(leaf);
+        }
+    } catch {
+        // conversations dir may not exist yet
+    }
+
+    const id = await allocateSessionId(takenIds, input.name);
+    const worktreePath = getConversationSessionDir(id);
+    await mkdir(worktreePath, { recursive: true });
+
+    const session: RuntimeSession = {
+        id,
+        name: input.name,
+        agent: input.agent,
+        type: 'conversation',
+        repositoryId: null,
+        branch: null,
+        status: 'busy',
+        createdAt: Date.now(),
+        yoloMode: input.yoloMode,
+        worktreePath,
+        baseSha: '',
+        pty: null,
+        oscTitleState: { pending: '' },
+    };
+
+    sessions.set(id, session);
+
+    try {
+        if (input.agent === 'cursor') {
+            await ensureCursorStatusIndicatorsEnabled();
+        }
+        spawnHarness(session);
+    } catch {
+        // Session remains in error state with buffered failure output.
+    }
+
+    return toPublic(session);
+}
+
+async function createCodingSession(input: {
+    name: string;
+    agent: AgentId;
+    yoloMode: boolean;
+    repositoryId: string;
+    branch: string;
+}): Promise<Session> {
     const repository = await getRepository(input.repositoryId);
     if (!repository) {
         throw new Error('Repository not found');
@@ -220,10 +299,10 @@ export async function createSession(input: {
         }
     }
 
-    const id = uniqueSlug(slugify(name) || 'session', takenIds);
+    const id = await allocateSessionId(takenIds, input.name);
     let worktree: { branch: string; worktreePath: string; baseSha: string };
     try {
-        worktree = await createWorktree(repository.id, repository.path, id, branch);
+        worktree = await createWorktree(repository.id, repository.path, id, input.branch);
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Failed to create worktree';
         throw new Error(
@@ -233,13 +312,14 @@ export async function createSession(input: {
 
     const session: RuntimeSession = {
         id,
-        name,
+        name: input.name,
         agent: input.agent,
+        type: 'coding',
         repositoryId: repository.id,
         branch: worktree.branch,
         status: 'busy',
         createdAt: Date.now(),
-        yoloMode: Boolean(input.yoloMode),
+        yoloMode: input.yoloMode,
         worktreePath: worktree.worktreePath,
         baseSha: worktree.baseSha,
         pty: null,
@@ -274,13 +354,13 @@ export function getSession(id: string): Session | null {
 
 export async function getSessionDiff(id: string): Promise<SessionDiffSummary | null> {
     const session = sessions.get(id);
-    if (!session) return null;
+    if (!session || session.type !== 'coding') return null;
     return getSessionDiffSummary(session.worktreePath, session.baseSha);
 }
 
 export async function getSessionDiffFile(id: string, filePath: string): Promise<SessionFileDiff | null> {
     const session = sessions.get(id);
-    if (!session) return null;
+    if (!session || session.type !== 'coding') return null;
     return getSessionFileDiff(session.worktreePath, session.baseSha, filePath);
 }
 
@@ -324,6 +404,16 @@ export function attachSessionTerminal(sessionId: string, socket: WebSocket): boo
 }
 
 async function cleanupWorktree(session: RuntimeSession): Promise<void> {
+    if (session.type === 'conversation') {
+        await rm(session.worktreePath, { recursive: true, force: true }).catch(() => undefined);
+        return;
+    }
+
+    if (!session.repositoryId) {
+        await rm(session.worktreePath, { recursive: true, force: true }).catch(() => undefined);
+        return;
+    }
+
     const repository = await getRepository(session.repositoryId).catch(() => null);
 
     try {
@@ -339,7 +429,7 @@ async function cleanupWorktree(session: RuntimeSession): Promise<void> {
         await rm(session.worktreePath, { recursive: true, force: true }).catch(() => undefined);
     }
 
-    if (repository) {
+    if (repository && session.branch) {
         try {
             await execFileAsync('git', ['branch', '-D', session.branch], { cwd: repository.path });
         } catch {

@@ -14,7 +14,7 @@ import {
     type AvailableRepository,
     type Repository,
 } from '@client/libs/api/repositories';
-import { getSettings, updateSettings } from '@client/libs/api/settings';
+import { getSettings, updateSettings, type AgentProfile, type AgentProfileType } from '@client/libs/api/settings';
 import { clearAccessToken } from '@client/libs/auth/session';
 import { showToast } from '@client/modules/toast';
 import { useEffect, useMemo, useState } from 'react';
@@ -24,7 +24,12 @@ import { messages } from './settings.messages';
 import { styles } from './settings.styles';
 import type { SettingsProps } from './settings.types';
 
-type SettingsCategory = 'general' | 'repos' | 'agents';
+type SettingsView = 'root' | 'general' | 'repos' | 'agents' | 'profiles' | 'new-profile';
+
+type PageHeaderCrumb = {
+    label: string;
+    onClick?: () => void;
+};
 
 function CategoryChevron() {
     return (
@@ -41,22 +46,49 @@ function CategoryChevron() {
     );
 }
 
+function createLocalProfileId(existing: AgentProfile[]): string {
+    const taken = new Set(existing.map((profile) => profile.id));
+    let index = existing.length + 1;
+    let id = `profile-${index}`;
+    while (taken.has(id)) {
+        index += 1;
+        id = `profile-${index}`;
+    }
+    return id;
+}
+
+function emptyDraftProfile(): {
+    name: string;
+    type: AgentProfileType;
+    agent: AgentId;
+    yoloMode: boolean;
+} {
+    return {
+        name: '',
+        type: 'coding',
+        agent: 'cursor',
+        yoloMode: false,
+    };
+}
+
 export function Settings({ onClose }: SettingsProps) {
     const intl = useIntl();
     const navigate = useNavigate();
-    const [category, setCategory] = useState<SettingsCategory | null>(null);
+    const [view, setView] = useState<SettingsView>('root');
     const [devDir, setDevDir] = useState('');
-    const [agent, setAgent] = useState<AgentId>('cursor');
-    const [yoloMode, setYoloMode] = useState(false);
+    const [defaultProfileId, setDefaultProfileId] = useState('');
+    const [profiles, setProfiles] = useState<AgentProfile[]>([]);
     const [savedDevDir, setSavedDevDir] = useState('');
-    const [savedAgent, setSavedAgent] = useState<AgentId>('cursor');
-    const [savedYoloMode, setSavedYoloMode] = useState(false);
+    const [savedDefaultProfileId, setSavedDefaultProfileId] = useState('');
     const [repositories, setRepositories] = useState<Repository[]>([]);
     const [available, setAvailable] = useState<AvailableRepository[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [creatingProfile, setCreatingProfile] = useState(false);
+    const [draftProfile, setDraftProfile] = useState(emptyDraftProfile);
     const [addingPath, setAddingPath] = useState<string | null>(null);
-    const [pendingRemove, setPendingRemove] = useState<Repository | null>(null);
+    const [pendingRemoveRepo, setPendingRemoveRepo] = useState<Repository | null>(null);
+    const [pendingRemoveProfile, setPendingRemoveProfile] = useState<AgentProfile | null>(null);
     const [removingId, setRemovingId] = useState<string | null>(null);
 
     useEffect(() => {
@@ -65,14 +97,11 @@ export function Settings({ onClose }: SettingsProps) {
         Promise.all([getSettings(), listRepositories()])
             .then(async ([settings, items]) => {
                 if (cancelled) return;
-                const nextAgent = isAgentId(settings.agent) ? settings.agent : 'cursor';
-                const nextYoloMode = Boolean(settings.yoloMode);
                 setDevDir(settings.devDir);
-                setAgent(nextAgent);
-                setYoloMode(nextYoloMode);
+                setDefaultProfileId(settings.defaultProfileId);
+                setProfiles(settings.profiles);
                 setSavedDevDir(settings.devDir);
-                setSavedAgent(nextAgent);
-                setSavedYoloMode(nextYoloMode);
+                setSavedDefaultProfileId(settings.defaultProfileId);
                 setRepositories(items);
 
                 try {
@@ -108,9 +137,18 @@ export function Settings({ onClose }: SettingsProps) {
     useEffect(() => {
         function onKeyDown(event: KeyboardEvent) {
             if (event.key !== 'Escape') return;
-            if (pendingRemove) return;
-            if (category) {
-                setCategory(null);
+            if (pendingRemoveRepo || pendingRemoveProfile) return;
+            if (view === 'new-profile') {
+                setView('profiles');
+                setDraftProfile(emptyDraftProfile());
+                return;
+            }
+            if (view === 'profiles') {
+                setView('agents');
+                return;
+            }
+            if (view !== 'root') {
+                setView('root');
                 return;
             }
             onClose();
@@ -120,19 +158,83 @@ export function Settings({ onClose }: SettingsProps) {
         return () => {
             window.removeEventListener('keydown', onKeyDown);
         };
-    }, [category, onClose, pendingRemove]);
+    }, [onClose, pendingRemoveProfile, pendingRemoveRepo, view]);
 
     const availableOptions = useMemo(
         () => available.map((repository) => ({ value: repository.path, label: repository.name })),
         [available],
     );
 
-    const categoryCrumbLabel = useMemo(() => {
-        if (category === 'general') return intl.formatMessage(messages.categoryGeneralCrumb);
-        if (category === 'repos') return intl.formatMessage(messages.categoryReposCrumb);
-        if (category === 'agents') return intl.formatMessage(messages.categoryAgentsCrumb);
-        return null;
-    }, [category, intl]);
+    const crumbs = useMemo((): PageHeaderCrumb[] => {
+        const root: PageHeaderCrumb = {
+            label: intl.formatMessage(messages.crumb),
+            onClick: view === 'root' ? undefined : () => setView('root'),
+        };
+
+        if (view === 'root') {
+            return [root];
+        }
+
+        if (view === 'general') {
+            return [root, { label: intl.formatMessage(messages.categoryGeneralCrumb) }];
+        }
+
+        if (view === 'repos') {
+            return [root, { label: intl.formatMessage(messages.categoryReposCrumb) }];
+        }
+
+        if (view === 'agents') {
+            return [root, { label: intl.formatMessage(messages.categoryAgentsCrumb) }];
+        }
+
+        const agentsCrumb: PageHeaderCrumb = {
+            label: intl.formatMessage(messages.categoryAgentsCrumb),
+            onClick: () => setView('agents'),
+        };
+
+        if (view === 'profiles') {
+            return [root, agentsCrumb, { label: intl.formatMessage(messages.categoryProfilesCrumb) }];
+        }
+
+        return [
+            root,
+            agentsCrumb,
+            {
+                label: intl.formatMessage(messages.categoryProfilesCrumb),
+                onClick: () => {
+                    setView('profiles');
+                    setDraftProfile(emptyDraftProfile());
+                },
+            },
+            { label: intl.formatMessage(messages.categoryNewProfileCrumb) },
+        ];
+    }, [intl, view]);
+
+    async function persistProfiles(nextProfiles: AgentProfile[], nextDefaultProfileId: string): Promise<boolean> {
+        try {
+            const settings = await updateSettings({
+                devDir: devDir.trim(),
+                defaultProfileId: nextDefaultProfileId,
+                profiles: nextProfiles,
+            });
+            setDevDir(settings.devDir);
+            setDefaultProfileId(settings.defaultProfileId);
+            setProfiles(settings.profiles);
+            setSavedDevDir(settings.devDir);
+            setSavedDefaultProfileId(settings.defaultProfileId);
+            return true;
+        } catch (err: unknown) {
+            if (err instanceof ApiError) {
+                showToast('generic-error', err.message);
+            } else {
+                showToast(
+                    'generic-error',
+                    err instanceof Error ? err.message : intl.formatMessage(messages.saveFailed),
+                );
+            }
+            return false;
+        }
+    }
 
     async function handleSave() {
         setSaving(true);
@@ -140,15 +242,14 @@ export function Settings({ onClose }: SettingsProps) {
         try {
             const settings = await updateSettings({
                 devDir: devDir.trim(),
-                agent,
-                yoloMode,
+                defaultProfileId,
+                profiles,
             });
             setDevDir(settings.devDir);
-            setAgent(settings.agent);
-            setYoloMode(settings.yoloMode);
+            setDefaultProfileId(settings.defaultProfileId);
+            setProfiles(settings.profiles);
             setSavedDevDir(settings.devDir);
-            setSavedAgent(settings.agent);
-            setSavedYoloMode(settings.yoloMode);
+            setSavedDefaultProfileId(settings.defaultProfileId);
             showToast('settings-saved');
 
             try {
@@ -169,6 +270,51 @@ export function Settings({ onClose }: SettingsProps) {
         } finally {
             setSaving(false);
         }
+    }
+
+    async function handleCreateProfile() {
+        const name = draftProfile.name.trim();
+        if (!name || creatingProfile) return;
+
+        const nextProfile: AgentProfile = {
+            id: createLocalProfileId(profiles),
+            name,
+            type: draftProfile.type,
+            agent: draftProfile.agent,
+            yoloMode: draftProfile.yoloMode,
+        };
+        const nextProfiles = [...profiles, nextProfile];
+        const nextDefault = defaultProfileId || nextProfile.id;
+
+        setCreatingProfile(true);
+        const ok = await persistProfiles(nextProfiles, nextDefault);
+        setCreatingProfile(false);
+
+        if (!ok) return;
+
+        setDraftProfile(emptyDraftProfile());
+        setView('profiles');
+    }
+
+    async function confirmRemoveProfile() {
+        const profile = pendingRemoveProfile;
+        if (!profile || removingId) return;
+        if (profiles.length <= 1) {
+            setPendingRemoveProfile(null);
+            return;
+        }
+
+        const nextProfiles = profiles.filter((item) => item.id !== profile.id);
+        const nextDefault = defaultProfileId === profile.id ? (nextProfiles[0]?.id ?? '') : defaultProfileId;
+
+        setRemovingId(profile.id);
+        setPendingRemoveProfile(null);
+
+        const ok = await persistProfiles(nextProfiles, nextDefault);
+        if (!ok) {
+            showToast('generic-error', intl.formatMessage(messages.removeProfileFailed));
+        }
+        setRemovingId(null);
     }
 
     function onSignOut() {
@@ -195,12 +341,12 @@ export function Settings({ onClose }: SettingsProps) {
         }
     }
 
-    async function confirmRemove() {
-        const repository = pendingRemove;
+    async function confirmRemoveRepo() {
+        const repository = pendingRemoveRepo;
         if (!repository || removingId) return;
 
         setRemovingId(repository.id);
-        setPendingRemove(null);
+        setPendingRemoveRepo(null);
         setRepositories((current) => current.filter((item) => item.id !== repository.id));
 
         try {
@@ -221,8 +367,10 @@ export function Settings({ onClose }: SettingsProps) {
         }
     }
 
-    const isDirty = devDir.trim() !== savedDevDir || agent !== savedAgent || yoloMode !== savedYoloMode;
-    const showSave = (category === 'general' || category === 'agents') && isDirty;
+    const generalDirty = devDir.trim() !== savedDevDir;
+    const agentsDirty = defaultProfileId !== savedDefaultProfileId;
+    const showSaveButton = !loading && ((view === 'general' && generalDirty) || (view === 'agents' && agentsDirty));
+    const canCreateProfile = draftProfile.name.trim().length > 0 && !creatingProfile;
 
     return (
         <div
@@ -232,17 +380,7 @@ export function Settings({ onClose }: SettingsProps) {
             aria-label={intl.formatMessage(messages.ariaLabel)}
         >
             <PageHeader
-                crumbs={
-                    category && categoryCrumbLabel
-                        ? [
-                              {
-                                  label: intl.formatMessage(messages.crumb),
-                                  onClick: () => setCategory(null),
-                              },
-                              { label: categoryCrumbLabel },
-                          ]
-                        : [{ label: intl.formatMessage(messages.crumb) }]
-                }
+                crumbs={crumbs}
                 showSettings={false}
                 actions={
                     <IconButton label={intl.formatMessage(messages.close)} onClick={onClose}>
@@ -251,14 +389,10 @@ export function Settings({ onClose }: SettingsProps) {
                 }
             />
             <div className={styles.body}>
-                {category === null ? (
+                {view === 'root' ? (
                     <>
                         <div className={styles.categories}>
-                            <button
-                                type='button'
-                                className={styles.categoryButton}
-                                onClick={() => setCategory('general')}
-                            >
+                            <button type='button' className={styles.categoryButton} onClick={() => setView('general')}>
                                 <span className={styles.categoryText}>
                                     <span className={styles.categoryLabel}>
                                         {intl.formatMessage(messages.categoryGeneral)}
@@ -269,11 +403,7 @@ export function Settings({ onClose }: SettingsProps) {
                                 </span>
                                 <CategoryChevron />
                             </button>
-                            <button
-                                type='button'
-                                className={styles.categoryButton}
-                                onClick={() => setCategory('repos')}
-                            >
+                            <button type='button' className={styles.categoryButton} onClick={() => setView('repos')}>
                                 <span className={styles.categoryText}>
                                     <span className={styles.categoryLabel}>
                                         {intl.formatMessage(messages.categoryRepos)}
@@ -284,11 +414,7 @@ export function Settings({ onClose }: SettingsProps) {
                                 </span>
                                 <CategoryChevron />
                             </button>
-                            <button
-                                type='button'
-                                className={styles.categoryButton}
-                                onClick={() => setCategory('agents')}
-                            >
+                            <button type='button' className={styles.categoryButton} onClick={() => setView('agents')}>
                                 <span className={styles.categoryText}>
                                     <span className={styles.categoryLabel}>
                                         {intl.formatMessage(messages.categoryAgents)}
@@ -309,11 +435,11 @@ export function Settings({ onClose }: SettingsProps) {
                     </>
                 ) : null}
 
-                {category !== null && loading ? (
+                {view !== 'root' && loading ? (
                     <p className={styles.loading}>{intl.formatMessage(messages.loading)}</p>
                 ) : null}
 
-                {category === 'general' && !loading ? (
+                {view === 'general' && !loading ? (
                     <div className={styles.fields}>
                         <label className={styles.label}>
                             {intl.formatMessage(messages.devDirLabel)}
@@ -331,7 +457,7 @@ export function Settings({ onClose }: SettingsProps) {
                     </div>
                 ) : null}
 
-                {category === 'repos' && !loading ? (
+                {view === 'repos' && !loading ? (
                     <div className={styles.fields}>
                         <div>
                             <p className={styles.label}>{intl.formatMessage(messages.addRepositoryLabel)}</p>
@@ -361,7 +487,7 @@ export function Settings({ onClose }: SettingsProps) {
                                             <IconButton
                                                 label={intl.formatMessage(messages.removeRepository)}
                                                 disabled={removingId === repository.id}
-                                                onClick={() => setPendingRemove(repository)}
+                                                onClick={() => setPendingRemoveRepo(repository)}
                                             >
                                                 ×
                                             </IconButton>
@@ -373,17 +499,128 @@ export function Settings({ onClose }: SettingsProps) {
                     </div>
                 ) : null}
 
-                {category === 'agents' && !loading ? (
+                {view === 'agents' && !loading ? (
                     <div className={styles.fields}>
                         <label className={styles.label}>
-                            {intl.formatMessage(messages.agentLabel)}
+                            {intl.formatMessage(messages.defaultProfileLabel)}
                             <select
                                 className={styles.select}
-                                value={agent}
+                                value={defaultProfileId}
+                                onChange={(event) => setDefaultProfileId(event.target.value)}
+                            >
+                                {profiles.map((profile) => (
+                                    <option key={profile.id} value={profile.id}>
+                                        {profile.name.trim() || profile.id}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+
+                        <div className={styles.categories}>
+                            <button type='button' className={styles.categoryButton} onClick={() => setView('profiles')}>
+                                <span className={styles.categoryText}>
+                                    <span className={styles.categoryLabel}>
+                                        {intl.formatMessage(messages.categoryProfiles)}
+                                    </span>
+                                    <span className={styles.categoryDescription}>
+                                        {intl.formatMessage(messages.categoryProfilesDescription)}
+                                    </span>
+                                </span>
+                                <CategoryChevron />
+                            </button>
+                        </div>
+                    </div>
+                ) : null}
+
+                {view === 'profiles' && !loading ? (
+                    <div className={styles.fields}>
+                        <Button
+                            type='button'
+                            onClick={() => {
+                                setDraftProfile(emptyDraftProfile());
+                                setView('new-profile');
+                            }}
+                        >
+                            {intl.formatMessage(messages.addProfile)}
+                        </Button>
+
+                        <div className={styles.repositoriesList}>
+                            <p className={styles.label}>{intl.formatMessage(messages.profilesLabel)}</p>
+                            <div className={styles.repositories}>
+                                {profiles.length === 0 ? (
+                                    <p className={styles.repositoryEmpty}>
+                                        {intl.formatMessage(messages.profilesEmpty)}
+                                    </p>
+                                ) : (
+                                    profiles.map((profile) => (
+                                        <div key={profile.id} className={styles.repositoryRow}>
+                                            <span className={styles.repositoryName}>
+                                                {profile.name.trim() || profile.id}
+                                            </span>
+                                            <IconButton
+                                                label={intl.formatMessage(messages.removeProfile)}
+                                                disabled={profiles.length <= 1 || removingId === profile.id}
+                                                onClick={() => setPendingRemoveProfile(profile)}
+                                            >
+                                                ×
+                                            </IconButton>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                ) : null}
+
+                {view === 'new-profile' && !loading ? (
+                    <div className={styles.fields}>
+                        <label className={styles.label}>
+                            {intl.formatMessage(messages.profileNameLabel)}
+                            <input
+                                className={styles.input}
+                                type='text'
+                                value={draftProfile.name}
+                                onChange={(event) =>
+                                    setDraftProfile((current) => ({ ...current, name: event.target.value }))
+                                }
+                                placeholder={intl.formatMessage(messages.profileNamePlaceholder)}
+                                autoComplete='off'
+                                spellCheck={false}
+                                autoFocus
+                                disabled={creatingProfile}
+                            />
+                        </label>
+
+                        <label className={styles.label}>
+                            {intl.formatMessage(messages.profileTypeLabel)}
+                            <select
+                                className={styles.select}
+                                value={draftProfile.type}
+                                disabled={creatingProfile}
+                                onChange={(event) => {
+                                    const next = event.target.value;
+                                    if (next === 'coding' || next === 'conversation') {
+                                        setDraftProfile((current) => ({ ...current, type: next }));
+                                    }
+                                }}
+                            >
+                                <option value='coding'>{intl.formatMessage(messages.profileTypeCoding)}</option>
+                                <option value='conversation'>
+                                    {intl.formatMessage(messages.profileTypeConversation)}
+                                </option>
+                            </select>
+                        </label>
+
+                        <label className={styles.label}>
+                            {intl.formatMessage(messages.profileHarnessLabel)}
+                            <select
+                                className={styles.select}
+                                value={draftProfile.agent}
+                                disabled={creatingProfile}
                                 onChange={(event) => {
                                     const next = event.target.value;
                                     if (isAgentId(next)) {
-                                        setAgent(next);
+                                        setDraftProfile((current) => ({ ...current, agent: next }));
                                     }
                                 }}
                             >
@@ -396,30 +633,54 @@ export function Settings({ onClose }: SettingsProps) {
                         </label>
 
                         <Toggle
-                            label={intl.formatMessage(messages.yoloModeLabel)}
-                            description={intl.formatMessage(messages.yoloModeHint)}
-                            checked={yoloMode}
-                            onChange={setYoloMode}
+                            label={intl.formatMessage(messages.profileYoloModeLabel)}
+                            description={intl.formatMessage(messages.profileYoloModeHint)}
+                            checked={draftProfile.yoloMode}
+                            disabled={creatingProfile}
+                            onChange={(checked) => setDraftProfile((current) => ({ ...current, yoloMode: checked }))}
                         />
                     </div>
                 ) : null}
             </div>
-            {showSave && !loading ? (
+            {showSaveButton ? (
                 <div className={styles.footer}>
-                    <Button type='button' onClick={handleSave} disabled={saving}>
+                    <Button type='button' onClick={() => void handleSave()} disabled={saving}>
                         {saving ? intl.formatMessage(messages.saving) : intl.formatMessage(messages.save)}
                     </Button>
                 </div>
             ) : null}
-            {pendingRemove ? (
+            {view === 'new-profile' && !loading ? (
+                <div className={styles.footer}>
+                    <Button type='button' onClick={() => void handleCreateProfile()} disabled={!canCreateProfile}>
+                        {intl.formatMessage(creatingProfile ? messages.creatingProfile : messages.createProfile)}
+                    </Button>
+                </div>
+            ) : null}
+            {pendingRemoveRepo ? (
                 <ConfirmDialog
-                    message={intl.formatMessage(messages.removeRepositoryConfirm, { name: pendingRemove.name })}
+                    message={intl.formatMessage(messages.removeRepositoryConfirm, {
+                        name: pendingRemoveRepo.name,
+                    })}
                     cancelLabel={intl.formatMessage(messages.removeRepositoryConfirmCancel)}
                     confirmLabel={intl.formatMessage(messages.removeRepositoryConfirmContinue)}
-                    busy={removingId === pendingRemove.id}
-                    onCancel={() => setPendingRemove(null)}
+                    busy={removingId === pendingRemoveRepo.id}
+                    onCancel={() => setPendingRemoveRepo(null)}
                     onConfirm={() => {
-                        void confirmRemove();
+                        void confirmRemoveRepo();
+                    }}
+                />
+            ) : null}
+            {pendingRemoveProfile ? (
+                <ConfirmDialog
+                    message={intl.formatMessage(messages.removeProfileConfirm, {
+                        name: pendingRemoveProfile.name.trim() || pendingRemoveProfile.id,
+                    })}
+                    cancelLabel={intl.formatMessage(messages.removeProfileConfirmCancel)}
+                    confirmLabel={intl.formatMessage(messages.removeProfileConfirmContinue)}
+                    busy={removingId === pendingRemoveProfile.id}
+                    onCancel={() => setPendingRemoveProfile(null)}
+                    onConfirm={() => {
+                        void confirmRemoveProfile();
                     }}
                 />
             ) : null}

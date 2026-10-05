@@ -9,17 +9,27 @@ export type StoredRepository = {
     path: string;
 };
 
-/** Public settings exposed through the settings API/UI. */
-export type Settings = {
-    devDir: string;
+export type AgentProfileType = 'coding' | 'conversation';
+
+export type AgentProfile = {
+    id: string;
+    name: string;
+    type: AgentProfileType;
     agent: AgentId;
     yoloMode: boolean;
 };
 
+/** Public settings exposed through the settings API/UI. */
+export type Settings = {
+    devDir: string;
+    defaultProfileId: string;
+    profiles: AgentProfile[];
+};
+
 type SettingsFile = {
     devDir: string;
-    agent: AgentId;
-    yoloMode: boolean;
+    defaultProfileId: string;
+    profiles: AgentProfile[];
     /** Persisted added repositories — not exposed via the settings API/UI. */
     repositories: StoredRepository[];
 };
@@ -27,10 +37,23 @@ type SettingsFile = {
 const dataFile = getSettingsFilePath();
 const legacyDataFile = path.join(getLegacyServerDataDir(), 'settings.json');
 
+const DEFAULT_PROFILE_ID = 'default';
+
+function createDefaultProfile(overrides: Partial<AgentProfile> = {}): AgentProfile {
+    return {
+        id: DEFAULT_PROFILE_ID,
+        name: 'Coding',
+        type: 'coding',
+        agent: 'cursor',
+        yoloMode: false,
+        ...overrides,
+    };
+}
+
 const defaultSettingsFile: SettingsFile = {
     devDir: '',
-    agent: 'cursor',
-    yoloMode: false,
+    defaultProfileId: DEFAULT_PROFILE_ID,
+    profiles: [createDefaultProfile()],
     repositories: [],
 };
 
@@ -46,26 +69,74 @@ function isStoredRepository(value: unknown): value is StoredRepository {
     );
 }
 
+function isAgentProfileType(value: unknown): value is AgentProfileType {
+    return value === 'coding' || value === 'conversation';
+}
+
+function isAgentProfile(value: unknown): value is AgentProfile {
+    if (!value || typeof value !== 'object') return false;
+    const profile = value as AgentProfile;
+    return (
+        typeof profile.id === 'string' &&
+        profile.id.length > 0 &&
+        typeof profile.name === 'string' &&
+        profile.name.trim().length > 0 &&
+        isAgentProfileType(profile.type) &&
+        isAgentId(profile.agent) &&
+        typeof profile.yoloMode === 'boolean'
+    );
+}
+
+function normalizeProfiles(value: unknown, legacyAgent?: unknown, legacyYoloMode?: unknown): AgentProfile[] {
+    if (Array.isArray(value)) {
+        const profiles = value.filter(isAgentProfile).map((profile) => ({
+            ...profile,
+            name: profile.name.trim(),
+        }));
+        if (profiles.length > 0) {
+            return profiles;
+        }
+    }
+
+    return [
+        createDefaultProfile({
+            agent: isAgentId(legacyAgent) ? legacyAgent : 'cursor',
+            yoloMode: typeof legacyYoloMode === 'boolean' ? legacyYoloMode : false,
+        }),
+    ];
+}
+
+function resolveDefaultProfileId(value: unknown, profiles: AgentProfile[]): string {
+    if (typeof value === 'string' && profiles.some((profile) => profile.id === value)) {
+        return value;
+    }
+    return profiles[0]?.id ?? DEFAULT_PROFILE_ID;
+}
+
 function toPublicSettings(file: SettingsFile): Settings {
     return {
         devDir: file.devDir,
-        agent: file.agent,
-        yoloMode: file.yoloMode,
+        defaultProfileId: file.defaultProfileId,
+        profiles: file.profiles.map((profile) => ({ ...profile })),
     };
 }
 
 function normalizeSettingsFile(value: unknown): SettingsFile {
     if (!value || typeof value !== 'object') {
-        return { ...defaultSettingsFile, repositories: [] };
+        return {
+            ...defaultSettingsFile,
+            profiles: [createDefaultProfile()],
+            repositories: [],
+        };
     }
 
     const record = value as Record<string, unknown>;
     const devDir = typeof record.devDir === 'string' ? record.devDir : '';
-    const agent = isAgentId(record.agent) ? record.agent : defaultSettingsFile.agent;
-    const yoloMode = typeof record.yoloMode === 'boolean' ? record.yoloMode : defaultSettingsFile.yoloMode;
+    const profiles = normalizeProfiles(record.profiles, record.agent, record.yoloMode);
+    const defaultProfileId = resolveDefaultProfileId(record.defaultProfileId, profiles);
     const repositories = Array.isArray(record.repositories) ? record.repositories.filter(isStoredRepository) : [];
 
-    return { devDir, agent, yoloMode, repositories };
+    return { devDir, defaultProfileId, profiles, repositories };
 }
 
 /** One-time: move settings from packages/server/data into ~/.tether. */
@@ -123,7 +194,11 @@ async function readSettingsFile(): Promise<SettingsFile> {
     try {
         parsed = JSON.parse(raw);
     } catch {
-        return { ...defaultSettingsFile, repositories: [] };
+        return {
+            ...defaultSettingsFile,
+            profiles: [createDefaultProfile()],
+            repositories: [],
+        };
     }
     return normalizeSettingsFile(parsed);
 }
@@ -138,13 +213,53 @@ export async function getSettings(): Promise<Settings> {
     return toPublicSettings(file);
 }
 
-export async function updateSettings(patch: Partial<Settings>): Promise<Settings> {
+export async function getProfile(profileId: string): Promise<AgentProfile | null> {
+    const file = await readSettingsFile();
+    return file.profiles.find((profile) => profile.id === profileId) ?? null;
+}
+
+export function normalizeIncomingProfiles(value: unknown): AgentProfile[] | null {
+    if (!Array.isArray(value) || value.length === 0) {
+        return null;
+    }
+
+    const profiles: AgentProfile[] = [];
+    const seenIds = new Set<string>();
+
+    for (const item of value) {
+        if (!isAgentProfile(item)) {
+            return null;
+        }
+        if (seenIds.has(item.id)) {
+            return null;
+        }
+        seenIds.add(item.id);
+        profiles.push({
+            id: item.id,
+            name: item.name.trim(),
+            type: item.type,
+            agent: item.agent,
+            yoloMode: item.yoloMode,
+        });
+    }
+
+    return profiles;
+}
+
+export async function updateSettings(patch: {
+    devDir?: string;
+    defaultProfileId?: string;
+    profiles?: AgentProfile[];
+}): Promise<Settings> {
     const current = await readSettingsFile();
+    const profiles = patch.profiles ?? current.profiles;
+    const defaultProfileId = resolveDefaultProfileId(patch.defaultProfileId ?? current.defaultProfileId, profiles);
+
     const next: SettingsFile = {
         ...current,
         devDir: typeof patch.devDir === 'string' ? patch.devDir : current.devDir,
-        agent: isAgentId(patch.agent) ? patch.agent : current.agent,
-        yoloMode: typeof patch.yoloMode === 'boolean' ? patch.yoloMode : current.yoloMode,
+        defaultProfileId,
+        profiles,
     };
     await writeSettingsFile(next);
     return toPublicSettings(next);

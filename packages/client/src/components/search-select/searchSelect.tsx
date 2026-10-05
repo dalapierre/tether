@@ -5,6 +5,7 @@ import type { SearchSelectOption, SearchSelectProps } from './searchSelect.types
 export function SearchSelect<T extends string>({
     options,
     onSelect,
+    value = null,
     placeholder,
     emptyMessage,
     noResultsMessage,
@@ -17,13 +18,21 @@ export function SearchSelect<T extends string>({
     const inputRef = useRef<HTMLInputElement | null>(null);
     const [query, setQuery] = useState('');
     const [open, setOpen] = useState(false);
+    const [focused, setFocused] = useState(false);
     const [activeIndex, setActiveIndex] = useState(0);
+
+    const selectedOption = useMemo(
+        () => (value ? (options.find((option) => option.value === value) ?? null) : null),
+        [options, value],
+    );
 
     const filtered = useMemo(() => {
         const normalized = query.trim().toLowerCase();
         if (!normalized) return options;
         return options.filter((option) => option.label.toLowerCase().includes(normalized));
     }, [options, query]);
+
+    const inputValue = focused ? query : query || selectedOption?.label || '';
 
     useEffect(() => {
         setActiveIndex(0);
@@ -33,6 +42,8 @@ export function SearchSelect<T extends string>({
         function onPointerDown(event: MouseEvent) {
             if (!rootRef.current?.contains(event.target as Node)) {
                 setOpen(false);
+                setFocused(false);
+                setQuery('');
             }
         }
 
@@ -46,6 +57,7 @@ export function SearchSelect<T extends string>({
         onSelect(option);
         setQuery('');
         setOpen(false);
+        setFocused(false);
         inputRef.current?.blur();
     }
 
@@ -89,6 +101,9 @@ export function SearchSelect<T extends string>({
             event.preventDefault();
             event.stopPropagation();
             setOpen(false);
+            setQuery('');
+            setFocused(false);
+            inputRef.current?.blur();
         }
     }
 
@@ -107,7 +122,7 @@ export function SearchSelect<T extends string>({
                 aria-autocomplete='list'
                 aria-activedescendant={activeOptionId}
                 aria-label={ariaLabel}
-                value={query}
+                value={inputValue}
                 placeholder={placeholder}
                 disabled={disabled || loading}
                 autoComplete='off'
@@ -116,7 +131,11 @@ export function SearchSelect<T extends string>({
                     setQuery(event.target.value);
                     setOpen(true);
                 }}
-                onFocus={() => setOpen(true)}
+                onFocus={() => {
+                    setFocused(true);
+                    setQuery('');
+                    setOpen(true);
+                }}
                 onClick={() => setOpen(true)}
                 onKeyDown={handleKeyDown}
             />

@@ -16,6 +16,10 @@ type Messages = {
     categoryAgents: NoMessageValues;
     categoryAgentsCrumb: NoMessageValues;
     categoryAgentsDescription: NoMessageValues;
+    categoryProfiles: NoMessageValues;
+    categoryProfilesCrumb: NoMessageValues;
+    categoryProfilesDescription: NoMessageValues;
+    categoryNewProfileCrumb: NoMessageValues;
     devDirLabel: NoMessageValues;
     devDirPlaceholder: NoMessageValues;
     devDirHint: NoMessageValues;
@@ -32,9 +36,27 @@ type Messages = {
     removeRepositoryConfirmContinue: NoMessageValues;
     removeRepositoryConfirmCancel: NoMessageValues;
     removeRepositoryFailed: NoMessageValues;
-    agentLabel: NoMessageValues;
-    yoloModeLabel: NoMessageValues;
-    yoloModeHint: NoMessageValues;
+    defaultProfileLabel: NoMessageValues;
+    profilesLabel: NoMessageValues;
+    profilesEmpty: NoMessageValues;
+    addProfile: NoMessageValues;
+    createProfile: NoMessageValues;
+    creatingProfile: NoMessageValues;
+    createProfileFailed: NoMessageValues;
+    removeProfile: NoMessageValues;
+    removeProfileConfirm: { name: string };
+    removeProfileConfirmContinue: NoMessageValues;
+    removeProfileConfirmCancel: NoMessageValues;
+    removeProfileFailed: NoMessageValues;
+    profileNameLabel: NoMessageValues;
+    profileNamePlaceholder: NoMessageValues;
+    profileNameRequired: NoMessageValues;
+    profileTypeLabel: NoMessageValues;
+    profileTypeCoding: NoMessageValues;
+    profileTypeConversation: NoMessageValues;
+    profileHarnessLabel: NoMessageValues;
+    profileYoloModeLabel: NoMessageValues;
+    profileYoloModeHint: NoMessageValues;
     signOut: NoMessageValues;
     saving: NoMessageValues;
     save: NoMessageValues;
@@ -100,7 +122,23 @@ export const messages = defineMessages<Messages>(
         },
         categoryAgentsDescription: {
             id: 'settings.categoryAgentsDescription',
-            defaultMessage: 'Default agent and approval behavior for new sessions.',
+            defaultMessage: 'Agent profiles and defaults for new sessions.',
+        },
+        categoryProfiles: {
+            id: 'settings.categoryProfiles',
+            defaultMessage: 'Profiles',
+        },
+        categoryProfilesCrumb: {
+            id: 'settings.categoryProfilesCrumb',
+            defaultMessage: 'profiles',
+        },
+        categoryProfilesDescription: {
+            id: 'settings.categoryProfilesDescription',
+            defaultMessage: 'Create and manage agent profiles.',
+        },
+        categoryNewProfileCrumb: {
+            id: 'settings.categoryNewProfileCrumb',
+            defaultMessage: 'new profile',
         },
         devDirLabel: {
             id: 'settings.devDirLabel',
@@ -166,17 +204,89 @@ export const messages = defineMessages<Messages>(
             id: 'settings.removeRepositoryFailed',
             defaultMessage: 'Failed to remove repository',
         },
-        agentLabel: {
-            id: 'settings.agentLabel',
-            defaultMessage: 'Default harness',
+        defaultProfileLabel: {
+            id: 'settings.defaultProfileLabel',
+            defaultMessage: 'Default profile',
         },
-        yoloModeLabel: {
-            id: 'settings.yoloModeLabel',
+        profilesLabel: {
+            id: 'settings.profilesLabel',
+            defaultMessage: 'Profiles',
+        },
+        profilesEmpty: {
+            id: 'settings.profilesEmpty',
+            defaultMessage: 'No profiles yet. Add one to get started.',
+        },
+        addProfile: {
+            id: 'settings.addProfile',
+            defaultMessage: 'Add profile',
+        },
+        createProfile: {
+            id: 'settings.createProfile',
+            defaultMessage: 'Create',
+        },
+        creatingProfile: {
+            id: 'settings.creatingProfile',
+            defaultMessage: 'Creating…',
+        },
+        createProfileFailed: {
+            id: 'settings.createProfileFailed',
+            defaultMessage: 'Failed to create profile',
+        },
+        removeProfile: {
+            id: 'settings.removeProfile',
+            defaultMessage: 'Remove',
+        },
+        removeProfileConfirm: {
+            id: 'settings.removeProfileConfirm',
+            defaultMessage: 'Remove profile {name}?',
+        },
+        removeProfileConfirmContinue: {
+            id: 'settings.removeProfileConfirmContinue',
+            defaultMessage: 'Remove',
+        },
+        removeProfileConfirmCancel: {
+            id: 'settings.removeProfileConfirmCancel',
+            defaultMessage: 'Cancel',
+        },
+        removeProfileFailed: {
+            id: 'settings.removeProfileFailed',
+            defaultMessage: 'Failed to remove profile',
+        },
+        profileNameLabel: {
+            id: 'settings.profileNameLabel',
+            defaultMessage: 'Name',
+        },
+        profileNamePlaceholder: {
+            id: 'settings.profileNamePlaceholder',
+            defaultMessage: 'Profile name',
+        },
+        profileNameRequired: {
+            id: 'settings.profileNameRequired',
+            defaultMessage: 'Profile name is required.',
+        },
+        profileTypeLabel: {
+            id: 'settings.profileTypeLabel',
+            defaultMessage: 'Type',
+        },
+        profileTypeCoding: {
+            id: 'settings.profileTypeCoding',
+            defaultMessage: 'Coding',
+        },
+        profileTypeConversation: {
+            id: 'settings.profileTypeConversation',
+            defaultMessage: 'Conversation',
+        },
+        profileHarnessLabel: {
+            id: 'settings.profileHarnessLabel',
+            defaultMessage: 'Harness',
+        },
+        profileYoloModeLabel: {
+            id: 'settings.profileYoloModeLabel',
             defaultMessage: 'Yolo mode',
         },
-        yoloModeHint: {
-            id: 'settings.yoloModeHint',
-            defaultMessage: 'Default new sessions to auto-approve agent commands.',
+        profileYoloModeHint: {
+            id: 'settings.profileYoloModeHint',
+            defaultMessage: 'Auto-approve agent commands for sessions using this profile.',
         },
         signOut: {
             id: 'settings.signOut',

@@ -1,10 +1,20 @@
 import { ApiError, apiFetch } from '@client/libs/api/client';
 import type { AgentId } from '@client/libs/agents/agents';
 
-export type Settings = {
-    devDir: string;
+export type AgentProfileType = 'coding' | 'conversation';
+
+export type AgentProfile = {
+    id: string;
+    name: string;
+    type: AgentProfileType;
     agent: AgentId;
     yoloMode: boolean;
+};
+
+export type Settings = {
+    devDir: string;
+    defaultProfileId: string;
+    profiles: AgentProfile[];
 };
 
 type SettingsResponse = {

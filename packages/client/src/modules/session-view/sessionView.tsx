@@ -363,28 +363,34 @@ export function SessionView({ sessionId }: SessionViewProps) {
                 crumbs={[{ label: intl.formatMessage(messages.sessionsCrumb), to: '/' }, { label: session.name }]}
                 showSettings={false}
             />
-            <div className={styles.tabs}>
-                <SegmentedControl
-                    ariaLabel={intl.formatMessage(messages.viewTabs)}
-                    value={tab}
-                    onChange={(next) => {
-                        setTab(next);
-                        if (next === 'review') {
-                            setReviewVisited(true);
-                        }
-                    }}
-                    options={[
-                        { value: 'agent', label: intl.formatMessage(messages.agentView) },
-                        { value: 'review', label: intl.formatMessage(messages.reviewView) },
-                    ]}
-                />
-            </div>
+            {session.type === 'coding' ? (
+                <div className={styles.tabs}>
+                    <SegmentedControl
+                        ariaLabel={intl.formatMessage(messages.viewTabs)}
+                        value={tab}
+                        onChange={(next) => {
+                            setTab(next);
+                            if (next === 'review') {
+                                setReviewVisited(true);
+                            }
+                        }}
+                        options={[
+                            { value: 'agent', label: intl.formatMessage(messages.agentView) },
+                            { value: 'review', label: intl.formatMessage(messages.reviewView) },
+                        ]}
+                    />
+                </div>
+            ) : null}
             <div className={styles.meta}>
                 <p className={styles.metaText}>
-                    {intl.formatMessage(messages.meta, {
-                        harness: harnessLabel(session.agent, intl.formatMessage),
-                        branch: session.branch,
-                    })}
+                    {session.type === 'coding'
+                        ? intl.formatMessage(messages.meta, {
+                              harness: harnessLabel(session.agent, intl.formatMessage),
+                              branch: session.branch ?? '',
+                          })
+                        : intl.formatMessage(messages.metaConversation, {
+                              harness: harnessLabel(session.agent, intl.formatMessage),
+                          })}
                     {connectionLabel ? ` · ${connectionLabel}` : ''}
                 </p>
                 <span className={styles.status}>
@@ -393,12 +399,15 @@ export function SessionView({ sessionId }: SessionViewProps) {
                 </span>
             </div>
             <div className={styles.content}>
-                <div className={tab === 'agent' ? styles.pane : styles.paneInactive} aria-hidden={tab !== 'agent'}>
+                <div
+                    className={session.type === 'conversation' || tab === 'agent' ? styles.pane : styles.paneInactive}
+                    aria-hidden={session.type === 'coding' && tab !== 'agent'}
+                >
                     <div className={styles.terminalWrap}>
                         <div ref={terminalRef} className={styles.terminal} />
                     </div>
                 </div>
-                {reviewVisited ? (
+                {session.type === 'coding' && reviewVisited ? (
                     <div
                         className={tab === 'review' ? styles.pane : styles.paneInactive}
                         aria-hidden={tab !== 'review'}

@@ -9,13 +9,15 @@ type Messages = {
     loadFailed: NoMessageValues;
     nameLabel: NoMessageValues;
     namePlaceholder: NoMessageValues;
+    profileLabel: NoMessageValues;
+    profilePlaceholder: NoMessageValues;
+    profilesEmpty: NoMessageValues;
+    profileNoResults: NoMessageValues;
     projectLabel: NoMessageValues;
     projectPlaceholder: NoMessageValues;
     projectsEmpty: NoMessageValues;
     branchLabel: NoMessageValues;
     branchPlaceholder: NoMessageValues;
-    agentLabel: NoMessageValues;
-    yoloModeLabel: NoMessageValues;
     start: NoMessageValues;
     starting: NoMessageValues;
     startFailed: NoMessageValues;
@@ -55,6 +57,22 @@ export const messages = defineMessages<Messages>(
             id: 'newSession.namePlaceholder',
             defaultMessage: 'Session name',
         },
+        profileLabel: {
+            id: 'newSession.profileLabel',
+            defaultMessage: 'Profile',
+        },
+        profilePlaceholder: {
+            id: 'newSession.profilePlaceholder',
+            defaultMessage: 'Search profiles…',
+        },
+        profilesEmpty: {
+            id: 'newSession.profilesEmpty',
+            defaultMessage: 'No profiles available. Add one in Settings.',
+        },
+        profileNoResults: {
+            id: 'newSession.profileNoResults',
+            defaultMessage: 'No matching profiles.',
+        },
         projectLabel: {
             id: 'newSession.projectLabel',
             defaultMessage: 'Repository',
@@ -74,14 +92,6 @@ export const messages = defineMessages<Messages>(
         branchPlaceholder: {
             id: 'newSession.branchPlaceholder',
             defaultMessage: 'Branch name',
-        },
-        agentLabel: {
-            id: 'newSession.agentLabel',
-            defaultMessage: 'Agent',
-        },
-        yoloModeLabel: {
-            id: 'newSession.yoloModeLabel',
-            defaultMessage: 'Yolo mode',
         },
         start: {
             id: 'newSession.start',

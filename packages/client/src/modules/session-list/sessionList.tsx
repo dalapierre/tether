@@ -130,10 +130,18 @@ export function SessionList() {
                                   indicator={session.status}
                                   onClick={() => navigate(`/sessions/${session.id}`)}
                               >
-                                  <span className={styles.project}>
-                                      {projectNames.get(session.repositoryId) ?? session.repositoryId}
-                                  </span>
-                                  <span className={styles.feature}>{session.branch}</span>
+                                  {session.type === 'coding' ? (
+                                      <>
+                                          <span className={styles.project}>
+                                              {projectNames.get(session.repositoryId ?? '') ?? session.repositoryId}
+                                          </span>
+                                          <span className={styles.feature}>{session.branch}</span>
+                                      </>
+                                  ) : (
+                                      <span className={styles.feature}>
+                                          {intl.formatMessage(messages.conversationSession)}
+                                      </span>
+                                  )}
                               </Card>
                           </SwipeToDelete>
                       ))

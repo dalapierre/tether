@@ -25,6 +25,16 @@ export function getRepositoryWorktreesDir(projectName: string): string {
     return path.join(getWorktreesDir(), projectName);
 }
 
+/** Root directory for conversation-agent session workspaces. */
+export function getConversationsDir(): string {
+    return path.join(getTetherHomeDir(), 'conversations');
+}
+
+/** Working directory for a conversation session: `~/.tether/conversations/<session-id>`. */
+export function getConversationSessionDir(sessionId: string): string {
+    return path.join(getConversationsDir(), sessionId);
+}
+
 /** Former on-disk location under the server package (for one-time migrations). */
 export function getLegacyServerDataDir(): string {
     const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');

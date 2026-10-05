@@ -4,12 +4,15 @@ import { getAccessToken } from '@client/libs/auth/session';
 
 export type SessionStatus = 'ready' | 'busy' | 'error';
 
+export type SessionType = 'coding' | 'conversation';
+
 export type Session = {
     id: string;
     name: string;
     agent: AgentId;
-    repositoryId: string;
-    branch: string;
+    type: SessionType;
+    repositoryId: string | null;
+    branch: string | null;
     status: SessionStatus;
     createdAt: number;
 };
@@ -98,11 +101,10 @@ export async function getSession(id: string): Promise<Session | null> {
 }
 
 export async function createSession(input: {
-    repositoryId: string;
+    profileId: string;
     name: string;
-    agent: AgentId;
-    branch: string;
-    yoloMode?: boolean;
+    repositoryId?: string;
+    branch?: string;
 }): Promise<Session> {
     const res = await apiFetch('/api/sessions', {
         method: 'POST',
