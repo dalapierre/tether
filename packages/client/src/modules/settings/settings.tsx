@@ -2,14 +2,21 @@ import { Button } from '@client/components/button';
 import { ConfirmDialog } from '@client/components/confirm-dialog';
 import { IconButton } from '@client/components/icon-button';
 import { PageHeader } from '@client/components/page-header';
+import { SearchSelect } from '@client/components/search-select';
 import { AGENTS, isAgentId, type AgentId } from '@client/libs/agents/agents';
 import { ApiError } from '@client/libs/api/client';
-import { deleteRepository, listRepositories, type Repository } from '@client/libs/api/repositories';
+import {
+    addRepository,
+    deleteRepository,
+    listAvailableRepositories,
+    listRepositories,
+    type AvailableRepository,
+    type Repository,
+} from '@client/libs/api/repositories';
 import { getSettings, updateSettings } from '@client/libs/api/settings';
 import { clearAccessToken } from '@client/libs/auth/session';
-import { AddRepository } from '@client/modules/add-repository';
 import { showToast } from '@client/modules/toast';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { useNavigate } from 'react-router-dom';
 import { messages } from './settings.messages';
@@ -23,9 +30,10 @@ export function Settings({ onClose }: SettingsProps) {
     const [agent, setAgent] = useState<AgentId>('cursor');
     const [yoloMode, setYoloMode] = useState(false);
     const [repositories, setRepositories] = useState<Repository[]>([]);
+    const [available, setAvailable] = useState<AvailableRepository[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [adding, setAdding] = useState(false);
+    const [addingPath, setAddingPath] = useState<string | null>(null);
     const [pendingRemove, setPendingRemove] = useState<Repository | null>(null);
     const [removingId, setRemovingId] = useState<string | null>(null);
 
@@ -33,12 +41,23 @@ export function Settings({ onClose }: SettingsProps) {
         let cancelled = false;
 
         Promise.all([getSettings(), listRepositories()])
-            .then(([settings, items]) => {
+            .then(async ([settings, items]) => {
                 if (cancelled) return;
                 setDevDir(settings.devDir);
                 setAgent(isAgentId(settings.agent) ? settings.agent : 'cursor');
                 setYoloMode(Boolean(settings.yoloMode));
                 setRepositories(items);
+
+                try {
+                    const availableItems = await listAvailableRepositories();
+                    if (!cancelled) {
+                        setAvailable(availableItems);
+                    }
+                } catch {
+                    if (!cancelled) {
+                        setAvailable([]);
+                    }
+                }
             })
             .catch((err: unknown) => {
                 if (!cancelled) {
@@ -62,7 +81,7 @@ export function Settings({ onClose }: SettingsProps) {
     useEffect(() => {
         function onKeyDown(event: KeyboardEvent) {
             if (event.key !== 'Escape') return;
-            if (adding || pendingRemove) return;
+            if (pendingRemove) return;
             onClose();
         }
 
@@ -70,7 +89,12 @@ export function Settings({ onClose }: SettingsProps) {
         return () => {
             window.removeEventListener('keydown', onKeyDown);
         };
-    }, [adding, onClose, pendingRemove]);
+    }, [onClose, pendingRemove]);
+
+    const availableOptions = useMemo(
+        () => available.map((repository) => ({ value: repository.path, label: repository.name })),
+        [available],
+    );
 
     async function handleSave() {
         setSaving(true);
@@ -85,6 +109,13 @@ export function Settings({ onClose }: SettingsProps) {
             setAgent(settings.agent);
             setYoloMode(settings.yoloMode);
             showToast('settings-saved');
+
+            try {
+                const availableItems = await listAvailableRepositories();
+                setAvailable(availableItems);
+            } catch {
+                // Keep the current available list if refresh fails.
+            }
         } catch (err: unknown) {
             if (err instanceof ApiError) {
                 showToast('generic-error', err.message);
@@ -104,10 +135,24 @@ export function Settings({ onClose }: SettingsProps) {
         navigate('/login', { replace: true });
     }
 
-    function handleAdded(repository: Repository) {
-        setRepositories((current) => [...current, repository].sort((a, b) => a.name.localeCompare(b.name)));
-        setAdding(false);
-        showToast('repository-added', repository.name);
+    async function handleAdd(path: string) {
+        if (addingPath) return;
+
+        setAddingPath(path);
+
+        try {
+            const repository = await addRepository(path);
+            setRepositories((current) => [...current, repository].sort((a, b) => a.name.localeCompare(b.name)));
+            setAvailable((current) => current.filter((item) => item.path !== path));
+            showToast('repository-added', repository.name);
+        } catch (err: unknown) {
+            showToast(
+                'generic-error',
+                err instanceof Error ? err.message : intl.formatMessage(messages.addProjectFailed),
+            );
+        } finally {
+            setAddingPath(null);
+        }
     }
 
     async function confirmRemove() {
@@ -120,6 +165,11 @@ export function Settings({ onClose }: SettingsProps) {
 
         try {
             await deleteRepository(repository.id);
+            setAvailable((current) =>
+                [...current, { name: repository.name, path: repository.path }].sort((a, b) =>
+                    a.name.localeCompare(b.name),
+                ),
+            );
         } catch (err: unknown) {
             setRepositories((current) => [...current, repository].sort((a, b) => a.name.localeCompare(b.name)));
             showToast(
@@ -129,10 +179,6 @@ export function Settings({ onClose }: SettingsProps) {
         } finally {
             setRemovingId(null);
         }
-    }
-
-    if (adding) {
-        return <AddRepository onClose={() => setAdding(false)} onAdded={handleAdded} />;
     }
 
     return (
@@ -184,22 +230,30 @@ export function Settings({ onClose }: SettingsProps) {
                                         repositories.map((repository) => (
                                             <div key={repository.id} className={styles.projectRow}>
                                                 <span className={styles.projectName}>{repository.name}</span>
-                                                <button
-                                                    type='button'
-                                                    className={styles.removeButton}
+                                                <IconButton
+                                                    label={intl.formatMessage(messages.removeProject)}
                                                     disabled={removingId === repository.id}
                                                     onClick={() => setPendingRemove(repository)}
                                                 >
-                                                    {intl.formatMessage(messages.removeProject)}
-                                                </button>
+                                                    ×
+                                                </IconButton>
                                             </div>
                                         ))
                                     )}
                                 </div>
                                 <div className={styles.addProject}>
-                                    <Button type='button' variant='secondary' onClick={() => setAdding(true)}>
-                                        {intl.formatMessage(messages.addProject)}
-                                    </Button>
+                                    <p className={styles.label}>{intl.formatMessage(messages.addProjectLabel)}</p>
+                                    <SearchSelect
+                                        options={availableOptions}
+                                        onSelect={(option) => {
+                                            void handleAdd(option.value);
+                                        }}
+                                        placeholder={intl.formatMessage(messages.addProjectPlaceholder)}
+                                        emptyMessage={intl.formatMessage(messages.addProjectEmpty)}
+                                        noResultsMessage={intl.formatMessage(messages.addProjectNoResults)}
+                                        disabled={Boolean(addingPath)}
+                                        ariaLabel={intl.formatMessage(messages.addProjectLabel)}
+                                    />
                                 </div>
                             </div>
 

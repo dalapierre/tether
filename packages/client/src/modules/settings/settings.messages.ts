@@ -14,7 +14,11 @@ type Messages = {
     projectsLabel: NoMessageValues;
     projectsEmpty: NoMessageValues;
     projectsLoadFailed: NoMessageValues;
-    addProject: NoMessageValues;
+    addProjectLabel: NoMessageValues;
+    addProjectPlaceholder: NoMessageValues;
+    addProjectEmpty: NoMessageValues;
+    addProjectNoResults: NoMessageValues;
+    addProjectFailed: NoMessageValues;
     removeProject: NoMessageValues;
     removeProjectConfirm: { name: string };
     removeProjectConfirmContinue: NoMessageValues;
@@ -82,9 +86,25 @@ export const messages = defineMessages<Messages>(
             id: 'settings.projectsLoadFailed',
             defaultMessage: 'Failed to load projects',
         },
-        addProject: {
-            id: 'settings.addProject',
+        addProjectLabel: {
+            id: 'settings.addProjectLabel',
             defaultMessage: 'Add project',
+        },
+        addProjectPlaceholder: {
+            id: 'settings.addProjectPlaceholder',
+            defaultMessage: 'Search repositories…',
+        },
+        addProjectEmpty: {
+            id: 'settings.addProjectEmpty',
+            defaultMessage: 'No new repositories found in the development directory.',
+        },
+        addProjectNoResults: {
+            id: 'settings.addProjectNoResults',
+            defaultMessage: 'No matching repositories.',
+        },
+        addProjectFailed: {
+            id: 'settings.addProjectFailed',
+            defaultMessage: 'Failed to add repository',
         },
         removeProject: {
             id: 'settings.removeProject',

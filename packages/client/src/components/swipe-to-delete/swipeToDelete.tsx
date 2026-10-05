@@ -60,8 +60,8 @@ export function SwipeToDelete({
         startOffsetRef.current = revealed ? -DELETE_WIDTH : 0;
         axisRef.current = 'undecided';
         movedRef.current = false;
-        setDragging(true);
-        event.currentTarget.setPointerCapture(event.pointerId);
+        // Capture only after a horizontal swipe is confirmed — capturing on
+        // pointerdown retargets click to this panel and blocks child onClick.
     }
 
     function onPointerMove(event: PointerEvent<HTMLDivElement>) {
@@ -76,15 +76,11 @@ export function SwipeToDelete({
             }
             axisRef.current = Math.abs(dx) > Math.abs(dy) ? 'horizontal' : 'vertical';
             if (axisRef.current === 'vertical') {
-                setDragging(false);
                 activePointerRef.current = null;
-                try {
-                    event.currentTarget.releasePointerCapture(event.pointerId);
-                } catch {
-                    // ignore
-                }
                 return;
             }
+            setDragging(true);
+            event.currentTarget.setPointerCapture(event.pointerId);
         }
 
         if (axisRef.current !== 'horizontal') return;
@@ -97,10 +93,12 @@ export function SwipeToDelete({
         if (activePointerRef.current !== event.pointerId) return;
         activePointerRef.current = null;
 
-        try {
-            event.currentTarget.releasePointerCapture(event.pointerId);
-        } catch {
-            // ignore
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            try {
+                event.currentTarget.releasePointerCapture(event.pointerId);
+            } catch {
+                // ignore
+            }
         }
 
         if (axisRef.current === 'horizontal' && movedRef.current) {
