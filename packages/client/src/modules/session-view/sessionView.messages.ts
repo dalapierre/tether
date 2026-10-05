@@ -12,6 +12,7 @@ type Messages = {
     statusBusy: NoMessageValues;
     statusError: NoMessageValues;
     metaConversation: { harness: string };
+    branchBehindDefault: { count: number };
     viewTabs: NoMessageValues;
     agentView: NoMessageValues;
     reviewView: NoMessageValues;
@@ -72,6 +73,10 @@ export const messages = defineMessages<Messages>(
         metaConversation: {
             id: 'sessionView.metaConversation',
             defaultMessage: '{harness}',
+        },
+        branchBehindDefault: {
+            id: 'sessionView.branchBehindDefault',
+            defaultMessage: '{count} behind',
         },
         viewTabs: {
             id: 'sessionView.viewTabs',

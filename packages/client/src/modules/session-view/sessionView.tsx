@@ -734,6 +734,16 @@ export function SessionView({ sessionId }: SessionViewProps) {
                             <span className={styles.metaRepo}>{repositoryName ?? session.repositoryId}</span>
                             {' > '}
                             {session.branch}
+                            {session.behindDefault != null && session.behindDefault > 0 ? (
+                                <>
+                                    {' · '}
+                                    <span className={styles.metaBehind}>
+                                        {intl.formatMessage(messages.branchBehindDefault, {
+                                            count: session.behindDefault,
+                                        })}
+                                    </span>
+                                </>
+                            ) : null}
                         </>
                     ) : (
                         intl.formatMessage(messages.metaConversation, {

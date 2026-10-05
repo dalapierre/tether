@@ -10,10 +10,15 @@ import { Router } from 'express';
 
 export const sessionsRouter = Router();
 
-sessionsRouter.get('/', (req, res) => {
+sessionsRouter.get('/', async (req, res) => {
     const repositoryId = typeof req.query.repositoryId === 'string' ? req.query.repositoryId.trim() : '';
-    const sessions = listSessions(repositoryId || undefined);
-    res.json({ sessions });
+    try {
+        const sessions = await listSessions(repositoryId || undefined);
+        res.json({ sessions });
+    } catch (err: unknown) {
+        console.error('Failed to list sessions', err);
+        res.status(500).json({ error: 'Failed to list sessions' });
+    }
 });
 
 sessionsRouter.get('/:id/diff', async (req, res) => {
@@ -55,13 +60,18 @@ sessionsRouter.get('/:id/diff/file', async (req, res) => {
     }
 });
 
-sessionsRouter.get('/:id', (req, res) => {
-    const session = getSession(req.params.id);
-    if (!session) {
-        res.status(404).json({ error: 'Session not found' });
-        return;
+sessionsRouter.get('/:id', async (req, res) => {
+    try {
+        const session = await getSession(req.params.id);
+        if (!session) {
+            res.status(404).json({ error: 'Session not found' });
+            return;
+        }
+        res.json({ session });
+    } catch (err: unknown) {
+        console.error('Failed to get session', err);
+        res.status(500).json({ error: 'Failed to get session' });
     }
-    res.json({ session });
 });
 
 sessionsRouter.delete('/:id', (req, res) => {

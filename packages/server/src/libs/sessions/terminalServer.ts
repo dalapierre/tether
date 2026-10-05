@@ -1,5 +1,5 @@
 import { verifyAccessToken } from '@server/libs/authTokens.js';
-import { attachSessionTerminal, getSession } from '@server/libs/sessions/store.js';
+import { attachSessionTerminal, hasSession } from '@server/libs/sessions/store.js';
 import type { Server as HttpServer } from 'node:http';
 import { WebSocketServer } from 'ws';
 
@@ -24,7 +24,7 @@ export function attachTerminalServer(server: HttpServer): void {
         }
 
         const sessionId = match[1];
-        if (!sessionId || !getSession(sessionId)) {
+        if (!sessionId || !hasSession(sessionId)) {
             socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
             socket.destroy();
             return;

@@ -1,6 +1,6 @@
 import type { AgentId } from '@server/libs/agents/agents.js';
 import { getConversationSessionDir, getConversationsDir, getRepositoryWorktreesDir } from '@server/libs/paths.js';
-import { getRepository, listLocalBranches } from '@server/libs/repositories/store.js';
+import { countBehindRemoteDefault, getRepository, listLocalBranches } from '@server/libs/repositories/store.js';
 import {
     ensureCursorStatusIndicatorsEnabled,
     extractStatusFromOutput,
@@ -34,7 +34,7 @@ import type { WebSocket } from 'ws';
 
 const execFileAsync = promisify(execFile);
 
-type RuntimeSession = Session & {
+type RuntimeSession = Omit<Session, 'behindDefault'> & {
     yoloMode: boolean;
     useWorktrees: boolean;
     /** True when this session created the branch; only then is the branch deleted on cleanup. */
@@ -49,7 +49,12 @@ type RuntimeSession = Session & {
 
 const sessions = new Map<string, RuntimeSession>();
 
-function toPublic(session: RuntimeSession): Session {
+async function toPublic(session: RuntimeSession): Promise<Session> {
+    let behindDefault: number | null = null;
+    if (session.type === 'coding' && session.branch) {
+        behindDefault = await countBehindRemoteDefault(session.worktreePath, session.branch);
+    }
+
     return {
         id: session.id,
         name: session.name,
@@ -57,6 +62,7 @@ function toPublic(session: RuntimeSession): Session {
         type: session.type,
         repositoryId: session.repositoryId,
         branch: session.branch,
+        behindDefault,
         status: session.status,
         createdAt: session.createdAt,
     };
@@ -278,7 +284,7 @@ async function createConversationSession(input: { name: string; agent: AgentId; 
         // Session remains in error state with buffered failure output.
     }
 
-    return toPublic(session);
+    return await toPublic(session);
 }
 
 async function createCodingSession(input: {
@@ -366,17 +372,21 @@ async function createCodingSession(input: {
         // Session remains in error state with buffered failure output.
     }
 
-    return toPublic(session);
+    return await toPublic(session);
 }
 
-export function listSessions(repositoryId?: string): Session[] {
+export async function listSessions(repositoryId?: string): Promise<Session[]> {
     const items = [...sessions.values()]
         .filter((session) => !repositoryId || session.repositoryId === repositoryId)
         .sort((a, b) => b.createdAt - a.createdAt);
-    return items.map(toPublic);
+    return Promise.all(items.map((session) => toPublic(session)));
 }
 
-export function getSession(id: string): Session | null {
+export function hasSession(id: string): boolean {
+    return sessions.has(id);
+}
+
+export async function getSession(id: string): Promise<Session | null> {
     const session = sessions.get(id);
     return session ? toPublic(session) : null;
 }

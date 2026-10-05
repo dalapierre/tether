@@ -190,6 +190,47 @@ export async function listLocalBranches(repoPath: string): Promise<string[]> {
     }
 }
 
+/** Resolve origin's default branch ref (e.g. refs/remotes/origin/main), or null. */
+async function resolveRemoteDefaultRef(repoPath: string): Promise<string | null> {
+    try {
+        const { stdout } = await execFileAsync('git', ['symbolic-ref', 'refs/remotes/origin/HEAD'], {
+            cwd: repoPath,
+        });
+        const ref = stdout.trim();
+        if (ref) return ref;
+    } catch {
+        // Fall through to common default names.
+    }
+
+    for (const candidate of ['refs/remotes/origin/main', 'refs/remotes/origin/master']) {
+        try {
+            await execFileAsync('git', ['rev-parse', '--verify', candidate], { cwd: repoPath });
+            return candidate;
+        } catch {
+            // try next
+        }
+    }
+
+    return null;
+}
+
+/** How many commits `ref` is behind the remote default branch (0 if unknown). */
+export async function countBehindRemoteDefault(repoPath: string, ref = 'HEAD'): Promise<number> {
+    const defaultRef = await resolveRemoteDefaultRef(repoPath);
+    if (!defaultRef) {
+        return 0;
+    }
+
+    try {
+        const { stdout } = await execFileAsync('git', ['rev-list', '--count', `${ref}..${defaultRef}`], {
+            cwd: repoPath,
+        });
+        return Number.parseInt(stdout.trim(), 10) || 0;
+    } catch {
+        return 0;
+    }
+}
+
 /** Local branches for an added repository, or null if the repository is unknown. */
 export async function listRepositoryBranches(id: string): Promise<string[] | null> {
     const repository = await getRepository(id);

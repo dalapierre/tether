@@ -11,6 +11,8 @@ export type Session = {
     type: SessionType;
     repositoryId: string | null;
     branch: string | null;
+    /** Commits the session branch is behind the remote default; null when N/A. */
+    behindDefault: number | null;
     status: SessionStatus;
     createdAt: number;
 };
