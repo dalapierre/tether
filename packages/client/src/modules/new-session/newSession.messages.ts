@@ -73,7 +73,7 @@ export const messages = defineMessages<Messages>(
         },
         branchPlaceholder: {
             id: 'newSession.branchPlaceholder',
-            defaultMessage: 'Optional branch name',
+            defaultMessage: 'Branch name',
         },
         agentLabel: {
             id: 'newSession.agentLabel',

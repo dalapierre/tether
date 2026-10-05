@@ -115,7 +115,7 @@ async function createWorktree(
     projectName: string,
     repoPath: string,
     sessionName: string,
-    branchName?: string,
+    branchName: string,
 ): Promise<{
     branch: string;
     worktreePath: string;
@@ -135,7 +135,10 @@ async function createWorktree(
     }
 
     const leaf = uniqueSlug(slugify(sessionName) || 'session', takenLeaves);
-    const requestedBranch = branchName?.trim() || leaf;
+    const requestedBranch = branchName.trim();
+    if (!requestedBranch) {
+        throw new Error('Branch is required');
+    }
     if (!isValidBranchName(requestedBranch)) {
         throw new Error('Invalid branch name');
     }
@@ -189,12 +192,16 @@ export async function createSession(input: {
     repositoryId: string;
     name: string;
     agent: AgentId;
-    branch?: string;
+    branch: string;
     yoloMode?: boolean;
 }): Promise<Session> {
     const name = input.name.trim();
     if (!name) {
         throw new Error('Name is required');
+    }
+    const branch = input.branch.trim();
+    if (!branch) {
+        throw new Error('Branch is required');
     }
 
     const repository = await getRepository(input.repositoryId);
@@ -205,7 +212,7 @@ export async function createSession(input: {
     const id = randomUUID();
     let worktree: { branch: string; worktreePath: string; baseSha: string };
     try {
-        worktree = await createWorktree(repository.id, repository.path, name, input.branch);
+        worktree = await createWorktree(repository.id, repository.path, name, branch);
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Failed to create worktree';
         throw new Error(

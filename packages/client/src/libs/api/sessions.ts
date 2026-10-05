@@ -101,7 +101,7 @@ export async function createSession(input: {
     repositoryId: string;
     name: string;
     agent: AgentId;
-    branch?: string;
+    branch: string;
     yoloMode?: boolean;
 }): Promise<Session> {
     const res = await apiFetch('/api/sessions', {

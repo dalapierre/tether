@@ -57,17 +57,17 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
 
     async function handleStart() {
         const trimmedName = name.trim();
-        if (!trimmedName || !repositoryId || !agent || starting) return;
+        const trimmedBranch = branch.trim();
+        if (!trimmedName || !trimmedBranch || !repositoryId || !agent || starting) return;
 
         setStarting(true);
         try {
-            const trimmedBranch = branch.trim();
             const session = await createSession({
                 repositoryId,
                 name: trimmedName,
+                branch: trimmedBranch,
                 agent,
                 yoloMode,
-                ...(trimmedBranch ? { branch: trimmedBranch } : {}),
             });
             onStarted(session);
         } catch (err: unknown) {
@@ -76,7 +76,13 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
         }
     }
 
-    const canStart = !loading && !starting && name.trim().length > 0 && Boolean(repositoryId) && Boolean(agent);
+    const canStart =
+        !loading &&
+        !starting &&
+        name.trim().length > 0 &&
+        branch.trim().length > 0 &&
+        Boolean(repositoryId) &&
+        Boolean(agent);
 
     return (
         <div
@@ -156,6 +162,7 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                                 placeholder={intl.formatMessage(messages.branchPlaceholder)}
                                 autoComplete='off'
                                 spellCheck={false}
+                                required
                                 disabled={starting}
                             />
                         </label>

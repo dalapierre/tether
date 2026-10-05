@@ -89,6 +89,10 @@ sessionsRouter.post('/', async (req, res) => {
         res.status(400).json({ error: 'Name is required' });
         return;
     }
+    if (!branch) {
+        res.status(400).json({ error: 'Branch is required' });
+        return;
+    }
     if (!isAgentId(agent)) {
         res.status(400).json({ error: 'Invalid agent' });
         return;
@@ -98,15 +102,16 @@ sessionsRouter.post('/', async (req, res) => {
         const session = await createSession({
             repositoryId,
             name,
+            branch,
             agent,
             yoloMode,
-            ...(branch ? { branch } : {}),
         });
         res.status(201).json({ session });
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Failed to create session';
         const status =
             message === 'Name is required' ||
+            message === 'Branch is required' ||
             message === 'Repository not found' ||
             message.startsWith('Failed to create worktree')
                 ? 400
