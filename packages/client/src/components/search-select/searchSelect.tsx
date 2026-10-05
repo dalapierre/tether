@@ -6,6 +6,8 @@ export function SearchSelect<T extends string>({
     options,
     onSelect,
     value = null,
+    allowCustom = false,
+    onChange,
     placeholder,
     emptyMessage,
     noResultsMessage,
@@ -19,31 +21,36 @@ export function SearchSelect<T extends string>({
     const [query, setQuery] = useState('');
     const [open, setOpen] = useState(false);
     const [focused, setFocused] = useState(false);
-    const [activeIndex, setActiveIndex] = useState(0);
+    /** -1 means no option highlighted (creatable: Enter submits typed text). */
+    const [activeIndex, setActiveIndex] = useState(allowCustom ? -1 : 0);
 
     const selectedOption = useMemo(
         () => (value ? (options.find((option) => option.value === value) ?? null) : null),
         [options, value],
     );
 
+    const filterSource = allowCustom ? (value ?? '') : query;
+
     const filtered = useMemo(() => {
-        const normalized = query.trim().toLowerCase();
+        const normalized = filterSource.trim().toLowerCase();
         if (!normalized) return options;
         return options.filter((option) => option.label.toLowerCase().includes(normalized));
-    }, [options, query]);
+    }, [options, filterSource]);
 
-    const inputValue = focused ? query : query || selectedOption?.label || '';
+    const inputValue = allowCustom ? (value ?? '') : focused ? query : query || selectedOption?.label || '';
 
     useEffect(() => {
-        setActiveIndex(0);
-    }, [query, options]);
+        setActiveIndex(allowCustom ? -1 : 0);
+    }, [filterSource, options, allowCustom]);
 
     useEffect(() => {
         function onPointerDown(event: MouseEvent) {
             if (!rootRef.current?.contains(event.target as Node)) {
                 setOpen(false);
                 setFocused(false);
-                setQuery('');
+                if (!allowCustom) {
+                    setQuery('');
+                }
             }
         }
 
@@ -51,11 +58,15 @@ export function SearchSelect<T extends string>({
         return () => {
             window.removeEventListener('mousedown', onPointerDown);
         };
-    }, []);
+    }, [allowCustom]);
 
     function selectOption(option: SearchSelectOption<T>) {
         onSelect(option);
-        setQuery('');
+        if (allowCustom) {
+            onChange?.(option.value);
+        } else {
+            setQuery('');
+        }
         setOpen(false);
         setFocused(false);
         inputRef.current?.blur();
@@ -71,7 +82,10 @@ export function SearchSelect<T extends string>({
                 return;
             }
             if (filtered.length === 0) return;
-            setActiveIndex((current) => (current + 1) % filtered.length);
+            setActiveIndex((current) => {
+                if (allowCustom && current < 0) return 0;
+                return (current + 1) % filtered.length;
+            });
             return;
         }
 
@@ -82,12 +96,31 @@ export function SearchSelect<T extends string>({
                 return;
             }
             if (filtered.length === 0) return;
-            setActiveIndex((current) => (current - 1 + filtered.length) % filtered.length);
+            setActiveIndex((current) => {
+                if (allowCustom && current < 0) return filtered.length - 1;
+                return (current - 1 + filtered.length) % filtered.length;
+            });
             return;
         }
 
         if (event.key === 'Enter') {
             if (!open || filtered.length === 0) return;
+
+            if (allowCustom) {
+                const typed = (value ?? '').trim();
+                const exact = filtered.find((option) => option.value === typed);
+                if (exact && activeIndex < 0) {
+                    event.preventDefault();
+                    selectOption(exact);
+                    return;
+                }
+                if (activeIndex < 0) {
+                    // Let the form submit with the free-typed value.
+                    setOpen(false);
+                    return;
+                }
+            }
+
             event.preventDefault();
             const option = filtered[activeIndex];
             if (option) {
@@ -101,14 +134,18 @@ export function SearchSelect<T extends string>({
             event.preventDefault();
             event.stopPropagation();
             setOpen(false);
-            setQuery('');
+            if (!allowCustom) {
+                setQuery('');
+            }
             setFocused(false);
             inputRef.current?.blur();
         }
     }
 
-    const showDropdown = open && !disabled && !loading;
-    const activeOptionId = showDropdown && filtered.length > 0 ? `${listboxId}-option-${activeIndex}` : undefined;
+    // Creatable inputs hide the list when nothing matches (free text = create new).
+    const showDropdown = open && !disabled && !loading && (!allowCustom || filtered.length > 0);
+    const activeOptionId =
+        showDropdown && activeIndex >= 0 && filtered.length > 0 ? `${listboxId}-option-${activeIndex}` : undefined;
 
     return (
         <div ref={rootRef} className={styles.root}>
@@ -128,12 +165,19 @@ export function SearchSelect<T extends string>({
                 autoComplete='off'
                 spellCheck={false}
                 onChange={(event) => {
-                    setQuery(event.target.value);
+                    const next = event.target.value;
+                    if (allowCustom) {
+                        onChange?.(next);
+                    } else {
+                        setQuery(next);
+                    }
                     setOpen(true);
                 }}
                 onFocus={() => {
                     setFocused(true);
-                    setQuery('');
+                    if (!allowCustom) {
+                        setQuery('');
+                    }
                     setOpen(true);
                 }}
                 onClick={() => setOpen(true)}

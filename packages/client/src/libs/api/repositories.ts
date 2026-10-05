@@ -77,3 +77,19 @@ export async function deleteRepository(id: string): Promise<void> {
         throw new ApiError(res.status, body?.error ?? `HTTP ${res.status}`);
     }
 }
+
+type BranchesResponse = {
+    branches: string[];
+};
+
+export async function listRepositoryBranches(id: string): Promise<string[]> {
+    const res = await apiFetch(`/api/repositories/${encodeURIComponent(id)}/branches`);
+
+    if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new ApiError(res.status, body?.error ?? `HTTP ${res.status}`);
+    }
+
+    const data = (await res.json()) as BranchesResponse;
+    return data.branches;
+}

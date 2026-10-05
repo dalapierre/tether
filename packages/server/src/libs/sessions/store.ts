@@ -1,6 +1,6 @@
 import type { AgentId } from '@server/libs/agents/agents.js';
 import { getConversationSessionDir, getConversationsDir, getRepositoryWorktreesDir } from '@server/libs/paths.js';
-import { getRepository } from '@server/libs/repositories/store.js';
+import { getRepository, listLocalBranches } from '@server/libs/repositories/store.js';
 import {
     ensureCursorStatusIndicatorsEnabled,
     extractStatusFromOutput,
@@ -36,6 +36,8 @@ const execFileAsync = promisify(execFile);
 type RuntimeSession = Session & {
     yoloMode: boolean;
     useWorktrees: boolean;
+    /** True when this session created the branch; only then is the branch deleted on cleanup. */
+    createdBranch: boolean;
     worktreePath: string;
     baseSha: string;
     pty: IPty | null;
@@ -68,22 +70,6 @@ function applyAgentStatusFromOutput(session: RuntimeSession, data: string): void
     const detected = extractStatusFromOutput(data, session.oscTitleState);
     if (detected) {
         setStatus(session, detected);
-    }
-}
-
-async function listLocalBranches(repoPath: string): Promise<Set<string>> {
-    try {
-        const { stdout } = await execFileAsync('git', ['branch', '--list', '--format=%(refname:short)'], {
-            cwd: repoPath,
-        });
-        return new Set(
-            stdout
-                .split('\n')
-                .map((line) => line.trim())
-                .filter(Boolean),
-        );
-    } catch {
-        return new Set();
     }
 }
 
@@ -131,13 +117,9 @@ async function createWorktree(
     branch: string;
     worktreePath: string;
     baseSha: string;
+    createdBranch: boolean;
 }> {
-    const takenBranches = await listLocalBranches(repoPath);
-    for (const session of sessions.values()) {
-        if (session.branch) {
-            takenBranches.add(session.branch);
-        }
-    }
+    const localBranches = new Set(await listLocalBranches(repoPath));
 
     const requestedBranch = branchName.trim();
     if (!requestedBranch) {
@@ -146,19 +128,26 @@ async function createWorktree(
     if (!isValidBranchName(requestedBranch)) {
         throw new Error('Invalid branch name');
     }
-    if (takenBranches.has(requestedBranch)) {
-        throw new Error(`Branch already exists: ${requestedBranch}`);
-    }
-    const branch = requestedBranch;
 
-    const { stdout: headStdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], { cwd: repoPath });
+    const branch = requestedBranch;
+    const reuseExisting = localBranches.has(branch);
+
+    const { stdout: headStdout } = await execFileAsync('git', ['rev-parse', reuseExisting ? branch : 'HEAD'], {
+        cwd: repoPath,
+    });
     const baseSha = headStdout.trim();
 
     const worktreesRoot = getRepositoryWorktreesDir(projectName);
     const worktreePath = path.join(worktreesRoot, leaf);
     await mkdir(worktreesRoot, { recursive: true });
+
+    if (reuseExisting) {
+        await execFileAsync('git', ['worktree', 'add', worktreePath, branch], { cwd: repoPath });
+        return { branch, worktreePath, baseSha, createdBranch: false };
+    }
+
     await execFileAsync('git', ['worktree', 'add', '-b', branch, worktreePath], { cwd: repoPath });
-    return { branch, worktreePath, baseSha };
+    return { branch, worktreePath, baseSha, createdBranch: true };
 }
 
 function spawnHarness(session: RuntimeSession): void {
@@ -263,6 +252,7 @@ async function createConversationSession(input: { name: string; agent: AgentId; 
         createdAt: Date.now(),
         yoloMode: input.yoloMode,
         useWorktrees: false,
+        createdBranch: false,
         worktreePath,
         baseSha: '',
         pty: null,
@@ -315,7 +305,7 @@ async function createCodingSession(input: {
 
     const id = await allocateSessionId(takenIds, input.name);
 
-    let workspace: { branch: string; worktreePath: string; baseSha: string };
+    let workspace: { branch: string; worktreePath: string; baseSha: string; createdBranch: boolean };
     if (input.useWorktrees) {
         try {
             workspace = await createWorktree(repository.id, repository.path, id, input.branch ?? '');
@@ -334,6 +324,7 @@ async function createCodingSession(input: {
             branch: branchStdout.trim() || 'HEAD',
             worktreePath: repository.path,
             baseSha: headStdout.trim(),
+            createdBranch: false,
         };
     }
 
@@ -348,6 +339,7 @@ async function createCodingSession(input: {
         createdAt: Date.now(),
         yoloMode: input.yoloMode,
         useWorktrees: input.useWorktrees,
+        createdBranch: workspace.createdBranch,
         worktreePath: workspace.worktreePath,
         baseSha: workspace.baseSha,
         pty: null,
@@ -462,7 +454,7 @@ async function cleanupWorktree(session: RuntimeSession): Promise<void> {
         await rm(session.worktreePath, { recursive: true, force: true }).catch(() => undefined);
     }
 
-    if (repository && session.branch) {
+    if (repository && session.branch && session.createdBranch) {
         try {
             await execFileAsync('git', ['branch', '-D', session.branch], { cwd: repository.path });
         } catch {

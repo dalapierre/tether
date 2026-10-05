@@ -6,8 +6,12 @@ import {
     type StoredRepository,
 } from '@server/libs/settings/store.js';
 import { slugify, uniqueSlug } from '@server/libs/slug/slug.js';
+import { execFile } from 'node:child_process';
 import { access, readFile, readdir, unlink } from 'node:fs/promises';
 import path from 'node:path';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
 
 export type Repository = StoredRepository;
 
@@ -168,6 +172,31 @@ export async function listRepositories(): Promise<Repository[]> {
 export async function getRepository(id: string): Promise<Repository | null> {
     const repositories = await readAll();
     return repositories.find((repository) => repository.id === id) ?? null;
+}
+
+/** Local branch short names for a repository path (empty on failure). */
+export async function listLocalBranches(repoPath: string): Promise<string[]> {
+    try {
+        const { stdout } = await execFileAsync('git', ['branch', '--list', '--format=%(refname:short)'], {
+            cwd: repoPath,
+        });
+        return stdout
+            .split('\n')
+            .map((line) => line.trim())
+            .filter(Boolean)
+            .sort((a, b) => a.localeCompare(b));
+    } catch {
+        return [];
+    }
+}
+
+/** Local branches for an added repository, or null if the repository is unknown. */
+export async function listRepositoryBranches(id: string): Promise<string[] | null> {
+    const repository = await getRepository(id);
+    if (!repository) {
+        return null;
+    }
+    return listLocalBranches(repository.path);
 }
 
 export async function listAvailableRepositories(): Promise<AvailableRepository[]> {

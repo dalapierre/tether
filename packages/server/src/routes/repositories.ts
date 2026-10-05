@@ -2,6 +2,7 @@ import {
     addRepository,
     listAvailableRepositories,
     listRepositories,
+    listRepositoryBranches,
     removeRepository,
 } from '@server/libs/repositories/store.js';
 import { Router } from 'express';
@@ -25,6 +26,20 @@ repositoriesRouter.get('/available', async (_req, res) => {
     } catch (err: unknown) {
         console.error('Failed to list available repositories', err);
         res.status(500).json({ error: 'Failed to list available repositories' });
+    }
+});
+
+repositoriesRouter.get('/:id/branches', async (req, res) => {
+    try {
+        const branches = await listRepositoryBranches(req.params.id);
+        if (!branches) {
+            res.status(404).json({ error: 'Repository not found' });
+            return;
+        }
+        res.json({ branches });
+    } catch (err: unknown) {
+        console.error('Failed to list repository branches', err);
+        res.status(500).json({ error: 'Failed to list branches' });
     }
 });
 

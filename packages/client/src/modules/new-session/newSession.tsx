@@ -2,7 +2,7 @@ import { Button } from '@client/components/button';
 import { IconButton } from '@client/components/icon-button';
 import { PageHeader } from '@client/components/page-header';
 import { SearchSelect } from '@client/components/search-select';
-import { listRepositories, type Repository } from '@client/libs/api/repositories';
+import { listRepositories, listRepositoryBranches, type Repository } from '@client/libs/api/repositories';
 import { createSession } from '@client/libs/api/sessions';
 import { getSettings, type AgentProfile } from '@client/libs/api/settings';
 import { isValidBranchName } from '@client/libs/git/branchName';
@@ -19,6 +19,7 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
     const [profileId, setProfileId] = useState('');
     const [repositoryId, setRepositoryId] = useState('');
     const [branch, setBranch] = useState('');
+    const [branches, setBranches] = useState<string[]>([]);
     const [profiles, setProfiles] = useState<AgentProfile[]>([]);
     const [repositories, setRepositories] = useState<Repository[]>([]);
     const [loading, setLoading] = useState(true);
@@ -57,6 +58,36 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
     }, [intl]);
 
     useEffect(() => {
+        if (!repositoryId) {
+            setBranches([]);
+            return;
+        }
+
+        let cancelled = false;
+        setBranches([]);
+
+        listRepositoryBranches(repositoryId)
+            .then((items) => {
+                if (!cancelled) {
+                    setBranches(items);
+                }
+            })
+            .catch((err: unknown) => {
+                if (!cancelled) {
+                    setBranches([]);
+                    showToast(
+                        'generic-error',
+                        err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed),
+                    );
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [repositoryId, intl]);
+
+    useEffect(() => {
         function onKeyDown(event: KeyboardEvent) {
             if (event.key === 'Escape' && !starting) {
                 onClose();
@@ -77,6 +108,11 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
     const profileOptions = useMemo(
         () => profiles.map((profile) => ({ value: profile.id, label: profile.name })),
         [profiles],
+    );
+
+    const branchOptions = useMemo(
+        () => branches.map((branchName) => ({ value: branchName, label: branchName })),
+        [branches],
     );
 
     const isCoding = selectedProfile?.type === 'coding';
@@ -223,7 +259,10 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                                         className={styles.select}
                                         value={repositoryId}
                                         disabled={starting || repositories.length === 0}
-                                        onChange={(event) => setRepositoryId(event.target.value)}
+                                        onChange={(event) => {
+                                            setRepositoryId(event.target.value);
+                                            setBranch('');
+                                        }}
                                     >
                                         <option value='' disabled>
                                             {intl.formatMessage(
@@ -241,20 +280,19 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                                 </label>
 
                                 {usesWorktrees ? (
-                                    <label className={styles.label}>
-                                        {intl.formatMessage(messages.branchLabel)}
-                                        <input
-                                            className={styles.input}
-                                            type='text'
+                                    <div>
+                                        <p className={styles.label}>{intl.formatMessage(messages.branchLabel)}</p>
+                                        <SearchSelect
+                                            options={branchOptions}
                                             value={branch}
-                                            onChange={(event) => setBranch(event.target.value)}
+                                            allowCustom
+                                            onChange={setBranch}
+                                            onSelect={(option) => setBranch(option.value)}
                                             placeholder={intl.formatMessage(messages.branchPlaceholder)}
-                                            autoComplete='off'
-                                            spellCheck={false}
-                                            required
-                                            disabled={starting}
+                                            disabled={starting || !repositoryId}
+                                            ariaLabel={intl.formatMessage(messages.branchLabel)}
                                         />
-                                    </label>
+                                    </div>
                                 ) : null}
                             </>
                         ) : null}
