@@ -13,7 +13,7 @@ import {
     type SessionDiffSummary,
     type SessionFileDiff,
 } from '@server/libs/sessions/diff.js';
-import { getHarnessCommand } from '@server/libs/sessions/harness.js';
+import { ensureWorkspaceTrusted, getHarnessCommand } from '@server/libs/sessions/harness.js';
 import {
     appendOutput,
     attachTerminalClient,
@@ -153,7 +153,8 @@ async function createWorktree(
     return { branch, worktreePath, baseSha, createdBranch: true };
 }
 
-function spawnHarness(session: RuntimeSession): void {
+async function spawnHarness(session: RuntimeSession): Promise<void> {
+    await ensureWorkspaceTrusted(session.agent, session.worktreePath);
     const harness = getHarnessCommand(session.agent, { yoloMode: session.yoloMode });
     try {
         const term = pty.spawn(harness.command, harness.args, {
@@ -272,7 +273,7 @@ async function createConversationSession(input: { name: string; agent: AgentId; 
         if (input.agent === 'cursor') {
             await ensureCursorStatusIndicatorsEnabled();
         }
-        spawnHarness(session);
+        await spawnHarness(session);
     } catch {
         // Session remains in error state with buffered failure output.
     }
@@ -360,7 +361,7 @@ async function createCodingSession(input: {
         if (input.agent === 'cursor') {
             await ensureCursorStatusIndicatorsEnabled();
         }
-        spawnHarness(session);
+        await spawnHarness(session);
     } catch {
         // Session remains in error state with buffered failure output.
     }

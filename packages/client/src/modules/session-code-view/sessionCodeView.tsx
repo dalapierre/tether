@@ -13,7 +13,7 @@ import {
     getFileTreeWidthPx,
     setFileTreeWidthPx,
 } from '@client/libs/layout/reviewLayoutPreferences';
-import { setupMonaco } from '@client/libs/monaco/setup';
+import { setupMonaco, TETHER_DIFF_THEME } from '@client/libs/monaco/setup';
 import { showToast } from '@client/modules/toast';
 import { DiffEditor } from '@monaco-editor/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -469,7 +469,7 @@ export function SessionCodeView({ sessionId, onHasFilesChange }: SessionCodeView
                                         original={fileDiff.original}
                                         modified={fileDiff.modified}
                                         language={fileDiff.language}
-                                        theme='vs-dark'
+                                        theme={TETHER_DIFF_THEME}
                                         options={{
                                             readOnly: true,
                                             renderSideBySide: isDesktop,
@@ -479,10 +479,12 @@ export function SessionCodeView({ sessionId, onHasFilesChange }: SessionCodeView
                                             lineHeight: isDesktop ? 18 : 16,
                                             minimap: { enabled: false },
                                             scrollBeyondLastLine: false,
-                                            renderOverviewRuler: false,
+                                            // Diff-editor overview strip (green adds / red deletes), like VS Code & GitHub.
+                                            renderOverviewRuler: true,
+                                            // Keep per-editor overview lanes off — the diff widget owns the shared ruler.
                                             overviewRulerLanes: 0,
                                             scrollbar: {
-                                                verticalScrollbarSize: 6,
+                                                verticalScrollbarSize: 10,
                                                 horizontalScrollbarSize: 6,
                                             },
                                             padding: { top: 8, bottom: 8 },

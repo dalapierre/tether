@@ -6,6 +6,9 @@ import htmlWorker from 'monaco-editor/language/html/html.worker.js?worker';
 import jsonWorker from 'monaco-editor/language/json/json.worker.js?worker';
 import tsWorker from 'monaco-editor/language/typescript/ts.worker.js?worker';
 
+/** Theme id used by the session code review DiffEditor. */
+export const TETHER_DIFF_THEME = 'tether-diff-dark';
+
 let configured = false;
 
 export function setupMonaco(): void {
@@ -31,4 +34,15 @@ export function setupMonaco(): void {
     };
 
     loader.config({ monaco });
+
+    // Stronger overview-ruler marks so add/remove locations read clearly in the scrollbar strip.
+    monaco.editor.defineTheme(TETHER_DIFF_THEME, {
+        base: 'vs-dark',
+        inherit: true,
+        rules: [],
+        colors: {
+            'diffEditorOverview.insertedForeground': '#3fb950',
+            'diffEditorOverview.removedForeground': '#f85149',
+        },
+    });
 }
