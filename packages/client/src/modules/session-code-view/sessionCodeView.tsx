@@ -8,13 +8,17 @@ import {
 import { setupMonaco } from '@client/libs/monaco/setup';
 import { showToast } from '@client/modules/toast';
 import { DiffEditor } from '@monaco-editor/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useIntl } from 'react-intl';
+import { buildFileTree, type FileTreeDirNode, type FileTreeNode } from './buildFileTree';
 import { messages } from './sessionCodeView.messages';
 import { styles } from './sessionCodeView.styles';
 import type { SessionCodeViewProps } from './sessionCodeView.types';
 
 setupMonaco();
+
+const TREE_INDENT_PX = 12;
+const TREE_BASE_PAD_PX = 12;
 
 function statusClass(status: DiffFileStatus): string {
     switch (status) {
@@ -50,24 +54,90 @@ function BackIcon() {
     );
 }
 
-function FileRow({ file, onSelect }: { file: SessionDiffFile; onSelect: (path: string) => void }) {
+function ChevronIcon({ collapsed }: { collapsed: boolean }) {
+    return (
+        <svg
+            className={collapsed ? styles.chevronCollapsed : styles.chevron}
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='2'
+            aria-hidden='true'
+        >
+            <path strokeLinecap='round' strokeLinejoin='round' d='m19.5 8.25-7.5 7.5-7.5-7.5' />
+        </svg>
+    );
+}
+
+function FolderIcon() {
+    return (
+        <svg className={styles.folderIcon} viewBox='0 0 24 24' fill='currentColor' aria-hidden='true'>
+            <path d='M10.5 4.5a1.5 1.5 0 0 1 1.06.44l1.5 1.5c.28.28.66.44 1.06.44H19.5A2.25 2.25 0 0 1 21.75 9v8.25A2.25 2.25 0 0 1 19.5 19.5h-15A2.25 2.25 0 0 1 2.25 17.25V6.75A2.25 2.25 0 0 1 4.5 4.5h6Z' />
+        </svg>
+    );
+}
+
+function DirRow({
+    node,
+    depth,
+    collapsed,
+    onToggle,
+}: {
+    node: FileTreeDirNode;
+    depth: number;
+    collapsed: boolean;
+    onToggle: (path: string) => void;
+}) {
     const intl = useIntl();
-    const fileName = file.path.includes('/') ? file.path.slice(file.path.lastIndexOf('/') + 1) : file.path;
-    const dir = file.path.includes('/') ? file.path.slice(0, file.path.lastIndexOf('/')) : '';
 
     return (
-        <button type='button' className={styles.fileButton} onClick={() => onSelect(file.path)}>
+        <button
+            type='button'
+            className={`${styles.treeRow} ${styles.dirButton}`}
+            style={{ paddingLeft: TREE_BASE_PAD_PX + depth * TREE_INDENT_PX }}
+            onClick={() => onToggle(node.path)}
+            aria-expanded={!collapsed}
+            aria-label={intl.formatMessage(collapsed ? messages.expandFolder : messages.collapseFolder, {
+                name: node.name,
+            })}
+        >
+            <ChevronIcon collapsed={collapsed} />
+            <FolderIcon />
+            <span className={`${styles.nodeLabel} ${styles.dirLabel}`}>{node.name}</span>
+        </button>
+    );
+}
+
+function FileRow({
+    file,
+    name,
+    depth,
+    onSelect,
+}: {
+    file: SessionDiffFile;
+    name: string;
+    depth: number;
+    onSelect: (path: string) => void;
+}) {
+    const intl = useIntl();
+
+    return (
+        <button
+            type='button'
+            className={`${styles.treeRow} ${styles.fileButton}`}
+            style={{ paddingLeft: TREE_BASE_PAD_PX + depth * TREE_INDENT_PX }}
+            onClick={() => onSelect(file.path)}
+        >
+            <span className={styles.chevronSpacer} />
             <span className={`${styles.statusBadge} ${statusClass(file.status)}`}>
                 {statusLabel(file.status, intl.formatMessage)}
             </span>
             <span className={styles.fileMeta}>
-                <span className={styles.filePath}>{fileName}</span>
+                <span className={styles.fileLabel}>{name}</span>
                 {file.oldPath ? (
-                    <span className={styles.fileSubpath}>
+                    <span className={styles.renameHint}>
                         {file.oldPath} → {file.path}
                     </span>
-                ) : dir ? (
-                    <span className={styles.fileSubpath}>{dir}</span>
                 ) : null}
             </span>
             {!file.binary && file.additions !== null && file.deletions !== null ? (
@@ -84,6 +154,54 @@ function FileRow({ file, onSelect }: { file: SessionDiffFile; onSelect: (path: s
     );
 }
 
+function FileTree({
+    nodes,
+    depth,
+    collapsedPaths,
+    onToggle,
+    onSelect,
+}: {
+    nodes: FileTreeNode[];
+    depth: number;
+    collapsedPaths: Set<string>;
+    onToggle: (path: string) => void;
+    onSelect: (path: string) => void;
+}) {
+    return (
+        <>
+            {nodes.map((node) => {
+                if (node.type === 'file') {
+                    return (
+                        <FileRow
+                            key={node.file.path}
+                            file={node.file}
+                            name={node.name}
+                            depth={depth}
+                            onSelect={onSelect}
+                        />
+                    );
+                }
+
+                const collapsed = collapsedPaths.has(node.path);
+                return (
+                    <div key={node.path}>
+                        <DirRow node={node} depth={depth} collapsed={collapsed} onToggle={onToggle} />
+                        {collapsed ? null : (
+                            <FileTree
+                                nodes={node.children}
+                                depth={depth + 1}
+                                collapsedPaths={collapsedPaths}
+                                onToggle={onToggle}
+                                onSelect={onSelect}
+                            />
+                        )}
+                    </div>
+                );
+            })}
+        </>
+    );
+}
+
 export function SessionCodeView({ sessionId }: SessionCodeViewProps) {
     const intl = useIntl();
     const [files, setFiles] = useState<SessionDiffFile[]>([]);
@@ -91,6 +209,9 @@ export function SessionCodeView({ sessionId }: SessionCodeViewProps) {
     const [selectedPath, setSelectedPath] = useState<string | null>(null);
     const [fileDiff, setFileDiff] = useState<SessionFileDiff | null>(null);
     const [fileLoading, setFileLoading] = useState(false);
+    const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(() => new Set());
+
+    const tree = useMemo(() => buildFileTree(files), [files]);
 
     useEffect(() => {
         let cancelled = false;
@@ -175,90 +296,106 @@ export function SessionCodeView({ sessionId }: SessionCodeViewProps) {
             });
     }
 
-    if (selectedPath) {
-        return (
-            <div className={styles.root}>
-                <div className={styles.fileHeader}>
-                    <button
-                        type='button'
-                        className={styles.backButton}
-                        onClick={() => setSelectedPath(null)}
-                        aria-label={intl.formatMessage(messages.backToFiles)}
-                    >
-                        <BackIcon />
-                    </button>
-                    <span className={styles.fileHeaderPath}>{selectedPath}</span>
-                </div>
-                {fileLoading || !fileDiff ? (
-                    <p className={styles.centered}>{intl.formatMessage(messages.loading)}</p>
-                ) : fileDiff.binary ? (
-                    <p className={styles.centered}>{intl.formatMessage(messages.binaryFile)}</p>
-                ) : (
-                    <div className={styles.editorWrap}>
-                        <div className={styles.editorFill}>
-                            <DiffEditor
-                                height='100%'
-                                width='100%'
-                                original={fileDiff.original}
-                                modified={fileDiff.modified}
-                                language={fileDiff.language}
-                                theme='vs-dark'
-                                options={{
-                                    readOnly: true,
-                                    renderSideBySide: false,
-                                    wordWrap: 'on',
-                                    wrappingIndent: 'same',
-                                    fontSize: 11,
-                                    lineHeight: 16,
-                                    minimap: { enabled: false },
-                                    scrollBeyondLastLine: false,
-                                    renderOverviewRuler: false,
-                                    overviewRulerLanes: 0,
-                                    scrollbar: {
-                                        verticalScrollbarSize: 6,
-                                        horizontalScrollbarSize: 6,
-                                    },
-                                    padding: { top: 8, bottom: 8 },
-                                    glyphMargin: false,
-                                    folding: false,
-                                    lineDecorationsWidth: 8,
-                                    lineNumbersMinChars: 3,
-                                    renderLineHighlight: 'none',
-                                    contextmenu: false,
-                                    automaticLayout: true,
-                                    originalEditable: false,
-                                }}
-                            />
-                        </div>
-                    </div>
-                )}
-            </div>
-        );
+    function toggleFolder(path: string) {
+        setCollapsedPaths((prev) => {
+            const next = new Set(prev);
+            if (next.has(path)) {
+                next.delete(path);
+            } else {
+                next.add(path);
+            }
+            return next;
+        });
     }
 
     return (
         <div className={styles.root}>
-            <div className={styles.toolbar}>
-                <p className={styles.toolbarTitle}>
-                    {loading
-                        ? intl.formatMessage(messages.loading)
-                        : intl.formatMessage(messages.filesChanged, { count: files.length })}
-                </p>
-                <button type='button' className={styles.refreshButton} onClick={refresh} disabled={loading}>
-                    {intl.formatMessage(messages.refresh)}
-                </button>
-            </div>
-            {loading ? (
-                <p className={styles.centered}>{intl.formatMessage(messages.loading)}</p>
-            ) : files.length === 0 ? (
-                <p className={styles.centered}>{intl.formatMessage(messages.empty)}</p>
-            ) : (
-                <div className={styles.fileList}>
-                    {files.map((file) => (
-                        <FileRow key={file.path} file={file} onSelect={setSelectedPath} />
-                    ))}
+            <div className={selectedPath ? styles.panelHidden : styles.panel}>
+                <div className={styles.toolbar}>
+                    <p className={styles.toolbarTitle}>
+                        {loading
+                            ? intl.formatMessage(messages.loading)
+                            : intl.formatMessage(messages.filesChanged, { count: files.length })}
+                    </p>
+                    <button type='button' className={styles.refreshButton} onClick={refresh} disabled={loading}>
+                        {intl.formatMessage(messages.refresh)}
+                    </button>
                 </div>
-            )}
+                {loading ? (
+                    <p className={styles.centered}>{intl.formatMessage(messages.loading)}</p>
+                ) : files.length === 0 ? (
+                    <p className={styles.centered}>{intl.formatMessage(messages.empty)}</p>
+                ) : (
+                    <div className={styles.fileList}>
+                        <FileTree
+                            nodes={tree}
+                            depth={0}
+                            collapsedPaths={collapsedPaths}
+                            onToggle={toggleFolder}
+                            onSelect={setSelectedPath}
+                        />
+                    </div>
+                )}
+            </div>
+
+            {selectedPath ? (
+                <div className={styles.panel}>
+                    <div className={styles.fileHeader}>
+                        <button
+                            type='button'
+                            className={styles.backButton}
+                            onClick={() => setSelectedPath(null)}
+                            aria-label={intl.formatMessage(messages.backToFiles)}
+                        >
+                            <BackIcon />
+                        </button>
+                        <span className={styles.fileHeaderPath}>{selectedPath}</span>
+                    </div>
+                    {fileLoading || !fileDiff ? (
+                        <p className={styles.centered}>{intl.formatMessage(messages.loading)}</p>
+                    ) : fileDiff.binary ? (
+                        <p className={styles.centered}>{intl.formatMessage(messages.binaryFile)}</p>
+                    ) : (
+                        <div className={styles.editorWrap}>
+                            <div className={styles.editorFill}>
+                                <DiffEditor
+                                    height='100%'
+                                    width='100%'
+                                    original={fileDiff.original}
+                                    modified={fileDiff.modified}
+                                    language={fileDiff.language}
+                                    theme='vs-dark'
+                                    options={{
+                                        readOnly: true,
+                                        renderSideBySide: false,
+                                        wordWrap: 'on',
+                                        wrappingIndent: 'same',
+                                        fontSize: 11,
+                                        lineHeight: 16,
+                                        minimap: { enabled: false },
+                                        scrollBeyondLastLine: false,
+                                        renderOverviewRuler: false,
+                                        overviewRulerLanes: 0,
+                                        scrollbar: {
+                                            verticalScrollbarSize: 6,
+                                            horizontalScrollbarSize: 6,
+                                        },
+                                        padding: { top: 8, bottom: 8 },
+                                        glyphMargin: false,
+                                        folding: false,
+                                        lineDecorationsWidth: 8,
+                                        lineNumbersMinChars: 3,
+                                        renderLineHighlight: 'none',
+                                        contextmenu: false,
+                                        automaticLayout: true,
+                                        originalEditable: false,
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    )}
+                </div>
+            ) : null}
         </div>
     );
 }

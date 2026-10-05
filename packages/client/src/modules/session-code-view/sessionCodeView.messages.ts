@@ -14,6 +14,8 @@ type Messages = {
     additions: { count: number };
     deletions: { count: number };
     filesChanged: { count: number };
+    expandFolder: { name: string };
+    collapseFolder: { name: string };
 };
 
 export const messages = defineMessages<Messages>(
@@ -69,6 +71,14 @@ export const messages = defineMessages<Messages>(
         filesChanged: {
             id: 'sessionCodeView.filesChanged',
             defaultMessage: '{count, plural, one {# file changed} other {# files changed}}',
+        },
+        expandFolder: {
+            id: 'sessionCodeView.expandFolder',
+            defaultMessage: 'Expand {name}',
+        },
+        collapseFolder: {
+            id: 'sessionCodeView.collapseFolder',
+            defaultMessage: 'Collapse {name}',
         },
     },
     { typed: true },
