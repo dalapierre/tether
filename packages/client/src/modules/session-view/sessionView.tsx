@@ -71,7 +71,7 @@ function isScrolledToBottom(term: Terminal): boolean {
     return buffer.viewportY >= buffer.baseY;
 }
 
-export function SessionView({ projectSlug, projectName, sessionId }: SessionViewProps) {
+export function SessionView({ sessionId }: SessionViewProps) {
     const intl = useIntl();
     const [session, setSession] = useState<Session | null>(null);
     const [loading, setLoading] = useState(true);
@@ -79,6 +79,7 @@ export function SessionView({ projectSlug, projectName, sessionId }: SessionView
     const [status, setStatus] = useState<SessionStatus>('busy');
     const [connection, setConnection] = useState<ConnectionState>('connecting');
     const [tab, setTab] = useState<SessionTab>('agent');
+    const [reviewVisited, setReviewVisited] = useState(false);
     const terminalRef = useRef<HTMLDivElement | null>(null);
     const socketRef = useRef<WebSocket | null>(null);
     const termRef = useRef<Terminal | null>(null);
@@ -90,7 +91,7 @@ export function SessionView({ projectSlug, projectName, sessionId }: SessionView
         getSession(sessionId)
             .then((item) => {
                 if (cancelled) return;
-                if (!item || item.repositoryId !== projectSlug) {
+                if (!item) {
                     setFailed(true);
                     setSession(null);
                     showToast('generic-error', intl.formatMessage(messages.notFound));
@@ -118,7 +119,7 @@ export function SessionView({ projectSlug, projectName, sessionId }: SessionView
         return () => {
             cancelled = true;
         };
-    }, [sessionId, projectSlug, intl]);
+    }, [sessionId, intl]);
 
     useEffect(() => {
         if (loading || failed || !session || !terminalRef.current) {
@@ -262,7 +263,6 @@ export function SessionView({ projectSlug, projectName, sessionId }: SessionView
                 <PageHeader
                     crumbs={[
                         { label: intl.formatMessage(messages.sessionsCrumb), to: '/' },
-                        { label: projectName },
                         { label: intl.formatMessage(messages.loadingCrumb) },
                     ]}
                     showSettings={false}
@@ -278,7 +278,6 @@ export function SessionView({ projectSlug, projectName, sessionId }: SessionView
                 <PageHeader
                     crumbs={[
                         { label: intl.formatMessage(messages.sessionsCrumb), to: '/' },
-                        { label: projectName },
                         { label: intl.formatMessage(messages.notFound) },
                     ]}
                     showSettings={false}
@@ -298,18 +297,19 @@ export function SessionView({ projectSlug, projectName, sessionId }: SessionView
     return (
         <div className={styles.root}>
             <PageHeader
-                crumbs={[
-                    { label: intl.formatMessage(messages.sessionsCrumb), to: '/' },
-                    { label: projectName },
-                    { label: session.name },
-                ]}
+                crumbs={[{ label: intl.formatMessage(messages.sessionsCrumb), to: '/' }, { label: session.name }]}
                 showSettings={false}
             />
             <div className={styles.tabs}>
                 <SegmentedControl
                     ariaLabel={intl.formatMessage(messages.viewTabs)}
                     value={tab}
-                    onChange={setTab}
+                    onChange={(next) => {
+                        setTab(next);
+                        if (next === 'review') {
+                            setReviewVisited(true);
+                        }
+                    }}
                     options={[
                         { value: 'agent', label: intl.formatMessage(messages.agentView) },
                         { value: 'review', label: intl.formatMessage(messages.reviewView) },
@@ -329,16 +329,23 @@ export function SessionView({ projectSlug, projectName, sessionId }: SessionView
                     {statusLabel(status, intl.formatMessage)}
                 </span>
             </div>
-            <div className={tab === 'agent' ? styles.terminalWrap : styles.terminalHidden}>
-                <div ref={terminalRef} className={styles.terminal} />
-            </div>
-            {tab === 'review' ? (
-                <div className={styles.reviewPane}>
-                    <Suspense fallback={<p className={styles.centered}>{intl.formatMessage(messages.loading)}</p>}>
-                        <SessionCodeView sessionId={session.id} />
-                    </Suspense>
+            <div className={styles.content}>
+                <div className={tab === 'agent' ? styles.pane : styles.paneInactive} aria-hidden={tab !== 'agent'}>
+                    <div className={styles.terminalWrap}>
+                        <div ref={terminalRef} className={styles.terminal} />
+                    </div>
                 </div>
-            ) : null}
+                {reviewVisited ? (
+                    <div
+                        className={tab === 'review' ? styles.pane : styles.paneInactive}
+                        aria-hidden={tab !== 'review'}
+                    >
+                        <Suspense fallback={<p className={styles.centered}>{intl.formatMessage(messages.loading)}</p>}>
+                            <SessionCodeView sessionId={session.id} />
+                        </Suspense>
+                    </div>
+                ) : null}
+            </div>
         </div>
     );
 }

@@ -17,6 +17,11 @@ export const TOASTS = {
         message: messages.genericErrorMessage,
         values: (detail: string) => ({ detail }),
     },
+    'invalid-branch-name': {
+        type: 'error',
+        title: messages.invalidBranchTitle,
+        message: messages.invalidBranchMessage,
+    },
     'settings-saved': {
         type: 'success',
         title: messages.settingsSavedTitle,

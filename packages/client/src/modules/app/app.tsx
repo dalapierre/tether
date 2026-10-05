@@ -22,7 +22,7 @@ export function App() {
                             }
                         >
                             <Route path='/' element={<HomePage />} />
-                            <Route path='/projects/:slug/sessions/:sessionId' element={<SessionPage />} />
+                            <Route path='/sessions/:sessionId' element={<SessionPage />} />
                         </Route>
                     </Routes>
                 </ToastProvider>

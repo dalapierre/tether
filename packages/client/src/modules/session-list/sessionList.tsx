@@ -3,7 +3,6 @@ import { Card } from '@client/components/card';
 import { ConfirmDialog } from '@client/components/confirm-dialog';
 import { PageHeader } from '@client/components/page-header';
 import { SwipeToDelete } from '@client/components/swipe-to-delete';
-import { AGENTS, type AgentId } from '@client/libs/agents/agents';
 import { listRepositories, type Repository } from '@client/libs/api/repositories';
 import { deleteSession, listSessions, type Session } from '@client/libs/api/sessions';
 import { NewSession } from '@client/modules/new-session';
@@ -13,11 +12,6 @@ import { useIntl } from 'react-intl';
 import { useNavigate } from 'react-router-dom';
 import { messages } from './sessionList.messages';
 import { styles } from './sessionList.styles';
-
-function harnessLabel(agent: AgentId, formatMessage: ReturnType<typeof useIntl>['formatMessage']): string {
-    const match = AGENTS.find((item) => item.id === agent);
-    return match ? formatMessage(match.labelMessage) : agent;
-}
 
 export function SessionList() {
     const intl = useIntl();
@@ -102,7 +96,7 @@ export function SessionList() {
                 onClose={() => setCreating(false)}
                 onStarted={(session) => {
                     setCreating(false);
-                    navigate(`/projects/${session.repositoryId}/sessions/${session.id}`);
+                    navigate(`/sessions/${session.id}`);
                 }}
             />
         );
@@ -134,13 +128,12 @@ export function SessionList() {
                               <Card
                                   title={session.name}
                                   indicator={session.status}
-                                  onClick={() => navigate(`/projects/${session.repositoryId}/sessions/${session.id}`)}
+                                  onClick={() => navigate(`/sessions/${session.id}`)}
                               >
-                                  {intl.formatMessage(messages.sessionMeta, {
-                                      project: projectNames.get(session.repositoryId) ?? session.repositoryId,
-                                      harness: harnessLabel(session.agent, intl.formatMessage),
-                                      branch: session.branch,
-                                  })}
+                                  <span className={styles.project}>
+                                      {projectNames.get(session.repositoryId) ?? session.repositoryId}
+                                  </span>
+                                  <span className={styles.feature}>{session.branch}</span>
                               </Card>
                           </SwipeToDelete>
                       ))

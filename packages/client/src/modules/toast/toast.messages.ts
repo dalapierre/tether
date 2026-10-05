@@ -3,6 +3,8 @@ import { defineMessages, type NoMessageValues } from 'react-intl';
 type Messages = {
     genericErrorTitle: NoMessageValues;
     genericErrorMessage: { detail: string };
+    invalidBranchTitle: NoMessageValues;
+    invalidBranchMessage: NoMessageValues;
     settingsSavedTitle: NoMessageValues;
     settingsSavedMessage: NoMessageValues;
     repositoryAddedTitle: NoMessageValues;
@@ -19,6 +21,14 @@ export const messages = defineMessages<Messages>(
         genericErrorMessage: {
             id: 'toast.genericError.message',
             defaultMessage: '{detail}',
+        },
+        invalidBranchTitle: {
+            id: 'toast.invalidBranch.title',
+            defaultMessage: 'Invalid branch name',
+        },
+        invalidBranchMessage: {
+            id: 'toast.invalidBranch.message',
+            defaultMessage: 'Branch names must follow git naming rules.',
         },
         settingsSavedTitle: {
             id: 'toast.settingsSaved.title',

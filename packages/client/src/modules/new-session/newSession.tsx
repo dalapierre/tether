@@ -5,6 +5,7 @@ import { AGENTS, isAgentId, type AgentId } from '@client/libs/agents/agents';
 import { listRepositories, type Repository } from '@client/libs/api/repositories';
 import { createSession } from '@client/libs/api/sessions';
 import { getSettings } from '@client/libs/api/settings';
+import { isValidBranchName } from '@client/libs/git/branchName';
 import { showToast } from '@client/modules/toast';
 import { useEffect, useState } from 'react';
 import { useIntl } from 'react-intl';
@@ -72,6 +73,11 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
         const trimmedName = name.trim();
         const trimmedBranch = branch.trim();
         if (!trimmedName || !trimmedBranch || !repositoryId || !agent || starting) return;
+
+        if (!isValidBranchName(trimmedBranch)) {
+            showToast('invalid-branch-name');
+            return;
+        }
 
         setStarting(true);
         try {

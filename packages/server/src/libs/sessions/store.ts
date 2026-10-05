@@ -23,7 +23,6 @@ import {
 import type { Session, SessionStatus } from '@server/libs/sessions/types.js';
 import { slugify, uniqueSlug } from '@server/libs/slug/slug.js';
 import { execFile } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
 import { mkdir, readdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -97,24 +96,33 @@ async function listWorktreeLeaves(worktreesRoot: string): Promise<Set<string>> {
     }
 }
 
+/** Matches git check-ref-format --branch rules for new branch names. */
 function isValidBranchName(branch: string): boolean {
-    if (!branch || branch === 'HEAD') {
+    if (!branch || branch === 'HEAD' || branch === '@') {
         return false;
     }
-    if (branch.startsWith('-') || branch.startsWith('.') || branch.endsWith('.') || branch.endsWith('/')) {
+    if (branch.startsWith('-') || branch.startsWith('/') || branch.endsWith('/') || branch.endsWith('.')) {
         return false;
     }
-    if (branch.includes('..') || branch.includes('//') || branch.includes('@{') || branch.endsWith('.lock')) {
+    if (branch.includes('..') || branch.includes('//') || branch.includes('@{')) {
         return false;
     }
-    // Reject characters git will not accept in branch names.
-    return !/[\s~^:?*\[\\]/.test(branch);
+    // Reject ASCII controls, whitespace, and characters git forbids in refs.
+    if (/[\x00-\x1f\x7f\s~^:?*\[\\]/.test(branch)) {
+        return false;
+    }
+    for (const part of branch.split('/')) {
+        if (!part || part.startsWith('.') || part.endsWith('.lock')) {
+            return false;
+        }
+    }
+    return true;
 }
 
 async function createWorktree(
     projectName: string,
     repoPath: string,
-    sessionName: string,
+    leaf: string,
     branchName: string,
 ): Promise<{
     branch: string;
@@ -126,15 +134,6 @@ async function createWorktree(
         takenBranches.add(session.branch);
     }
 
-    const worktreesRoot = getRepositoryWorktreesDir(projectName);
-    const takenLeaves = await listWorktreeLeaves(worktreesRoot);
-    for (const session of sessions.values()) {
-        if (session.repositoryId === projectName) {
-            takenLeaves.add(path.basename(session.worktreePath));
-        }
-    }
-
-    const leaf = uniqueSlug(slugify(sessionName) || 'session', takenLeaves);
     const requestedBranch = branchName.trim();
     if (!requestedBranch) {
         throw new Error('Branch is required');
@@ -150,6 +149,7 @@ async function createWorktree(
     const { stdout: headStdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], { cwd: repoPath });
     const baseSha = headStdout.trim();
 
+    const worktreesRoot = getRepositoryWorktreesDir(projectName);
     const worktreePath = path.join(worktreesRoot, leaf);
     await mkdir(worktreesRoot, { recursive: true });
     await execFileAsync('git', ['worktree', 'add', '-b', branch, worktreePath], { cwd: repoPath });
@@ -209,10 +209,21 @@ export async function createSession(input: {
         throw new Error('Repository not found');
     }
 
-    const id = randomUUID();
+    const takenIds = new Set(sessions.keys());
+    const worktreesRoot = getRepositoryWorktreesDir(repository.id);
+    for (const leaf of await listWorktreeLeaves(worktreesRoot)) {
+        takenIds.add(leaf);
+    }
+    for (const session of sessions.values()) {
+        if (session.repositoryId === repository.id) {
+            takenIds.add(path.basename(session.worktreePath));
+        }
+    }
+
+    const id = uniqueSlug(slugify(name) || 'session', takenIds);
     let worktree: { branch: string; worktreePath: string; baseSha: string };
     try {
-        worktree = await createWorktree(repository.id, repository.path, name, branch);
+        worktree = await createWorktree(repository.id, repository.path, id, branch);
     } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Failed to create worktree';
         throw new Error(

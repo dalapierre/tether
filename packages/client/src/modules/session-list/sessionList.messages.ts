@@ -6,7 +6,6 @@ type Messages = {
     loadingSessions: NoMessageValues;
     sessionsLoadFailed: NoMessageValues;
     newSession: NoMessageValues;
-    sessionMeta: { project: string; harness: string; branch: string };
     deleteSession: NoMessageValues;
     deleteConfirm: { name: string };
     deleteConfirmContinue: NoMessageValues;
@@ -35,10 +34,6 @@ export const messages = defineMessages<Messages>(
         newSession: {
             id: 'sessionList.newSession',
             defaultMessage: 'New session',
-        },
-        sessionMeta: {
-            id: 'sessionList.sessionMeta',
-            defaultMessage: '{project} · {harness} · {branch}',
         },
         deleteSession: {
             id: 'sessionList.deleteSession',
