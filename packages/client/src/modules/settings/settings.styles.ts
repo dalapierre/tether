@@ -1,21 +1,25 @@
 export const styles = {
     root: 'fixed inset-0 z-30 flex flex-col bg-zinc-950 text-zinc-100',
     body: 'flex min-h-0 flex-1 flex-col overflow-auto px-4',
-    intro: 'mt-3 text-sm text-zinc-500',
     loading: 'mt-8 text-sm text-zinc-500',
+    categories: 'mt-6 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900',
+    categoryButton:
+        'flex w-full items-center justify-between gap-3 border-b border-zinc-800 px-4 py-3.5 text-left last:border-b-0 active:bg-zinc-800',
+    categoryText: 'min-w-0 flex flex-col gap-0.5',
+    categoryLabel: 'text-sm text-zinc-100',
+    categoryDescription: 'text-xs text-zinc-500',
+    categoryChevron: 'h-4 w-4 shrink-0 text-zinc-500',
     fields: 'mt-8 flex flex-col gap-3',
     label: 'block text-sm text-zinc-400',
-    checkboxLabel: 'flex cursor-pointer items-center gap-2 text-sm text-zinc-400',
-    checkbox: 'size-4 shrink-0 rounded border border-zinc-700 bg-zinc-900 accent-zinc-200',
     input: 'mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-zinc-100 outline-none focus:border-zinc-500',
     select: 'mt-1 w-full appearance-none rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-zinc-100 outline-none focus:border-zinc-500',
     hint: 'text-xs text-zinc-500',
-    projects: 'mt-1 flex flex-col gap-2',
-    projectRow:
+    repositories: 'mt-1 flex flex-col gap-2',
+    repositoryRow:
         'flex items-center justify-between gap-1 rounded-md border border-zinc-800 bg-zinc-900 py-0.5 pl-3 pr-0.5',
-    projectName: 'min-w-0 truncate text-sm text-zinc-100',
-    projectEmpty: 'text-sm text-zinc-500',
-    addProject: 'mt-3',
+    repositoryName: 'min-w-0 truncate text-sm text-zinc-100',
+    repositoryEmpty: 'text-sm text-zinc-500',
+    repositoriesList: 'mt-3',
     actions: 'mt-auto pt-10 pb-6',
     footer: 'px-4 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]',
 };

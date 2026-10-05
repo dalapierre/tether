@@ -4,26 +4,34 @@ type Messages = {
     ariaLabel: NoMessageValues;
     crumb: NoMessageValues;
     close: NoMessageValues;
-    intro: NoMessageValues;
     loading: NoMessageValues;
     loadFailed: NoMessageValues;
     saveFailed: NoMessageValues;
+    categoryGeneral: NoMessageValues;
+    categoryGeneralCrumb: NoMessageValues;
+    categoryGeneralDescription: NoMessageValues;
+    categoryRepos: NoMessageValues;
+    categoryReposCrumb: NoMessageValues;
+    categoryReposDescription: NoMessageValues;
+    categoryAgents: NoMessageValues;
+    categoryAgentsCrumb: NoMessageValues;
+    categoryAgentsDescription: NoMessageValues;
     devDirLabel: NoMessageValues;
     devDirPlaceholder: NoMessageValues;
     devDirHint: NoMessageValues;
-    projectsLabel: NoMessageValues;
-    projectsEmpty: NoMessageValues;
-    projectsLoadFailed: NoMessageValues;
-    addProjectLabel: NoMessageValues;
-    addProjectPlaceholder: NoMessageValues;
-    addProjectEmpty: NoMessageValues;
-    addProjectNoResults: NoMessageValues;
-    addProjectFailed: NoMessageValues;
-    removeProject: NoMessageValues;
-    removeProjectConfirm: { name: string };
-    removeProjectConfirmContinue: NoMessageValues;
-    removeProjectConfirmCancel: NoMessageValues;
-    removeProjectFailed: NoMessageValues;
+    repositoriesLabel: NoMessageValues;
+    repositoriesEmpty: NoMessageValues;
+    repositoriesLoadFailed: NoMessageValues;
+    addRepositoryLabel: NoMessageValues;
+    addRepositoryPlaceholder: NoMessageValues;
+    addRepositoryEmpty: NoMessageValues;
+    addRepositoryNoResults: NoMessageValues;
+    addRepositoryFailed: NoMessageValues;
+    removeRepository: NoMessageValues;
+    removeRepositoryConfirm: { name: string };
+    removeRepositoryConfirmContinue: NoMessageValues;
+    removeRepositoryConfirmCancel: NoMessageValues;
+    removeRepositoryFailed: NoMessageValues;
     agentLabel: NoMessageValues;
     yoloModeLabel: NoMessageValues;
     yoloModeHint: NoMessageValues;
@@ -46,10 +54,6 @@ export const messages = defineMessages<Messages>(
             id: 'settings.close',
             defaultMessage: 'Close',
         },
-        intro: {
-            id: 'settings.intro',
-            defaultMessage: 'Configure projects and the agent for new sessions.',
-        },
         loading: {
             id: 'settings.loading',
             defaultMessage: 'Loading settings…',
@@ -61,6 +65,42 @@ export const messages = defineMessages<Messages>(
         saveFailed: {
             id: 'settings.saveFailed',
             defaultMessage: 'Failed to save settings',
+        },
+        categoryGeneral: {
+            id: 'settings.categoryGeneral',
+            defaultMessage: 'General',
+        },
+        categoryGeneralCrumb: {
+            id: 'settings.categoryGeneralCrumb',
+            defaultMessage: 'general',
+        },
+        categoryGeneralDescription: {
+            id: 'settings.categoryGeneralDescription',
+            defaultMessage: 'Development directory and workspace defaults.',
+        },
+        categoryRepos: {
+            id: 'settings.categoryRepos',
+            defaultMessage: 'Repositories',
+        },
+        categoryReposCrumb: {
+            id: 'settings.categoryReposCrumb',
+            defaultMessage: 'repositories',
+        },
+        categoryReposDescription: {
+            id: 'settings.categoryReposDescription',
+            defaultMessage: 'Choose which git repositories appear in Tether.',
+        },
+        categoryAgents: {
+            id: 'settings.categoryAgents',
+            defaultMessage: 'Agents',
+        },
+        categoryAgentsCrumb: {
+            id: 'settings.categoryAgentsCrumb',
+            defaultMessage: 'agents',
+        },
+        categoryAgentsDescription: {
+            id: 'settings.categoryAgentsDescription',
+            defaultMessage: 'Default agent and approval behavior for new sessions.',
         },
         devDirLabel: {
             id: 'settings.devDirLabel',
@@ -74,61 +114,61 @@ export const messages = defineMessages<Messages>(
             id: 'settings.devDirHint',
             defaultMessage: 'Absolute path to the folder that contains your git repositories.',
         },
-        projectsLabel: {
-            id: 'settings.projectsLabel',
-            defaultMessage: 'Projects',
+        repositoriesLabel: {
+            id: 'settings.repositoriesLabel',
+            defaultMessage: 'Repositories',
         },
-        projectsEmpty: {
-            id: 'settings.projectsEmpty',
-            defaultMessage: 'No projects yet. Add a repository from your development directory.',
+        repositoriesEmpty: {
+            id: 'settings.repositoriesEmpty',
+            defaultMessage: 'No repositories yet. Add one from your development directory.',
         },
-        projectsLoadFailed: {
-            id: 'settings.projectsLoadFailed',
-            defaultMessage: 'Failed to load projects',
+        repositoriesLoadFailed: {
+            id: 'settings.repositoriesLoadFailed',
+            defaultMessage: 'Failed to load repositories',
         },
-        addProjectLabel: {
-            id: 'settings.addProjectLabel',
-            defaultMessage: 'Add project',
+        addRepositoryLabel: {
+            id: 'settings.addRepositoryLabel',
+            defaultMessage: 'Add repository',
         },
-        addProjectPlaceholder: {
-            id: 'settings.addProjectPlaceholder',
+        addRepositoryPlaceholder: {
+            id: 'settings.addRepositoryPlaceholder',
             defaultMessage: 'Search repositories…',
         },
-        addProjectEmpty: {
-            id: 'settings.addProjectEmpty',
+        addRepositoryEmpty: {
+            id: 'settings.addRepositoryEmpty',
             defaultMessage: 'No new repositories found in the development directory.',
         },
-        addProjectNoResults: {
-            id: 'settings.addProjectNoResults',
+        addRepositoryNoResults: {
+            id: 'settings.addRepositoryNoResults',
             defaultMessage: 'No matching repositories.',
         },
-        addProjectFailed: {
-            id: 'settings.addProjectFailed',
+        addRepositoryFailed: {
+            id: 'settings.addRepositoryFailed',
             defaultMessage: 'Failed to add repository',
         },
-        removeProject: {
-            id: 'settings.removeProject',
+        removeRepository: {
+            id: 'settings.removeRepository',
             defaultMessage: 'Remove',
         },
-        removeProjectConfirm: {
-            id: 'settings.removeProjectConfirm',
+        removeRepositoryConfirm: {
+            id: 'settings.removeRepositoryConfirm',
             defaultMessage: 'Remove {name} from Tether? Existing sessions are not deleted.',
         },
-        removeProjectConfirmContinue: {
-            id: 'settings.removeProjectConfirmContinue',
+        removeRepositoryConfirmContinue: {
+            id: 'settings.removeRepositoryConfirmContinue',
             defaultMessage: 'Remove',
         },
-        removeProjectConfirmCancel: {
-            id: 'settings.removeProjectConfirmCancel',
+        removeRepositoryConfirmCancel: {
+            id: 'settings.removeRepositoryConfirmCancel',
             defaultMessage: 'Cancel',
         },
-        removeProjectFailed: {
-            id: 'settings.removeProjectFailed',
-            defaultMessage: 'Failed to remove project',
+        removeRepositoryFailed: {
+            id: 'settings.removeRepositoryFailed',
+            defaultMessage: 'Failed to remove repository',
         },
         agentLabel: {
             id: 'settings.agentLabel',
-            defaultMessage: 'Agent',
+            defaultMessage: 'Default harness',
         },
         yoloModeLabel: {
             id: 'settings.yoloModeLabel',

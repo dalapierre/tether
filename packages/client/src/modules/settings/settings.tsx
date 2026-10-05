@@ -3,6 +3,7 @@ import { ConfirmDialog } from '@client/components/confirm-dialog';
 import { IconButton } from '@client/components/icon-button';
 import { PageHeader } from '@client/components/page-header';
 import { SearchSelect } from '@client/components/search-select';
+import { Toggle } from '@client/components/toggle';
 import { AGENTS, isAgentId, type AgentId } from '@client/libs/agents/agents';
 import { ApiError } from '@client/libs/api/client';
 import {
@@ -23,12 +24,33 @@ import { messages } from './settings.messages';
 import { styles } from './settings.styles';
 import type { SettingsProps } from './settings.types';
 
+type SettingsCategory = 'general' | 'repos' | 'agents';
+
+function CategoryChevron() {
+    return (
+        <svg
+            className={styles.categoryChevron}
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='2'
+            aria-hidden='true'
+        >
+            <path strokeLinecap='round' strokeLinejoin='round' d='m8.25 4.5 7.5 7.5-7.5 7.5' />
+        </svg>
+    );
+}
+
 export function Settings({ onClose }: SettingsProps) {
     const intl = useIntl();
     const navigate = useNavigate();
+    const [category, setCategory] = useState<SettingsCategory | null>(null);
     const [devDir, setDevDir] = useState('');
     const [agent, setAgent] = useState<AgentId>('cursor');
     const [yoloMode, setYoloMode] = useState(false);
+    const [savedDevDir, setSavedDevDir] = useState('');
+    const [savedAgent, setSavedAgent] = useState<AgentId>('cursor');
+    const [savedYoloMode, setSavedYoloMode] = useState(false);
     const [repositories, setRepositories] = useState<Repository[]>([]);
     const [available, setAvailable] = useState<AvailableRepository[]>([]);
     const [loading, setLoading] = useState(true);
@@ -43,9 +65,14 @@ export function Settings({ onClose }: SettingsProps) {
         Promise.all([getSettings(), listRepositories()])
             .then(async ([settings, items]) => {
                 if (cancelled) return;
+                const nextAgent = isAgentId(settings.agent) ? settings.agent : 'cursor';
+                const nextYoloMode = Boolean(settings.yoloMode);
                 setDevDir(settings.devDir);
-                setAgent(isAgentId(settings.agent) ? settings.agent : 'cursor');
-                setYoloMode(Boolean(settings.yoloMode));
+                setAgent(nextAgent);
+                setYoloMode(nextYoloMode);
+                setSavedDevDir(settings.devDir);
+                setSavedAgent(nextAgent);
+                setSavedYoloMode(nextYoloMode);
                 setRepositories(items);
 
                 try {
@@ -82,6 +109,10 @@ export function Settings({ onClose }: SettingsProps) {
         function onKeyDown(event: KeyboardEvent) {
             if (event.key !== 'Escape') return;
             if (pendingRemove) return;
+            if (category) {
+                setCategory(null);
+                return;
+            }
             onClose();
         }
 
@@ -89,12 +120,19 @@ export function Settings({ onClose }: SettingsProps) {
         return () => {
             window.removeEventListener('keydown', onKeyDown);
         };
-    }, [onClose, pendingRemove]);
+    }, [category, onClose, pendingRemove]);
 
     const availableOptions = useMemo(
         () => available.map((repository) => ({ value: repository.path, label: repository.name })),
         [available],
     );
+
+    const categoryCrumbLabel = useMemo(() => {
+        if (category === 'general') return intl.formatMessage(messages.categoryGeneralCrumb);
+        if (category === 'repos') return intl.formatMessage(messages.categoryReposCrumb);
+        if (category === 'agents') return intl.formatMessage(messages.categoryAgentsCrumb);
+        return null;
+    }, [category, intl]);
 
     async function handleSave() {
         setSaving(true);
@@ -108,6 +146,9 @@ export function Settings({ onClose }: SettingsProps) {
             setDevDir(settings.devDir);
             setAgent(settings.agent);
             setYoloMode(settings.yoloMode);
+            setSavedDevDir(settings.devDir);
+            setSavedAgent(settings.agent);
+            setSavedYoloMode(settings.yoloMode);
             showToast('settings-saved');
 
             try {
@@ -148,7 +189,7 @@ export function Settings({ onClose }: SettingsProps) {
         } catch (err: unknown) {
             showToast(
                 'generic-error',
-                err instanceof Error ? err.message : intl.formatMessage(messages.addProjectFailed),
+                err instanceof Error ? err.message : intl.formatMessage(messages.addRepositoryFailed),
             );
         } finally {
             setAddingPath(null);
@@ -174,12 +215,15 @@ export function Settings({ onClose }: SettingsProps) {
             setRepositories((current) => [...current, repository].sort((a, b) => a.name.localeCompare(b.name)));
             showToast(
                 'generic-error',
-                err instanceof Error ? err.message : intl.formatMessage(messages.removeProjectFailed),
+                err instanceof Error ? err.message : intl.formatMessage(messages.removeRepositoryFailed),
             );
         } finally {
             setRemovingId(null);
         }
     }
+
+    const isDirty = devDir.trim() !== savedDevDir || agent !== savedAgent || yoloMode !== savedYoloMode;
+    const showSave = (category === 'general' || category === 'agents') && isDirty;
 
     return (
         <div
@@ -189,7 +233,17 @@ export function Settings({ onClose }: SettingsProps) {
             aria-label={intl.formatMessage(messages.ariaLabel)}
         >
             <PageHeader
-                crumbs={[{ label: intl.formatMessage(messages.crumb) }]}
+                crumbs={
+                    category && categoryCrumbLabel
+                        ? [
+                              {
+                                  label: intl.formatMessage(messages.crumb),
+                                  onClick: () => setCategory(null),
+                              },
+                              { label: categoryCrumbLabel },
+                          ]
+                        : [{ label: intl.formatMessage(messages.crumb) }]
+                }
                 showSettings={false}
                 actions={
                     <IconButton label={intl.formatMessage(messages.close)} onClick={onClose}>
@@ -198,97 +252,54 @@ export function Settings({ onClose }: SettingsProps) {
                 }
             />
             <div className={styles.body}>
-                <p className={styles.intro}>{intl.formatMessage(messages.intro)}</p>
-
-                {loading ? <p className={styles.loading}>{intl.formatMessage(messages.loading)}</p> : null}
-
-                {!loading ? (
+                {category === null ? (
                     <>
-                        <div className={styles.fields}>
-                            <label className={styles.label}>
-                                {intl.formatMessage(messages.devDirLabel)}
-                                <input
-                                    className={styles.input}
-                                    type='text'
-                                    value={devDir}
-                                    onChange={(event) => setDevDir(event.target.value)}
-                                    placeholder={intl.formatMessage(messages.devDirPlaceholder)}
-                                    autoComplete='off'
-                                    spellCheck={false}
-                                />
-                            </label>
-                            <p className={styles.hint}>{intl.formatMessage(messages.devDirHint)}</p>
-
-                            <div>
-                                <p className={styles.label}>{intl.formatMessage(messages.projectsLabel)}</p>
-                                <div className={styles.projects}>
-                                    {repositories.length === 0 ? (
-                                        <p className={styles.projectEmpty}>
-                                            {intl.formatMessage(messages.projectsEmpty)}
-                                        </p>
-                                    ) : (
-                                        repositories.map((repository) => (
-                                            <div key={repository.id} className={styles.projectRow}>
-                                                <span className={styles.projectName}>{repository.name}</span>
-                                                <IconButton
-                                                    label={intl.formatMessage(messages.removeProject)}
-                                                    disabled={removingId === repository.id}
-                                                    onClick={() => setPendingRemove(repository)}
-                                                >
-                                                    ×
-                                                </IconButton>
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
-                                <div className={styles.addProject}>
-                                    <p className={styles.label}>{intl.formatMessage(messages.addProjectLabel)}</p>
-                                    <SearchSelect
-                                        options={availableOptions}
-                                        onSelect={(option) => {
-                                            void handleAdd(option.value);
-                                        }}
-                                        placeholder={intl.formatMessage(messages.addProjectPlaceholder)}
-                                        emptyMessage={intl.formatMessage(messages.addProjectEmpty)}
-                                        noResultsMessage={intl.formatMessage(messages.addProjectNoResults)}
-                                        disabled={Boolean(addingPath)}
-                                        ariaLabel={intl.formatMessage(messages.addProjectLabel)}
-                                    />
-                                </div>
-                            </div>
-
-                            <label className={styles.label}>
-                                {intl.formatMessage(messages.agentLabel)}
-                                <select
-                                    className={styles.select}
-                                    value={agent}
-                                    onChange={(event) => {
-                                        const next = event.target.value;
-                                        if (isAgentId(next)) {
-                                            setAgent(next);
-                                        }
-                                    }}
-                                >
-                                    {AGENTS.map((option) => (
-                                        <option key={option.id} value={option.id}>
-                                            {intl.formatMessage(option.labelMessage)}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-
-                            <div>
-                                <label className={styles.checkboxLabel}>
-                                    <input
-                                        className={styles.checkbox}
-                                        type='checkbox'
-                                        checked={yoloMode}
-                                        onChange={(event) => setYoloMode(event.target.checked)}
-                                    />
-                                    {intl.formatMessage(messages.yoloModeLabel)}
-                                </label>
-                                <p className={styles.hint}>{intl.formatMessage(messages.yoloModeHint)}</p>
-                            </div>
+                        <div className={styles.categories}>
+                            <button
+                                type='button'
+                                className={styles.categoryButton}
+                                onClick={() => setCategory('general')}
+                            >
+                                <span className={styles.categoryText}>
+                                    <span className={styles.categoryLabel}>
+                                        {intl.formatMessage(messages.categoryGeneral)}
+                                    </span>
+                                    <span className={styles.categoryDescription}>
+                                        {intl.formatMessage(messages.categoryGeneralDescription)}
+                                    </span>
+                                </span>
+                                <CategoryChevron />
+                            </button>
+                            <button
+                                type='button'
+                                className={styles.categoryButton}
+                                onClick={() => setCategory('repos')}
+                            >
+                                <span className={styles.categoryText}>
+                                    <span className={styles.categoryLabel}>
+                                        {intl.formatMessage(messages.categoryRepos)}
+                                    </span>
+                                    <span className={styles.categoryDescription}>
+                                        {intl.formatMessage(messages.categoryReposDescription)}
+                                    </span>
+                                </span>
+                                <CategoryChevron />
+                            </button>
+                            <button
+                                type='button'
+                                className={styles.categoryButton}
+                                onClick={() => setCategory('agents')}
+                            >
+                                <span className={styles.categoryText}>
+                                    <span className={styles.categoryLabel}>
+                                        {intl.formatMessage(messages.categoryAgents)}
+                                    </span>
+                                    <span className={styles.categoryDescription}>
+                                        {intl.formatMessage(messages.categoryAgentsDescription)}
+                                    </span>
+                                </span>
+                                <CategoryChevron />
+                            </button>
                         </div>
 
                         <div className={styles.actions}>
@@ -298,8 +309,103 @@ export function Settings({ onClose }: SettingsProps) {
                         </div>
                     </>
                 ) : null}
+
+                {category !== null && loading ? (
+                    <p className={styles.loading}>{intl.formatMessage(messages.loading)}</p>
+                ) : null}
+
+                {category === 'general' && !loading ? (
+                    <div className={styles.fields}>
+                        <label className={styles.label}>
+                            {intl.formatMessage(messages.devDirLabel)}
+                            <input
+                                className={styles.input}
+                                type='text'
+                                value={devDir}
+                                onChange={(event) => setDevDir(event.target.value)}
+                                placeholder={intl.formatMessage(messages.devDirPlaceholder)}
+                                autoComplete='off'
+                                spellCheck={false}
+                            />
+                        </label>
+                        <p className={styles.hint}>{intl.formatMessage(messages.devDirHint)}</p>
+                    </div>
+                ) : null}
+
+                {category === 'repos' && !loading ? (
+                    <div className={styles.fields}>
+                        <div>
+                            <p className={styles.label}>{intl.formatMessage(messages.addRepositoryLabel)}</p>
+                            <SearchSelect
+                                options={availableOptions}
+                                onSelect={(option) => {
+                                    void handleAdd(option.value);
+                                }}
+                                placeholder={intl.formatMessage(messages.addRepositoryPlaceholder)}
+                                emptyMessage={intl.formatMessage(messages.addRepositoryEmpty)}
+                                noResultsMessage={intl.formatMessage(messages.addRepositoryNoResults)}
+                                disabled={Boolean(addingPath)}
+                                ariaLabel={intl.formatMessage(messages.addRepositoryLabel)}
+                            />
+                        </div>
+                        <div className={styles.repositoriesList}>
+                            <p className={styles.label}>{intl.formatMessage(messages.repositoriesLabel)}</p>
+                            <div className={styles.repositories}>
+                                {repositories.length === 0 ? (
+                                    <p className={styles.repositoryEmpty}>
+                                        {intl.formatMessage(messages.repositoriesEmpty)}
+                                    </p>
+                                ) : (
+                                    repositories.map((repository) => (
+                                        <div key={repository.id} className={styles.repositoryRow}>
+                                            <span className={styles.repositoryName}>{repository.name}</span>
+                                            <IconButton
+                                                label={intl.formatMessage(messages.removeRepository)}
+                                                disabled={removingId === repository.id}
+                                                onClick={() => setPendingRemove(repository)}
+                                            >
+                                                ×
+                                            </IconButton>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                ) : null}
+
+                {category === 'agents' && !loading ? (
+                    <div className={styles.fields}>
+                        <label className={styles.label}>
+                            {intl.formatMessage(messages.agentLabel)}
+                            <select
+                                className={styles.select}
+                                value={agent}
+                                onChange={(event) => {
+                                    const next = event.target.value;
+                                    if (isAgentId(next)) {
+                                        setAgent(next);
+                                    }
+                                }}
+                            >
+                                {AGENTS.map((option) => (
+                                    <option key={option.id} value={option.id}>
+                                        {intl.formatMessage(option.labelMessage)}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+
+                        <Toggle
+                            label={intl.formatMessage(messages.yoloModeLabel)}
+                            description={intl.formatMessage(messages.yoloModeHint)}
+                            checked={yoloMode}
+                            onChange={setYoloMode}
+                        />
+                    </div>
+                ) : null}
             </div>
-            {!loading ? (
+            {showSave && !loading ? (
                 <div className={styles.footer}>
                     <Button type='button' onClick={handleSave} disabled={saving}>
                         {saving ? intl.formatMessage(messages.saving) : intl.formatMessage(messages.save)}
@@ -308,9 +414,9 @@ export function Settings({ onClose }: SettingsProps) {
             ) : null}
             {pendingRemove ? (
                 <ConfirmDialog
-                    message={intl.formatMessage(messages.removeProjectConfirm, { name: pendingRemove.name })}
-                    cancelLabel={intl.formatMessage(messages.removeProjectConfirmCancel)}
-                    confirmLabel={intl.formatMessage(messages.removeProjectConfirmContinue)}
+                    message={intl.formatMessage(messages.removeRepositoryConfirm, { name: pendingRemove.name })}
+                    cancelLabel={intl.formatMessage(messages.removeRepositoryConfirmCancel)}
+                    confirmLabel={intl.formatMessage(messages.removeRepositoryConfirmContinue)}
                     busy={removingId === pendingRemove.id}
                     onCancel={() => setPendingRemove(null)}
                     onConfirm={() => {

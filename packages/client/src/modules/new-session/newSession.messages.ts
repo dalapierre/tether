@@ -57,15 +57,15 @@ export const messages = defineMessages<Messages>(
         },
         projectLabel: {
             id: 'newSession.projectLabel',
-            defaultMessage: 'Project',
+            defaultMessage: 'Repository',
         },
         projectPlaceholder: {
             id: 'newSession.projectPlaceholder',
-            defaultMessage: 'Select a project',
+            defaultMessage: 'Select a repository',
         },
         projectsEmpty: {
             id: 'newSession.projectsEmpty',
-            defaultMessage: 'No projects available. Add one in Settings.',
+            defaultMessage: 'No repositories available. Add one in Settings.',
         },
         branchLabel: {
             id: 'newSession.branchLabel',
