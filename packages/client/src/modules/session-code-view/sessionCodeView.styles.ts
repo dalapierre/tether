@@ -3,6 +3,8 @@ export const styles = {
     editorPanel: 'flex min-h-0 flex-1 flex-col md:min-w-0',
     editorPanelMobileHidden: 'hidden min-h-0 flex-1 flex-col md:flex md:min-w-0',
     listPanelWrap: 'relative flex min-h-0 flex-1 flex-col overflow-visible md:h-full md:flex-none md:shrink-0',
+    listPanelWrapMobileHidden:
+        'hidden min-h-0 md:relative md:flex md:h-full md:flex-none md:shrink-0 md:overflow-visible',
     listPanel: 'flex h-full min-h-0 w-full flex-1 flex-col md:border-r md:border-zinc-800',
     listPanelMobileHidden: 'hidden h-full min-h-0 w-full flex-col md:flex',
     fileTreeResize: 'z-30',

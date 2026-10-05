@@ -350,6 +350,7 @@ export function SessionCodeView({ sessionId, onHasFilesChange }: SessionCodeView
     const editorEmptyMessage = !hasFiles ? intl.formatMessage(messages.empty) : intl.formatMessage(messages.selectFile);
 
     const showEditor = isDesktop || Boolean(selectedPath);
+    const listPanelWrapClass = !isDesktop && selectedPath ? styles.listPanelWrapMobileHidden : styles.listPanelWrap;
     const listPanelClass = selectedPath ? styles.listPanelMobileHidden : styles.listPanel;
     const editorPanelClass = showEditor ? styles.editorPanel : styles.editorPanelMobileHidden;
 
@@ -357,7 +358,7 @@ export function SessionCodeView({ sessionId, onHasFilesChange }: SessionCodeView
 
     return (
         <div className={styles.root}>
-            <div className={styles.listPanelWrap} style={listPanelWrapStyle}>
+            <div className={listPanelWrapClass} style={listPanelWrapStyle}>
                 <div className={listPanelClass}>
                     <div className={styles.toolbar}>
                         <p className={styles.toolbarTitle}>
