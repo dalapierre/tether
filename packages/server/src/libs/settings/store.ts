@@ -13,11 +13,13 @@ export type StoredRepository = {
 export type Settings = {
     devDir: string;
     agent: AgentId;
+    yoloMode: boolean;
 };
 
 type SettingsFile = {
     devDir: string;
     agent: AgentId;
+    yoloMode: boolean;
     /** Persisted added repositories — not exposed via the settings API/UI. */
     repositories: StoredRepository[];
 };
@@ -28,6 +30,7 @@ const legacyDataFile = path.join(getLegacyServerDataDir(), 'settings.json');
 const defaultSettingsFile: SettingsFile = {
     devDir: '',
     agent: 'cursor',
+    yoloMode: false,
     repositories: [],
 };
 
@@ -47,6 +50,7 @@ function toPublicSettings(file: SettingsFile): Settings {
     return {
         devDir: file.devDir,
         agent: file.agent,
+        yoloMode: file.yoloMode,
     };
 }
 
@@ -58,9 +62,10 @@ function normalizeSettingsFile(value: unknown): SettingsFile {
     const record = value as Record<string, unknown>;
     const devDir = typeof record.devDir === 'string' ? record.devDir : '';
     const agent = isAgentId(record.agent) ? record.agent : defaultSettingsFile.agent;
+    const yoloMode = typeof record.yoloMode === 'boolean' ? record.yoloMode : defaultSettingsFile.yoloMode;
     const repositories = Array.isArray(record.repositories) ? record.repositories.filter(isStoredRepository) : [];
 
-    return { devDir, agent, repositories };
+    return { devDir, agent, yoloMode, repositories };
 }
 
 /** One-time: move settings from packages/server/data into ~/.tether. */
@@ -139,6 +144,7 @@ export async function updateSettings(patch: Partial<Settings>): Promise<Settings
         ...current,
         devDir: typeof patch.devDir === 'string' ? patch.devDir : current.devDir,
         agent: isAgentId(patch.agent) ? patch.agent : current.agent,
+        yoloMode: typeof patch.yoloMode === 'boolean' ? patch.yoloMode : current.yoloMode,
     };
     await writeSettingsFile(next);
     return toPublicSettings(next);

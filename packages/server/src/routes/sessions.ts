@@ -79,6 +79,7 @@ sessionsRouter.post('/', async (req, res) => {
     const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
     const branch = typeof req.body?.branch === 'string' ? req.body.branch.trim() : '';
     const agent = req.body?.agent;
+    const yoloMode = typeof req.body?.yoloMode === 'boolean' ? req.body.yoloMode : false;
 
     if (!repositoryId) {
         res.status(400).json({ error: 'Repository is required' });
@@ -98,6 +99,7 @@ sessionsRouter.post('/', async (req, res) => {
             repositoryId,
             name,
             agent,
+            yoloMode,
             ...(branch ? { branch } : {}),
         });
         res.status(201).json({ session });

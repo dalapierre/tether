@@ -17,6 +17,7 @@ settingsRouter.get('/', async (_req, res) => {
 settingsRouter.put('/', async (req, res) => {
     const devDir = typeof req.body?.devDir === 'string' ? req.body.devDir.trim() : undefined;
     const agentRaw = typeof req.body?.agent === 'string' ? req.body.agent.trim() : undefined;
+    const yoloMode = typeof req.body?.yoloMode === 'boolean' ? req.body.yoloMode : undefined;
 
     if (devDir === undefined) {
         res.status(400).json({ error: 'devDir is required' });
@@ -33,8 +34,13 @@ settingsRouter.put('/', async (req, res) => {
         return;
     }
 
+    if (yoloMode === undefined) {
+        res.status(400).json({ error: 'yoloMode is required' });
+        return;
+    }
+
     try {
-        const settings = await updateSettings({ devDir, agent: agentRaw });
+        const settings = await updateSettings({ devDir, agent: agentRaw, yoloMode });
         res.json({ settings });
     } catch (err: unknown) {
         console.error('Failed to save settings', err);

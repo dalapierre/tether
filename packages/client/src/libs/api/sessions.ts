@@ -102,6 +102,7 @@ export async function createSession(input: {
     name: string;
     agent: AgentId;
     branch?: string;
+    yoloMode?: boolean;
 }): Promise<Session> {
     const res = await apiFetch('/api/sessions', {
         method: 'POST',

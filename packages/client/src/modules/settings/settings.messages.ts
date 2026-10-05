@@ -21,6 +21,8 @@ type Messages = {
     removeProjectConfirmCancel: NoMessageValues;
     removeProjectFailed: NoMessageValues;
     agentLabel: NoMessageValues;
+    yoloModeLabel: NoMessageValues;
+    yoloModeHint: NoMessageValues;
     signOut: NoMessageValues;
     saving: NoMessageValues;
     save: NoMessageValues;
@@ -107,6 +109,14 @@ export const messages = defineMessages<Messages>(
         agentLabel: {
             id: 'settings.agentLabel',
             defaultMessage: 'Agent',
+        },
+        yoloModeLabel: {
+            id: 'settings.yoloModeLabel',
+            defaultMessage: 'Yolo mode',
+        },
+        yoloModeHint: {
+            id: 'settings.yoloModeHint',
+            defaultMessage: 'Default new sessions to auto-approve agent commands.',
         },
         signOut: {
             id: 'settings.signOut',

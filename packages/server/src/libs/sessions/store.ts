@@ -34,6 +34,7 @@ import type { WebSocket } from 'ws';
 const execFileAsync = promisify(execFile);
 
 type RuntimeSession = Session & {
+    yoloMode: boolean;
     worktreePath: string;
     baseSha: string;
     pty: IPty | null;
@@ -153,7 +154,7 @@ async function createWorktree(
 }
 
 function spawnHarness(session: RuntimeSession): void {
-    const harness = getHarnessCommand(session.agent);
+    const harness = getHarnessCommand(session.agent, { yoloMode: session.yoloMode });
     try {
         const term = pty.spawn(harness.command, harness.args, {
             name: 'xterm-256color',
@@ -189,6 +190,7 @@ export async function createSession(input: {
     name: string;
     agent: AgentId;
     branch?: string;
+    yoloMode?: boolean;
 }): Promise<Session> {
     const name = input.name.trim();
     if (!name) {
@@ -219,6 +221,7 @@ export async function createSession(input: {
         branch: worktree.branch,
         status: 'busy',
         createdAt: Date.now(),
+        yoloMode: Boolean(input.yoloMode),
         worktreePath: worktree.worktreePath,
         baseSha: worktree.baseSha,
         pty: null,

@@ -15,6 +15,7 @@ type Messages = {
     branchLabel: NoMessageValues;
     branchPlaceholder: NoMessageValues;
     agentLabel: NoMessageValues;
+    yoloModeLabel: NoMessageValues;
     start: NoMessageValues;
     starting: NoMessageValues;
     startFailed: NoMessageValues;
@@ -77,6 +78,10 @@ export const messages = defineMessages<Messages>(
         agentLabel: {
             id: 'newSession.agentLabel',
             defaultMessage: 'Agent',
+        },
+        yoloModeLabel: {
+            id: 'newSession.yoloModeLabel',
+            defaultMessage: 'Yolo mode',
         },
         start: {
             id: 'newSession.start',

@@ -21,6 +21,7 @@ export function Settings({ onClose }: SettingsProps) {
     const navigate = useNavigate();
     const [devDir, setDevDir] = useState('');
     const [agent, setAgent] = useState<AgentId>('cursor');
+    const [yoloMode, setYoloMode] = useState(false);
     const [repositories, setRepositories] = useState<Repository[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -36,6 +37,7 @@ export function Settings({ onClose }: SettingsProps) {
                 if (cancelled) return;
                 setDevDir(settings.devDir);
                 setAgent(isAgentId(settings.agent) ? settings.agent : 'cursor');
+                setYoloMode(Boolean(settings.yoloMode));
                 setRepositories(items);
             })
             .catch((err: unknown) => {
@@ -64,9 +66,11 @@ export function Settings({ onClose }: SettingsProps) {
             const settings = await updateSettings({
                 devDir: devDir.trim(),
                 agent,
+                yoloMode,
             });
             setDevDir(settings.devDir);
             setAgent(settings.agent);
+            setYoloMode(settings.yoloMode);
             showToast('settings-saved');
         } catch (err: unknown) {
             if (err instanceof ApiError) {
@@ -205,6 +209,19 @@ export function Settings({ onClose }: SettingsProps) {
                                     ))}
                                 </select>
                             </label>
+
+                            <div>
+                                <label className={styles.checkboxLabel}>
+                                    <input
+                                        className={styles.checkbox}
+                                        type='checkbox'
+                                        checked={yoloMode}
+                                        onChange={(event) => setYoloMode(event.target.checked)}
+                                    />
+                                    {intl.formatMessage(messages.yoloModeLabel)}
+                                </label>
+                                <p className={styles.hint}>{intl.formatMessage(messages.yoloModeHint)}</p>
+                            </div>
                         </div>
 
                         <div className={styles.actions}>

@@ -5,9 +5,18 @@ export type HarnessCommand = {
     args: string[];
 };
 
-export function getHarnessCommand(agent: AgentId): HarnessCommand {
+export type HarnessOptions = {
+    yoloMode?: boolean;
+};
+
+export function getHarnessCommand(agent: AgentId, options: HarnessOptions = {}): HarnessCommand {
     switch (agent) {
-        case 'cursor':
-            return { command: 'agent', args: ['--trust'] };
+        case 'cursor': {
+            const args = ['--trust'];
+            if (options.yoloMode) {
+                args.push('--yolo');
+            }
+            return { command: 'agent', args };
+        }
     }
 }

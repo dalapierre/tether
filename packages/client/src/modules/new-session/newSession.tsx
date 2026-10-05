@@ -18,6 +18,7 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
     const [repositoryId, setRepositoryId] = useState('');
     const [branch, setBranch] = useState('');
     const [agent, setAgent] = useState<AgentId>('cursor');
+    const [yoloMode, setYoloMode] = useState(false);
     const [repositories, setRepositories] = useState<Repository[]>([]);
     const [loading, setLoading] = useState(true);
     const [starting, setStarting] = useState(false);
@@ -29,6 +30,7 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
             .then(([settings, items]) => {
                 if (cancelled) return;
                 setAgent(isAgentId(settings.agent) ? settings.agent : 'cursor');
+                setYoloMode(Boolean(settings.yoloMode));
                 setRepositories(items);
                 if (items.length === 1) {
                     setRepositoryId(items[0].id);
@@ -64,6 +66,7 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                 repositoryId,
                 name: trimmedName,
                 agent,
+                yoloMode,
                 ...(trimmedBranch ? { branch: trimmedBranch } : {}),
             });
             onStarted(session);
@@ -176,6 +179,17 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                                     </option>
                                 ))}
                             </select>
+                        </label>
+
+                        <label className={styles.checkboxLabel}>
+                            <input
+                                className={styles.checkbox}
+                                type='checkbox'
+                                checked={yoloMode}
+                                disabled={starting}
+                                onChange={(event) => setYoloMode(event.target.checked)}
+                            />
+                            {intl.formatMessage(messages.yoloModeLabel)}
                         </label>
                     </form>
                 ) : null}
