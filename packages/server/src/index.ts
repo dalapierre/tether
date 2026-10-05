@@ -19,7 +19,8 @@ dotenv.config({ path: path.join(repoRoot, '.env') });
 dotenv.config({ path: path.join(packageRoot, '.env') });
 
 const PORT = Number(process.env.PORT) || 3001;
-const HOST = process.env.HOST || '0.0.0.0';
+const OVER_NETWORK = process.env.OVER_NETWORK === 'true';
+const HOST = OVER_NETWORK ? '0.0.0.0' : '127.0.0.1';
 
 const app = express();
 
@@ -49,6 +50,9 @@ attachTerminalServer(server);
 
 server.listen(PORT, HOST, () => {
     console.log(`Tether server listening on http://${HOST}:${PORT}`);
+    if (OVER_NETWORK) {
+        console.log('OVER_NETWORK=true — accepting connections from the local network');
+    }
     if (!process.env.ACCESS_KEY) {
         console.warn('ACCESS_KEY is not set — authentication will reject all logins');
     }
