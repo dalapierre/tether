@@ -15,8 +15,8 @@ export const styles = {
     categoryChevron: 'h-4 w-4 shrink-0 text-zinc-500',
     fields: 'mt-6 flex flex-col gap-3',
     label: 'block text-sm text-zinc-400',
-    input: 'mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-zinc-100 outline-none focus:border-zinc-500',
-    select: 'mt-1 w-full appearance-none rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-zinc-100 outline-none focus:border-zinc-500',
+    input: 'mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-base text-zinc-100 outline-none focus:border-zinc-500',
+    select: 'mt-1 w-full appearance-none rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-base text-zinc-100 outline-none focus:border-zinc-500',
     hint: 'text-xs text-zinc-500',
     repositories: 'mt-1 flex flex-col gap-2',
     repositoryRow:

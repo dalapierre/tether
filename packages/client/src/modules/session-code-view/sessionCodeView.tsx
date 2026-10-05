@@ -27,6 +27,16 @@ setupMonaco();
 
 const TREE_INDENT_PX = 12;
 const TREE_BASE_PAD_PX = 12;
+const DIFF_POLL_MS = 3000;
+
+function fileListSignature(files: SessionDiffFile[]): string {
+    return files
+        .map(
+            (file) =>
+                `${file.path}\0${file.oldPath ?? ''}\0${file.status}\0${file.additions}\0${file.deletions}\0${file.binary}`,
+        )
+        .join('\n');
+}
 
 function statusClass(status: DiffFileStatus): string {
     switch (status) {
@@ -239,6 +249,9 @@ export function SessionCodeView({ sessionId, onHasFilesChange }: SessionCodeView
 
     const tree = useMemo(() => buildFileTree(files), [files]);
     fileTreeWidthRef.current = fileTreeWidth;
+    const selectedPathRef = useRef(selectedPath);
+    selectedPathRef.current = selectedPath;
+    const filesSignatureRef = useRef(fileListSignature(files));
 
     const persistFileTreeWidth = useCallback(() => {
         setFileTreeWidthPx(fileTreeWidthRef.current);
@@ -249,34 +262,60 @@ export function SessionCodeView({ sessionId, onHasFilesChange }: SessionCodeView
         onHasFilesChange?.(hasFiles);
     }, [hasFiles, onHasFilesChange]);
 
+    const applyDiffFiles = useCallback((nextFiles: SessionDiffFile[]) => {
+        const nextSignature = fileListSignature(nextFiles);
+        if (nextSignature === filesSignatureRef.current) {
+            return false;
+        }
+        filesSignatureRef.current = nextSignature;
+        setFiles(nextFiles);
+        const selected = selectedPathRef.current;
+        if (selected && !nextFiles.some((file) => file.path === selected)) {
+            setSelectedPath(null);
+        }
+        return true;
+    }, []);
+
     useEffect(() => {
         let cancelled = false;
+        filesSignatureRef.current = '';
 
-        setLoading(true);
-        getSessionDiff(sessionId)
-            .then((diff) => {
-                if (!cancelled) {
-                    setFiles(diff.files);
-                }
-            })
-            .catch((err: unknown) => {
-                if (!cancelled) {
-                    showToast(
-                        'generic-error',
-                        err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed),
-                    );
-                }
-            })
-            .finally(() => {
-                if (!cancelled) {
-                    setLoading(false);
-                }
-            });
+        const load = (initial: boolean) => {
+            if (initial) {
+                setLoading(true);
+            }
+
+            return getSessionDiff(sessionId)
+                .then((diff) => {
+                    if (!cancelled) {
+                        applyDiffFiles(diff.files);
+                    }
+                })
+                .catch((err: unknown) => {
+                    if (!cancelled && initial) {
+                        showToast(
+                            'generic-error',
+                            err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed),
+                        );
+                    }
+                })
+                .finally(() => {
+                    if (!cancelled && initial) {
+                        setLoading(false);
+                    }
+                });
+        };
+
+        void load(true);
+        const timer = window.setInterval(() => {
+            void load(false);
+        }, DIFF_POLL_MS);
 
         return () => {
             cancelled = true;
+            window.clearInterval(timer);
         };
-    }, [sessionId, intl]);
+    }, [sessionId, intl, applyDiffFiles]);
 
     const loadingLabel = intl.formatMessage(messages.loading);
 
@@ -314,14 +353,44 @@ export function SessionCodeView({ sessionId, onHasFilesChange }: SessionCodeView
         };
     }, [sessionId, selectedPath, intl]);
 
+    // Keep the open file's contents fresh even when summary stats are unchanged.
+    useEffect(() => {
+        if (!selectedPath) return;
+
+        let cancelled = false;
+        const timer = window.setInterval(() => {
+            getSessionDiffFile(sessionId, selectedPath)
+                .then((file) => {
+                    if (cancelled) return;
+                    setFileDiff((prev) => {
+                        if (
+                            prev &&
+                            prev.path === file.path &&
+                            prev.original === file.original &&
+                            prev.modified === file.modified &&
+                            prev.status === file.status
+                        ) {
+                            return prev;
+                        }
+                        return file;
+                    });
+                })
+                .catch(() => {
+                    // Best-effort background refresh; keep the last good diff.
+                });
+        }, DIFF_POLL_MS);
+
+        return () => {
+            cancelled = true;
+            window.clearInterval(timer);
+        };
+    }, [sessionId, selectedPath]);
+
     function refresh() {
         setRefreshing(true);
         getSessionDiff(sessionId)
             .then((diff) => {
-                setFiles(diff.files);
-                if (selectedPath && !diff.files.some((file) => file.path === selectedPath)) {
-                    setSelectedPath(null);
-                }
+                applyDiffFiles(diff.files);
             })
             .catch((err: unknown) => {
                 showToast(

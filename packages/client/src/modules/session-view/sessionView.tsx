@@ -1,3 +1,5 @@
+import { Button } from '@client/components/button';
+import { IconButton } from '@client/components/icon-button';
 import { PageHeader } from '@client/components/page-header';
 import { PanelResizeHandle, panelResizeHandleMessages } from '@client/components/panel-resize-handle';
 import { SegmentedControl } from '@client/components/segmented-control';
@@ -12,6 +14,7 @@ import {
     type Session,
     type SessionStatus,
 } from '@client/libs/api/sessions';
+import { bindSessionViewport } from '@client/libs/dom/bindSessionViewport';
 import { useIsDesktop } from '@client/libs/dom/useMediaQuery';
 import {
     clampReviewPaneWidthPx,
@@ -26,7 +29,7 @@ import { showToast } from '@client/modules/toast';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ClipboardEvent } from 'react';
 import { useIntl } from 'react-intl';
 import { useNavigate } from 'react-router-dom';
 import { messages } from './sessionView.messages';
@@ -35,6 +38,58 @@ import type { SessionViewProps } from './sessionView.types';
 
 type ConnectionState = 'connecting' | 'connected' | 'disconnected';
 type SessionTab = 'agent' | 'review';
+
+const ARROW_UP = '\x1b[A';
+const ARROW_DOWN = '\x1b[B';
+
+function ArrowUpIcon() {
+    return (
+        <svg
+            className={styles.actionIcon}
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='2'
+            aria-hidden='true'
+        >
+            <path strokeLinecap='round' strokeLinejoin='round' d='M4.5 15.75 12 8.25l7.5 7.5' />
+        </svg>
+    );
+}
+
+function ArrowDownIcon() {
+    return (
+        <svg
+            className={styles.actionIcon}
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='2'
+            aria-hidden='true'
+        >
+            <path strokeLinecap='round' strokeLinejoin='round' d='M19.5 8.25 12 15.75 4.5 8.25' />
+        </svg>
+    );
+}
+
+function PasteIcon() {
+    return (
+        <svg
+            className={styles.actionIcon}
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='1.75'
+            aria-hidden='true'
+        >
+            <path
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                d='M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9.75a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184'
+            />
+        </svg>
+    );
+}
 
 function harnessLabel(agent: AgentId, formatMessage: ReturnType<typeof useIntl>['formatMessage']): string {
     const match = AGENTS.find((item) => item.id === agent);
@@ -72,6 +127,18 @@ function prepareMobileTextarea(term: Terminal): void {
     textarea.setAttribute('autocomplete', 'off');
     textarea.setAttribute('autocorrect', 'off');
     textarea.setAttribute('spellcheck', 'false');
+    // Mobile Safari scrolls the helper textarea into view on focus, which
+    // pans the page and leaves a huge blank gap above the keyboard.
+    textarea.scrollIntoView = () => {};
+    const undoFocusScroll = () => {
+        window.scrollTo(0, 0);
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+    };
+    textarea.addEventListener('focus', () => {
+        undoFocusScroll();
+        requestAnimationFrame(undoFocusScroll);
+    });
 }
 
 function isScrolledToBottom(term: Terminal): boolean {
@@ -140,11 +207,15 @@ export function SessionView({ sessionId }: SessionViewProps) {
     const [desktopReviewOpen, setDesktopReviewOpen] = useState(false);
     const [reviewPaneWidth, setReviewPaneWidth] = useState(getReviewPaneWidthPx);
     const [repositoryName, setRepositoryName] = useState<string | null>(null);
+    const [pasteOpen, setPasteOpen] = useState(false);
     const reviewPaneWidthRef = useRef(reviewPaneWidth);
+    const rootRef = useRef<HTMLDivElement | null>(null);
     const terminalRef = useRef<HTMLDivElement | null>(null);
     const socketRef = useRef<WebSocket | null>(null);
     const termRef = useRef<Terminal | null>(null);
     const fitAddonRef = useRef<FitAddon | null>(null);
+    const sendInputRef = useRef<(data: string) => void>(() => {});
+    const pasteInputRef = useRef<HTMLTextAreaElement | null>(null);
 
     const onHasFilesChange = useCallback((hasFiles: boolean) => {
         setHasReviewFiles(hasFiles);
@@ -239,6 +310,11 @@ export function SessionView({ sessionId }: SessionViewProps) {
     }, [session?.repositoryId]);
 
     useEffect(() => {
+        if (isDesktop || !rootRef.current) return;
+        return bindSessionViewport(rootRef.current);
+    }, [isDesktop, loading, failed, session]);
+
+    useEffect(() => {
         if (loading || failed || !session || !terminalRef.current) {
             return;
         }
@@ -289,6 +365,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
             if (socket.readyState !== WebSocket.OPEN) return;
             sendTerminalMessage(socket, { type: 'input', data });
         };
+        sendInputRef.current = sendInput;
 
         const dataDisposable = term.onData(sendInput);
         const scrollDisposable = term.onScroll(() => {
@@ -296,12 +373,15 @@ export function SessionView({ sessionId }: SessionViewProps) {
         });
 
         const onResize = () => {
-            syncTerminalLayout({
-                host: terminalRef.current,
-                term,
-                fitAddon,
-                socket,
-                followOutput,
+            // Wait a frame so --app-height from visualViewport has been laid out.
+            requestAnimationFrame(() => {
+                syncTerminalLayout({
+                    host: terminalRef.current,
+                    term,
+                    fitAddon,
+                    socket,
+                    followOutput,
+                });
             });
         };
 
@@ -374,12 +454,102 @@ export function SessionView({ sessionId }: SessionViewProps) {
             scrollDisposable.dispose();
             socket.close();
             socketRef.current = null;
+            sendInputRef.current = () => {};
             term.dispose();
             termRef.current = null;
             fitAddonRef.current = null;
             setConnection('disconnected');
         };
     }, [loading, failed, session, intl]);
+
+    function focusTerminal() {
+        termRef.current?.focus();
+    }
+
+    function applyPaste(text: string) {
+        if (!text) return;
+        const term = termRef.current;
+        if (term) {
+            term.paste(text);
+            term.focus();
+        } else {
+            sendInputRef.current(text);
+        }
+    }
+
+    function sendArrowUp() {
+        sendInputRef.current(ARROW_UP);
+        focusTerminal();
+    }
+
+    function sendArrowDown() {
+        sendInputRef.current(ARROW_DOWN);
+        focusTerminal();
+    }
+
+    async function pasteFromClipboard() {
+        // Mobile browsers usually block clipboard.readText(); go straight to
+        // a paste sheet where a user-initiated paste event can supply the text.
+        if (!isDesktop) {
+            setPasteOpen(true);
+            return;
+        }
+
+        try {
+            if (navigator.clipboard?.readText) {
+                const text = await navigator.clipboard.readText();
+                if (text) {
+                    applyPaste(text);
+                    return;
+                }
+            }
+        } catch {
+            // Fall through to the paste sheet.
+        }
+        setPasteOpen(true);
+    }
+
+    function closePasteSheet() {
+        setPasteOpen(false);
+    }
+
+    function submitPasteSheet() {
+        const text = pasteInputRef.current?.value ?? '';
+        setPasteOpen(false);
+        applyPaste(text);
+    }
+
+    function onPasteSheetPaste(event: ClipboardEvent<HTMLTextAreaElement>) {
+        const text = event.clipboardData.getData('text/plain');
+        if (!text) return;
+        event.preventDefault();
+        setPasteOpen(false);
+        applyPaste(text);
+    }
+
+    useEffect(() => {
+        if (!pasteOpen) return;
+        const frame = requestAnimationFrame(() => {
+            const input = pasteInputRef.current;
+            if (!input) return;
+            input.value = '';
+            input.focus();
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [pasteOpen]);
+
+    useEffect(() => {
+        if (!pasteOpen) return;
+
+        function onKeyDown(event: KeyboardEvent) {
+            if (event.key === 'Escape') {
+                setPasteOpen(false);
+            }
+        }
+
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [pasteOpen]);
 
     useEffect(() => {
         if (!session || session.type !== 'coding') {
@@ -448,7 +618,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
 
     if (loading) {
         return (
-            <div className={styles.root}>
+            <div ref={rootRef} className={styles.root}>
                 <PageHeader
                     crumbs={[
                         { label: intl.formatMessage(messages.sessionsCrumb), to: '/' },
@@ -464,7 +634,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
 
     if (failed || !session) {
         return (
-            <div className={styles.root}>
+            <div ref={rootRef} className={styles.root}>
                 <PageHeader
                     crumbs={[
                         { label: intl.formatMessage(messages.sessionsCrumb), to: '/' },
@@ -486,11 +656,27 @@ export function SessionView({ sessionId }: SessionViewProps) {
               : null;
 
     return (
-        <div className={styles.root}>
+        <div ref={rootRef} className={styles.root}>
             <PageHeader
                 crumbs={[{ label: intl.formatMessage(messages.sessionsCrumb), to: '/' }, { label: session.name }]}
                 showSettings={false}
                 onBack={() => navigate('/')}
+                actions={
+                    <div className={styles.mobileActions}>
+                        <IconButton label={intl.formatMessage(messages.arrowUp)} onClick={sendArrowUp}>
+                            <ArrowUpIcon />
+                        </IconButton>
+                        <IconButton label={intl.formatMessage(messages.arrowDown)} onClick={sendArrowDown}>
+                            <ArrowDownIcon />
+                        </IconButton>
+                        <IconButton
+                            label={intl.formatMessage(messages.paste)}
+                            onClick={() => void pasteFromClipboard()}
+                        >
+                            <PasteIcon />
+                        </IconButton>
+                    </div>
+                }
             />
             {session.type === 'coding' && !isDesktop ? (
                 <div className={styles.tabs}>
@@ -576,6 +762,45 @@ export function SessionView({ sessionId }: SessionViewProps) {
                     </div>
                 ) : null}
             </div>
+            {pasteOpen ? (
+                <div
+                    className={styles.pasteBackdrop}
+                    role='presentation'
+                    onMouseDown={(event) => {
+                        if (event.target === event.currentTarget) {
+                            closePasteSheet();
+                        }
+                    }}
+                >
+                    <div
+                        className={styles.pastePanel}
+                        role='dialog'
+                        aria-modal='true'
+                        aria-label={intl.formatMessage(messages.pasteSheetTitle)}
+                    >
+                        <p className={styles.pasteTitle}>{intl.formatMessage(messages.pasteSheetTitle)}</p>
+                        <p className={styles.pasteHint}>{intl.formatMessage(messages.pasteSheetHint)}</p>
+                        <textarea
+                            ref={pasteInputRef}
+                            className={styles.pasteInput}
+                            rows={4}
+                            autoCapitalize='off'
+                            autoCorrect='off'
+                            spellCheck={false}
+                            enterKeyHint='done'
+                            onPaste={onPasteSheetPaste}
+                        />
+                        <div className={styles.pasteActions}>
+                            <Button type='button' onClick={submitPasteSheet}>
+                                {intl.formatMessage(messages.pasteSheetInsert)}
+                            </Button>
+                            <Button type='button' variant='secondary' onClick={closePasteSheet}>
+                                {intl.formatMessage(messages.pasteSheetCancel)}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </div>
     );
 }

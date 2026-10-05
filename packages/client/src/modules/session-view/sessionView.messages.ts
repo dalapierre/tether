@@ -17,6 +17,13 @@ type Messages = {
     reviewView: NoMessageValues;
     openReview: NoMessageValues;
     closeReview: NoMessageValues;
+    arrowUp: NoMessageValues;
+    arrowDown: NoMessageValues;
+    paste: NoMessageValues;
+    pasteSheetTitle: NoMessageValues;
+    pasteSheetHint: NoMessageValues;
+    pasteSheetCancel: NoMessageValues;
+    pasteSheetInsert: NoMessageValues;
 };
 
 export const messages = defineMessages<Messages>(
@@ -84,6 +91,34 @@ export const messages = defineMessages<Messages>(
         closeReview: {
             id: 'sessionView.closeReview',
             defaultMessage: 'Close review',
+        },
+        arrowUp: {
+            id: 'sessionView.arrowUp',
+            defaultMessage: 'Up arrow',
+        },
+        arrowDown: {
+            id: 'sessionView.arrowDown',
+            defaultMessage: 'Down arrow',
+        },
+        paste: {
+            id: 'sessionView.paste',
+            defaultMessage: 'Paste from clipboard',
+        },
+        pasteSheetTitle: {
+            id: 'sessionView.pasteSheetTitle',
+            defaultMessage: 'Paste into session',
+        },
+        pasteSheetHint: {
+            id: 'sessionView.pasteSheetHint',
+            defaultMessage: 'Long-press the field and choose Paste',
+        },
+        pasteSheetCancel: {
+            id: 'sessionView.pasteSheetCancel',
+            defaultMessage: 'Cancel',
+        },
+        pasteSheetInsert: {
+            id: 'sessionView.pasteSheetInsert',
+            defaultMessage: 'Insert',
         },
     },
     { typed: true },

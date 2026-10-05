@@ -198,10 +198,12 @@ export function SearchSelect<T extends string>({
                                     id={`${listboxId}-option-${index}`}
                                     type='button'
                                     role='option'
+                                    tabIndex={-1}
                                     aria-selected={active}
                                     className={`${styles.option}${active ? ` ${styles.optionActive}` : ''}`}
                                     onMouseEnter={() => setActiveIndex(index)}
                                     onMouseDown={(event) => {
+                                        // Keep focus on the input; selecting must not blur first.
                                         event.preventDefault();
                                         selectOption(option);
                                     }}
