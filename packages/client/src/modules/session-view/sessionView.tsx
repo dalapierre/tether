@@ -71,6 +71,44 @@ function isScrolledToBottom(term: Terminal): boolean {
     return buffer.viewportY >= buffer.baseY;
 }
 
+function syncTerminalLayout(options: {
+    host: HTMLElement | null;
+    term: Terminal;
+    fitAddon: FitAddon;
+    socket?: WebSocket | null;
+    refresh?: boolean;
+}): void {
+    const { host, term, fitAddon, socket, refresh } = options;
+    if (!host || host.clientWidth === 0 || host.clientHeight === 0) {
+        return;
+    }
+    if (document.visibilityState === 'hidden') {
+        return;
+    }
+
+    const stickToBottom = isScrolledToBottom(term);
+    try {
+        fitAddon.fit();
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            sendTerminalMessage(socket, {
+                type: 'resize',
+                cols: term.cols,
+                rows: term.rows,
+            });
+        }
+        if (refresh) {
+            // Returning from a backgrounded tab can leave the cursor
+            // painted at the wrong place until the renderer redraws.
+            term.refresh(0, Math.max(0, term.rows - 1));
+        }
+        if (stickToBottom) {
+            term.scrollToBottom();
+        }
+    } catch {
+        // ignore fit errors while unmounted/hidden
+    }
+}
+
 export function SessionView({ sessionId }: SessionViewProps) {
     const intl = useIntl();
     const [session, setSession] = useState<Session | null>(null);
@@ -168,16 +206,28 @@ export function SessionView({ sessionId }: SessionViewProps) {
         const dataDisposable = term.onData(sendInput);
 
         const onResize = () => {
-            try {
-                fitAddon.fit();
-                sendTerminalMessage(socket, {
-                    type: 'resize',
-                    cols: term.cols,
-                    rows: term.rows,
+            syncTerminalLayout({
+                host: terminalRef.current,
+                term,
+                fitAddon,
+                socket,
+            });
+        };
+
+        const onVisibilityOrFocus = () => {
+            if (document.visibilityState === 'hidden') return;
+            // Wait for layout to settle after the browser restores the tab.
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    syncTerminalLayout({
+                        host: terminalRef.current,
+                        term,
+                        fitAddon,
+                        socket,
+                        refresh: true,
+                    });
                 });
-            } catch {
-                // ignore fit errors while unmounted/hidden
-            }
+            });
         };
 
         socket.addEventListener('open', () => {
@@ -213,6 +263,8 @@ export function SessionView({ sessionId }: SessionViewProps) {
         });
 
         window.addEventListener('resize', onResize);
+        window.addEventListener('focus', onVisibilityOrFocus);
+        document.addEventListener('visibilitychange', onVisibilityOrFocus);
         const visualViewport = window.visualViewport;
         visualViewport?.addEventListener('resize', onResize);
         const observer = new ResizeObserver(onResize);
@@ -221,6 +273,8 @@ export function SessionView({ sessionId }: SessionViewProps) {
 
         return () => {
             window.removeEventListener('resize', onResize);
+            window.removeEventListener('focus', onVisibilityOrFocus);
+            document.removeEventListener('visibilitychange', onVisibilityOrFocus);
             visualViewport?.removeEventListener('resize', onResize);
             observer.disconnect();
             detachTouchScroll();
@@ -238,22 +292,16 @@ export function SessionView({ sessionId }: SessionViewProps) {
         if (tab !== 'agent') return;
         const fitAddon = fitAddonRef.current;
         const term = termRef.current;
-        const socket = socketRef.current;
         if (!fitAddon || !term) return;
 
         requestAnimationFrame(() => {
-            try {
-                fitAddon.fit();
-                if (socket && socket.readyState === WebSocket.OPEN) {
-                    sendTerminalMessage(socket, {
-                        type: 'resize',
-                        cols: term.cols,
-                        rows: term.rows,
-                    });
-                }
-            } catch {
-                // ignore fit errors while unmounted/hidden
-            }
+            syncTerminalLayout({
+                host: terminalRef.current,
+                term,
+                fitAddon,
+                socket: socketRef.current,
+                refresh: true,
+            });
         });
     }, [tab]);
 
