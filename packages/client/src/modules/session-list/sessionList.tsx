@@ -20,7 +20,6 @@ export function SessionList() {
     const [repositories, setRepositories] = useState<Repository[]>([]);
     const [sessions, setSessions] = useState<Session[]>([]);
     const [sessionsLoading, setSessionsLoading] = useState(true);
-    const [revealedId, setRevealedId] = useState<string | null>(null);
     const [pendingDelete, setPendingDelete] = useState<Session | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -76,7 +75,6 @@ export function SessionList() {
         if (!session || deletingId) return;
 
         setDeletingId(session.id);
-        setRevealedId(null);
         setPendingDelete(null);
         setSessions((current) => current.filter((item) => item.id !== session.id));
 
@@ -117,9 +115,6 @@ export function SessionList() {
                     ? sessions.map((session) => (
                           <SwipeToDelete
                               key={session.id}
-                              deleteLabel={intl.formatMessage(messages.deleteSession)}
-                              open={revealedId === session.id}
-                              onOpenChange={(open) => setRevealedId(open ? session.id : null)}
                               disabled={deletingId === session.id}
                               onDelete={() => {
                                   setPendingDelete(session);

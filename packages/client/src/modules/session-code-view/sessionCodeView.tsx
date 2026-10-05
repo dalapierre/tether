@@ -239,7 +239,6 @@ export function SessionCodeView({ sessionId, onHasFilesChange }: SessionCodeView
     const isDesktop = useIsDesktop();
     const [files, setFiles] = useState<SessionDiffFile[]>([]);
     const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
     const [selectedPath, setSelectedPath] = useState<string | null>(null);
     const [fileDiff, setFileDiff] = useState<SessionFileDiff | null>(null);
     const [fileLoading, setFileLoading] = useState(false);
@@ -386,23 +385,6 @@ export function SessionCodeView({ sessionId, onHasFilesChange }: SessionCodeView
         };
     }, [sessionId, selectedPath]);
 
-    function refresh() {
-        setRefreshing(true);
-        getSessionDiff(sessionId)
-            .then((diff) => {
-                applyDiffFiles(diff.files);
-            })
-            .catch((err: unknown) => {
-                showToast(
-                    'generic-error',
-                    err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed),
-                );
-            })
-            .finally(() => {
-                setRefreshing(false);
-            });
-    }
-
     function toggleFolder(path: string) {
         setCollapsedPaths((prev) => {
             const next = new Set(prev);
@@ -435,23 +417,13 @@ export function SessionCodeView({ sessionId, onHasFilesChange }: SessionCodeView
                                 ? intl.formatMessage(messages.filesChanged, { count: files.length })
                                 : intl.formatMessage(messages.filesChangedTitle)}
                         </p>
-                        <div className={styles.toolbarActions}>
-                            <button
-                                type='button'
-                                className={styles.refreshButton}
-                                onClick={refresh}
-                                disabled={loading || refreshing}
-                            >
-                                {intl.formatMessage(messages.refresh)}
-                            </button>
-                        </div>
                     </div>
                     {listLoading ? (
                         <Spinner label={loadingLabel} />
                     ) : files.length === 0 ? (
                         <p className={styles.centered}>{intl.formatMessage(messages.empty)}</p>
                     ) : (
-                        <div className={styles.fileList} aria-busy={refreshing}>
+                        <div className={styles.fileList}>
                             <FileTree
                                 nodes={tree}
                                 depth={0}
