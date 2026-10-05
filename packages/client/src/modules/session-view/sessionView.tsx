@@ -2,6 +2,7 @@ import { PageHeader } from '@client/components/page-header';
 import { PanelResizeHandle, panelResizeHandleMessages } from '@client/components/panel-resize-handle';
 import { SegmentedControl } from '@client/components/segmented-control';
 import { AGENTS, type AgentId } from '@client/libs/agents/agents';
+import { getRepository } from '@client/libs/api/repositories';
 import {
     connectSessionTerminal,
     getSession,
@@ -131,6 +132,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
     const [hasReviewFiles, setHasReviewFiles] = useState(false);
     const [desktopReviewOpen, setDesktopReviewOpen] = useState(false);
     const [reviewPaneWidth, setReviewPaneWidth] = useState(getReviewPaneWidthPx);
+    const [repositoryName, setRepositoryName] = useState<string | null>(null);
     const reviewPaneWidthRef = useRef(reviewPaneWidth);
     const terminalRef = useRef<HTMLDivElement | null>(null);
     const socketRef = useRef<WebSocket | null>(null);
@@ -203,6 +205,31 @@ export function SessionView({ sessionId }: SessionViewProps) {
             cancelled = true;
         };
     }, [sessionId, intl]);
+
+    useEffect(() => {
+        const repositoryId = session?.repositoryId;
+        if (!repositoryId) {
+            setRepositoryName(null);
+            return;
+        }
+
+        let cancelled = false;
+        getRepository(repositoryId)
+            .then((repository) => {
+                if (!cancelled) {
+                    setRepositoryName(repository?.name ?? repositoryId);
+                }
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setRepositoryName(repositoryId);
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [session?.repositoryId]);
 
     useEffect(() => {
         if (loading || failed || !session || !terminalRef.current) {
@@ -482,14 +509,17 @@ export function SessionView({ sessionId }: SessionViewProps) {
             ) : null}
             <div className={styles.meta}>
                 <p className={styles.metaText}>
-                    {session.type === 'coding'
-                        ? intl.formatMessage(messages.meta, {
-                              harness: harnessLabel(session.agent, intl.formatMessage),
-                              branch: session.branch ?? '',
-                          })
-                        : intl.formatMessage(messages.metaConversation, {
-                              harness: harnessLabel(session.agent, intl.formatMessage),
-                          })}
+                    {session.type === 'coding' ? (
+                        <>
+                            <span className={styles.metaRepo}>{repositoryName ?? session.repositoryId}</span>
+                            {' > '}
+                            {session.branch}
+                        </>
+                    ) : (
+                        intl.formatMessage(messages.metaConversation, {
+                            harness: harnessLabel(session.agent, intl.formatMessage),
+                        })
+                    )}
                     {connectionLabel ? ` · ${connectionLabel}` : ''}
                 </p>
                 <div className={styles.metaEnd}>
@@ -517,7 +547,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         <div ref={terminalRef} className={styles.terminal} />
                     </div>
                 </div>
-                {session.type === 'coding' && reviewVisited ? (
+                {session.type === 'coding' && reviewVisited && (!isDesktop || showDesktopReview) ? (
                     <div
                         className={reviewPaneVisible ? styles.paneReview : styles.paneInactive}
                         aria-hidden={!reviewPaneVisible}
