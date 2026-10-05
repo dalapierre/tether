@@ -77,8 +77,9 @@ function syncTerminalLayout(options: {
     fitAddon: FitAddon;
     socket?: WebSocket | null;
     refresh?: boolean;
+    followOutput?: boolean;
 }): void {
-    const { host, term, fitAddon, socket, refresh } = options;
+    const { host, term, fitAddon, socket, refresh, followOutput } = options;
     if (!host || host.clientWidth === 0 || host.clientHeight === 0) {
         return;
     }
@@ -86,7 +87,7 @@ function syncTerminalLayout(options: {
         return;
     }
 
-    const stickToBottom = isScrolledToBottom(term);
+    const stickToBottom = followOutput ?? isScrolledToBottom(term);
     try {
         fitAddon.fit();
         if (socket && socket.readyState === WebSocket.OPEN) {
@@ -196,14 +197,25 @@ export function SessionView({ sessionId }: SessionViewProps) {
         socketRef.current = socket;
         setConnection('connecting');
 
-        const sendInput = (data: string) => {
-            if (socket.readyState !== WebSocket.OPEN) return;
-            // Keep the prompt/response in view after the user types.
+        // Stick to the live prompt after the user types, even if a write
+        // started while they were scrolled up in history.
+        let followOutput = isScrolledToBottom(term);
+
+        const scrollToBottomAndFollow = () => {
+            followOutput = true;
             term.scrollToBottom();
+        };
+
+        const sendInput = (data: string) => {
+            scrollToBottomAndFollow();
+            if (socket.readyState !== WebSocket.OPEN) return;
             sendTerminalMessage(socket, { type: 'input', data });
         };
 
         const dataDisposable = term.onData(sendInput);
+        const scrollDisposable = term.onScroll(() => {
+            followOutput = isScrolledToBottom(term);
+        });
 
         const onResize = () => {
             syncTerminalLayout({
@@ -211,6 +223,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                 term,
                 fitAddon,
                 socket,
+                followOutput,
             });
         };
 
@@ -225,6 +238,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         fitAddon,
                         socket,
                         refresh: true,
+                        followOutput,
                     });
                 });
             });
@@ -248,9 +262,9 @@ export function SessionView({ sessionId }: SessionViewProps) {
             }
 
             if (parsed.type === 'history' || parsed.type === 'output') {
-                const stickToBottom = parsed.type === 'history' || isScrolledToBottom(term);
+                const stickToBottom = parsed.type === 'history' || followOutput;
                 term.write(parsed.data, () => {
-                    if (stickToBottom) {
+                    if (stickToBottom || followOutput) {
                         term.scrollToBottom();
                     }
                 });
@@ -279,6 +293,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
             observer.disconnect();
             detachTouchScroll();
             dataDisposable.dispose();
+            scrollDisposable.dispose();
             socket.close();
             socketRef.current = null;
             term.dispose();
