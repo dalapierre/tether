@@ -20,7 +20,10 @@ export const styles = {
         'pointer-events-none absolute inset-0 z-0 flex flex-col invisible md:pointer-events-none md:absolute md:invisible',
     reviewBody: 'flex min-h-0 flex-1 flex-col',
     terminalWrap: 'relative min-h-0 flex-1 overflow-hidden bg-black pb-[env(safe-area-inset-bottom)]',
-    terminal: 'absolute inset-0 touch-pan-y overflow-hidden px-2 py-2 [&_.xterm-screen]:mx-auto',
+    // Pin xterm's helper textarea to the top so iOS doesn't pan the visual
+    // viewport chasing the cursor into the soft keyboard.
+    terminal:
+        'absolute inset-0 touch-pan-y overflow-hidden px-2 py-2 [&_.xterm-screen]:mx-auto [&_.xterm-helper-textarea]:!left-0 [&_.xterm-helper-textarea]:!top-0',
     centered: 'flex flex-1 items-center justify-center px-4 text-sm text-zinc-500',
     mobileActions: 'flex items-center md:hidden',
     actionIcon: 'h-5 w-5',

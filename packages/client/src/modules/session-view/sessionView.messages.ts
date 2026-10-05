@@ -19,6 +19,7 @@ type Messages = {
     closeReview: NoMessageValues;
     arrowUp: NoMessageValues;
     arrowDown: NoMessageValues;
+    clearInput: NoMessageValues;
     paste: NoMessageValues;
     pasteSheetTitle: NoMessageValues;
     pasteSheetHint: NoMessageValues;
@@ -99,6 +100,10 @@ export const messages = defineMessages<Messages>(
         arrowDown: {
             id: 'sessionView.arrowDown',
             defaultMessage: 'Down arrow',
+        },
+        clearInput: {
+            id: 'sessionView.clearInput',
+            defaultMessage: 'Clear prompt',
         },
         paste: {
             id: 'sessionView.paste',

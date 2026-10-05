@@ -41,6 +41,8 @@ type SessionTab = 'agent' | 'review';
 
 const ARROW_UP = '\x1b[A';
 const ARROW_DOWN = '\x1b[B';
+/** Readline unix-line-discard — clears the current prompt input. */
+const CLEAR_INPUT = '\x15';
 
 function ArrowUpIcon() {
     return (
@@ -91,6 +93,21 @@ function PasteIcon() {
     );
 }
 
+function ClearInputIcon() {
+    return (
+        <svg
+            className={styles.actionIcon}
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='2'
+            aria-hidden='true'
+        >
+            <path strokeLinecap='round' strokeLinejoin='round' d='M6 18 18 6M6 6l12 12' />
+        </svg>
+    );
+}
+
 function harnessLabel(agent: AgentId, formatMessage: ReturnType<typeof useIntl>['formatMessage']): string {
     const match = AGENTS.find((item) => item.id === agent);
     return match ? formatMessage(match.labelMessage) : agent;
@@ -128,7 +145,7 @@ function prepareMobileTextarea(term: Terminal): void {
     textarea.setAttribute('autocorrect', 'off');
     textarea.setAttribute('spellcheck', 'false');
     // Mobile Safari scrolls the helper textarea into view on focus, which
-    // pans the page and leaves a huge blank gap above the keyboard.
+    // pans the visual viewport and leaves a blank gap above the keyboard.
     textarea.scrollIntoView = () => {};
     const undoFocusScroll = () => {
         window.scrollTo(0, 0);
@@ -138,6 +155,9 @@ function prepareMobileTextarea(term: Terminal): void {
     textarea.addEventListener('focus', () => {
         undoFocusScroll();
         requestAnimationFrame(undoFocusScroll);
+        // Keyboard animation can pan again after the first frame.
+        window.setTimeout(undoFocusScroll, 50);
+        window.setTimeout(undoFocusScroll, 300);
     });
 }
 
@@ -373,7 +393,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
         });
 
         const onResize = () => {
-            // Wait a frame so --app-height from visualViewport has been laid out.
+            // Wait a frame so bindSessionViewport has applied visualViewport layout.
             requestAnimationFrame(() => {
                 syncTerminalLayout({
                     host: terminalRef.current,
@@ -484,6 +504,11 @@ export function SessionView({ sessionId }: SessionViewProps) {
 
     function sendArrowDown() {
         sendInputRef.current(ARROW_DOWN);
+        focusTerminal();
+    }
+
+    function clearPromptInput() {
+        sendInputRef.current(CLEAR_INPUT);
         focusTerminal();
     }
 
@@ -674,6 +699,9 @@ export function SessionView({ sessionId }: SessionViewProps) {
                             onClick={() => void pasteFromClipboard()}
                         >
                             <PasteIcon />
+                        </IconButton>
+                        <IconButton label={intl.formatMessage(messages.clearInput)} onClick={clearPromptInput}>
+                            <ClearInputIcon />
                         </IconButton>
                     </div>
                 }

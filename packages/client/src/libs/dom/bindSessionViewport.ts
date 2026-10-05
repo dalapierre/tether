@@ -1,30 +1,59 @@
 /**
- * Size a session shell to the visible viewport while the soft keyboard is open.
+ * Pin the session shell to the visible viewport while the soft keyboard is open.
  *
- * Applied only on the session page — binding this globally (and especially
- * writing visualViewport.offsetTop into layout) causes focus/keyboard feedback
- * loops on mobile login and other inputs.
+ * On iOS Safari the keyboard shrinks visualViewport and often pans it
+ * (`offsetTop > 0`) to reveal xterm's helper textarea. Sizing height alone
+ * leaves the shell sitting above the visible region — a blank gap and a
+ * terminal that looks "pushed up". Follow both height and offsetTop, and
+ * listen to visualViewport `scroll` (where offsetTop changes arrive).
+ *
+ * Session-page only: binding this globally fights focus scrolling on login
+ * and other inputs.
  */
 export function bindSessionViewport(element: HTMLElement): () => void {
+    const clear = () => {
+        element.style.position = '';
+        element.style.left = '';
+        element.style.right = '';
+        element.style.width = '';
+        element.style.top = '';
+        element.style.height = '';
+    };
+
     const sync = () => {
         const vv = window.visualViewport;
         if (!vv) {
-            element.style.height = '';
+            clear();
             return;
         }
 
-        // Use the visible height only. Do not apply offsetTop — that fights the
-        // browser's focus scrolling and produces rapid zoom/jitter.
+        element.style.position = 'fixed';
+        element.style.left = '0';
+        element.style.right = '0';
+        element.style.width = '100%';
+        element.style.top = `${Math.round(vv.offsetTop)}px`;
         element.style.height = `${Math.round(vv.height)}px`;
+
+        // Document scroll is separate from visualViewport offset; keep it
+        // pinned so iOS focus-scroll can't drag the shell off-screen.
+        if (window.scrollY !== 0) {
+            window.scrollTo(0, 0);
+        }
+        const scroller = document.scrollingElement;
+        if (scroller && scroller.scrollTop !== 0) {
+            scroller.scrollTop = 0;
+        }
     };
 
     sync();
     window.addEventListener('resize', sync);
     window.visualViewport?.addEventListener('resize', sync);
+    window.visualViewport?.addEventListener('scroll', sync);
 
     return () => {
         window.removeEventListener('resize', sync);
         window.visualViewport?.removeEventListener('resize', sync);
-        element.style.height = '';
+        window.visualViewport?.removeEventListener('scroll', sync);
+        clear();
     };
 }
