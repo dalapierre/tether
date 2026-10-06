@@ -23,7 +23,19 @@ export default defineConfig(({ mode }) => {
     };
 
     return {
-        plugins: [react(), tailwindcss()],
+        plugins: [
+            react(),
+            tailwindcss(),
+            {
+                name: 'codicon-font-display-swap',
+                enforce: 'pre',
+                transform(code, id) {
+                    if (id.replace(/\\/g, '/').endsWith('/codicon/codicon.css')) {
+                        return code.replace('font-display: block', 'font-display: swap');
+                    }
+                },
+            },
+        ],
         resolve: {
             alias: {
                 '@client': path.resolve(root, 'src'),
@@ -32,5 +44,34 @@ export default defineConfig(({ mode }) => {
         envDir: repoRoot,
         server: sharedServer,
         preview: sharedServer,
+        build: {
+            rollupOptions: {
+                output: {
+                    manualChunks(id) {
+                        const normalized = id.replace(/\\/g, '/');
+                        if (
+                            normalized.includes('/node_modules/react/') ||
+                            normalized.includes('/node_modules/react-dom/') ||
+                            normalized.includes('/node_modules/scheduler/')
+                        ) {
+                            return 'react-vendor';
+                        }
+                        if (normalized.includes('/@xterm/')) {
+                            return 'xterm';
+                        }
+                        if (
+                            normalized.includes('/react-markdown/') ||
+                            normalized.includes('/remark-') ||
+                            normalized.includes('/micromark') ||
+                            normalized.includes('/mdast-') ||
+                            normalized.includes('/unist-') ||
+                            normalized.includes('/unified/')
+                        ) {
+                            return 'markdown';
+                        }
+                    },
+                },
+            },
+        },
     };
 });

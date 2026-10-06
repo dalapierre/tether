@@ -27,16 +27,14 @@ import { setupMonaco, TETHER_DIFF_THEME } from '@client/libs/monaco/setup';
 import { showToast } from '@client/modules/toast';
 import { DiffEditor } from '@monaco-editor/react';
 import type { editor as MonacoEditor } from 'monaco-editor';
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { buildFileTree, type FileTreeDirNode, type FileTreeNode } from './buildFileTree';
-import { MarkdownPreview } from './markdownPreview';
 import { messages } from './sessionCodeView.messages';
 import { styles } from './sessionCodeView.styles';
 import type { SessionCodeViewProps } from './sessionCodeView.types';
 
-setupMonaco();
-
+const MarkdownPreview = lazy(() => import('./markdownPreview').then((m) => ({ default: m.MarkdownPreview })));
 const TREE_INDENT_PX = 12;
 const TREE_BASE_PAD_PX = 12;
 const DIFF_POLL_MS = 3000;
@@ -61,9 +59,12 @@ type SessionDiffEditorProps = {
  * Keep models during wrapper cleanup, then dispose them after the widget.
  */
 function SessionDiffEditor({ original, modified, language, options, onMount, onUnmount }: SessionDiffEditorProps) {
+    const intl = useIntl();
     const editorRef = useRef<MonacoEditor.IStandaloneDiffEditor | null>(null);
     const onUnmountRef = useRef(onUnmount);
     onUnmountRef.current = onUnmount;
+
+    setupMonaco();
 
     useEffect(() => {
         return () => {
@@ -105,6 +106,11 @@ function SessionDiffEditor({ original, modified, language, options, onMount, onU
             onMount={handleMount}
             keepCurrentOriginalModel
             keepCurrentModifiedModel
+            loading={
+                <div className={styles.editorFill}>
+                    <Spinner label={intl.formatMessage(messages.loading)} />
+                </div>
+            }
         />
     );
 }
@@ -1204,11 +1210,13 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
                                         />
                                     </div>
                                 </div>
-                                <MarkdownPreview
-                                    ref={previewScrollRef}
-                                    className={`${styles.markdownPreview}${showMarkdownPreview ? '' : ` ${styles.markdownViewHidden}`}`}
-                                    content={markdownPreviewContent(fileDiff)}
-                                />
+                                <Suspense fallback={null}>
+                                    <MarkdownPreview
+                                        ref={previewScrollRef}
+                                        className={`${styles.markdownPreview}${showMarkdownPreview ? '' : ` ${styles.markdownViewHidden}`}`}
+                                        content={markdownPreviewContent(fileDiff)}
+                                    />
+                                </Suspense>{' '}
                             </div>
                         ) : (
                             <div className={styles.editorWrap}>

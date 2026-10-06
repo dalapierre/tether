@@ -27,17 +27,21 @@ import {
 } from '@client/libs/layout/reviewLayoutPreferences';
 import { attachTouchScroll } from '@client/libs/terminal/touchScroll';
 import { AURA_TERMINAL_THEME } from '@client/libs/theme/aura';
-import { SessionCodeView } from '@client/modules/session-code-view';
+import { Spinner } from '@client/components/spinner';
 import { showToast } from '@client/modules/toast';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
-import { useCallback, useEffect, useRef, useState, type ClipboardEvent } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useRef, useState, type ClipboardEvent } from 'react';
 import { useIntl } from 'react-intl';
 import { useNavigate } from 'react-router-dom';
 import { messages } from './sessionView.messages';
 import { styles } from './sessionView.styles';
 import type { SessionViewProps } from './sessionView.types';
+
+const SessionCodeView = lazy(() =>
+    import('@client/modules/session-code-view').then((m) => ({ default: m.SessionCodeView })),
+);
 
 type ConnectionState = 'connecting' | 'connected' | 'disconnected';
 type SessionTab = 'agent' | 'review';
@@ -841,11 +845,13 @@ export function SessionView({ sessionId }: SessionViewProps) {
                             />
                         ) : null}
                         <div className={styles.reviewBody}>
-                            <SessionCodeView
-                                sessionId={session.id}
-                                onHasFilesChange={onHasFilesChange}
-                                keybindsEnabled={reviewPaneVisible}
-                            />
+                            <Suspense fallback={<Spinner size='lg' label='Loading review' />}>
+                                <SessionCodeView
+                                    sessionId={session.id}
+                                    onHasFilesChange={onHasFilesChange}
+                                    keybindsEnabled={reviewPaneVisible}
+                                />
+                            </Suspense>
                         </div>
                     </div>
                 ) : null}
