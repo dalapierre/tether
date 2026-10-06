@@ -643,9 +643,13 @@ export function SessionCodeView({ sessionId, onHasFilesChange }: SessionCodeView
                 {selectedPath ? (
                     <>
                         <div className={styles.fileHeader}>
-                            <button type='button' className={styles.backButton} onClick={() => setSelectedPath(null)}>
+                            <button
+                                type='button'
+                                className={styles.backButton}
+                                aria-label={intl.formatMessage(messages.backToFiles)}
+                                onClick={() => setSelectedPath(null)}
+                            >
                                 <BackIcon />
-                                {intl.formatMessage(messages.backToFiles)}
                             </button>
                             <span className={styles.fileHeaderPath}>{selectedPath}</span>
                             {showMarkdownToggle ? (
