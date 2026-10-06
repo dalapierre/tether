@@ -5,15 +5,29 @@ import {
     setLocalStorageJson,
     setLocalStorageNumber,
 } from '@client/libs/storage/localStorage';
-import { getSessionLocalStorageItem, setSessionLocalStorageItem } from '@client/libs/storage/sessionLocalStorage';
+import {
+    getSessionLocalStorageItem,
+    removeSessionLocalStorageItem,
+    setSessionLocalStorageItem,
+} from '@client/libs/storage/sessionLocalStorage';
 
 const REVIEW_PANE_WIDTH_KEY = 'tether.layout.reviewPaneWidthPx';
 const FILE_TREE_WIDTH_KEY = 'tether.layout.fileTreeWidthPx';
 /** @deprecated Prefer per-session keys via sessionLocalStorage; kept for one-time migration. */
 const LEGACY_REVIEW_PANEL_OPEN_BY_SESSION_KEY = 'tether.layout.reviewPanelOpenBySession';
 const REVIEW_PANEL_OPEN_SUFFIX = 'reviewPanelOpen';
+/** Stores path + scroll; value may be a legacy plain path string. */
+const SELECTED_DIFF_FILE_SUFFIX = 'selectedDiffPath';
 
 type ReviewPanelOpenBySession = Record<string, boolean>;
+
+export type SelectedDiffFileState = {
+    path: string;
+    /** First visible line in the code diff editor. */
+    anchorLine: number;
+    /** 0–1 scroll ratio (used for markdown preview). */
+    scrollRatio: number;
+};
 
 export const DEFAULT_REVIEW_PANE_WIDTH_PX = 520;
 export const DEFAULT_FILE_TREE_WIDTH_PX = 176;
@@ -95,4 +109,81 @@ export function getReviewPanelOpen(sessionId: string): boolean | null {
 
 export function setReviewPanelOpen(sessionId: string, open: boolean): void {
     setSessionLocalStorageItem(sessionId, REVIEW_PANEL_OPEN_SUFFIX, open ? '1' : '0');
+}
+
+function clampScrollRatio(value: number): number {
+    if (!Number.isFinite(value)) {
+        return 0;
+    }
+    return Math.min(1, Math.max(0, value));
+}
+
+function clampAnchorLine(value: number): number {
+    if (!Number.isFinite(value) || value < 1) {
+        return 1;
+    }
+    return Math.floor(value);
+}
+
+function parseSelectedDiffFileState(raw: string): SelectedDiffFileState | null {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+        return null;
+    }
+
+    if (trimmed.startsWith('{')) {
+        try {
+            const parsed = JSON.parse(trimmed) as Partial<SelectedDiffFileState>;
+            if (typeof parsed.path !== 'string') {
+                return null;
+            }
+            const path = parsed.path.trim();
+            if (!path) {
+                return null;
+            }
+            return {
+                path,
+                anchorLine: clampAnchorLine(typeof parsed.anchorLine === 'number' ? parsed.anchorLine : 1),
+                scrollRatio: clampScrollRatio(typeof parsed.scrollRatio === 'number' ? parsed.scrollRatio : 0),
+            };
+        } catch {
+            return null;
+        }
+    }
+
+    // Legacy: plain path string.
+    return { path: trimmed, anchorLine: 1, scrollRatio: 0 };
+}
+
+export function getSelectedDiffFileState(sessionId: string): SelectedDiffFileState | null {
+    const raw = getSessionLocalStorageItem(sessionId, SELECTED_DIFF_FILE_SUFFIX);
+    if (raw === null) {
+        return null;
+    }
+    return parseSelectedDiffFileState(raw);
+}
+
+export function getSelectedDiffPath(sessionId: string): string | null {
+    return getSelectedDiffFileState(sessionId)?.path ?? null;
+}
+
+export function setSelectedDiffFileState(sessionId: string, state: SelectedDiffFileState | null): void {
+    if (!state) {
+        removeSessionLocalStorageItem(sessionId, SELECTED_DIFF_FILE_SUFFIX);
+        return;
+    }
+    const path = state.path.trim();
+    if (!path) {
+        removeSessionLocalStorageItem(sessionId, SELECTED_DIFF_FILE_SUFFIX);
+        return;
+    }
+    setSessionLocalStorageItem(
+        sessionId,
+        SELECTED_DIFF_FILE_SUFFIX,
+        JSON.stringify({
+            path,
+            anchorLine: clampAnchorLine(state.anchorLine),
+            scrollRatio: clampScrollRatio(state.scrollRatio),
+        }),
+    );
 }

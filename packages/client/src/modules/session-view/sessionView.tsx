@@ -21,6 +21,7 @@ import {
     clampReviewPaneWidthPx,
     getReviewPaneWidthPx,
     getReviewPanelOpen,
+    getSelectedDiffPath,
     setReviewPanelOpen,
     setReviewPaneWidthPx,
 } from '@client/libs/layout/reviewLayoutPreferences';
@@ -658,7 +659,12 @@ export function SessionView({ sessionId }: SessionViewProps) {
             setDesktopReviewOpen(true);
             setReviewPanelOpen(sessionId, true);
         }
-    }, [hasReviewFiles, sessionId]);
+
+        // Return to the review tab when a file was open before refresh (mobile).
+        if (!isDesktop && getSelectedDiffPath(sessionId)) {
+            setTab('review');
+        }
+    }, [hasReviewFiles, sessionId, isDesktop]);
 
     useEffect(() => {
         if (!hasReviewFiles && tab === 'review') {
@@ -820,7 +826,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         <div ref={terminalRef} className={styles.terminal} />
                     </div>
                 </div>
-                {session.type === 'coding' && reviewVisited && (!isDesktop || showDesktopReview) ? (
+                {session.type === 'coding' && reviewVisited ? (
                     <div
                         className={reviewPaneVisible ? styles.paneReview : styles.paneInactive}
                         aria-hidden={!reviewPaneVisible}

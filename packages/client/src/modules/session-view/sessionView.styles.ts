@@ -17,8 +17,10 @@ export const styles = {
     pane: 'absolute inset-0 z-10 flex flex-col md:relative md:inset-auto md:z-auto md:min-h-0 md:min-w-0',
     paneReview:
         'absolute inset-0 z-10 flex min-h-0 min-w-0 flex-col md:relative md:inset-auto md:z-auto md:border-l md:border-zinc-800',
-    paneInactive:
-        'pointer-events-none absolute inset-0 z-0 flex flex-col invisible md:pointer-events-none md:absolute md:invisible',
+    // Mobile: stay laid out but invisible so terminal/review keep their state.
+    // Desktop: fully unmount from layout (`hidden`) — Monaco sets visibility:visible
+    // on internals which would otherwise punch through `invisible`.
+    paneInactive: 'pointer-events-none absolute inset-0 z-0 flex flex-col invisible md:pointer-events-none md:hidden',
     reviewBody: 'flex min-h-0 flex-1 flex-col',
     terminalWrap: 'relative min-h-0 flex-1 overflow-hidden bg-black pb-[env(safe-area-inset-bottom)]',
     // Pin xterm's helper textarea to the top so iOS doesn't pan the visual

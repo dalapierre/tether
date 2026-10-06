@@ -18,7 +18,10 @@ import {
 import {
     clampFileTreeWidthPx,
     getFileTreeWidthPx,
+    getSelectedDiffFileState,
+    getSelectedDiffPath,
     setFileTreeWidthPx,
+    setSelectedDiffFileState,
 } from '@client/libs/layout/reviewLayoutPreferences';
 import { setupMonaco, TETHER_DIFF_THEME } from '@client/libs/monaco/setup';
 import { showToast } from '@client/modules/toast';
@@ -39,6 +42,8 @@ const TREE_BASE_PAD_PX = 12;
 const DIFF_POLL_MS = 3000;
 /** Continuous scroll speed while a scroll keybind is held. */
 const FILE_SCROLL_PX_PER_SEC = 640;
+/** Coalesce scroll position writes while the user is scrolling. */
+const SCROLL_PERSIST_MS = 150;
 
 type MarkdownViewMode = 'code' | 'preview';
 
@@ -75,11 +80,11 @@ function getDiffEditorScrollRatio(diffEditor: MonacoEditor.IStandaloneDiffEditor
         return null;
     }
     const codeEditor = diffEditor.getModifiedEditor();
-    return normalizedScrollRatio(
-        codeEditor.getScrollTop(),
-        codeEditor.getScrollHeight(),
-        codeEditor.getLayoutInfo().height,
-    );
+    const height = codeEditor.getLayoutInfo().height;
+    if (height <= 0) {
+        return null;
+    }
+    return normalizedScrollRatio(codeEditor.getScrollTop(), codeEditor.getScrollHeight(), height);
 }
 
 function setDiffEditorScrollRatio(diffEditor: MonacoEditor.IStandaloneDiffEditor | null, ratio: number): void {
@@ -87,7 +92,36 @@ function setDiffEditorScrollRatio(diffEditor: MonacoEditor.IStandaloneDiffEditor
         return;
     }
     const codeEditor = diffEditor.getModifiedEditor();
-    codeEditor.setScrollTop(scrollTopForRatio(ratio, codeEditor.getScrollHeight(), codeEditor.getLayoutInfo().height));
+    const height = codeEditor.getLayoutInfo().height;
+    if (height <= 0) {
+        return;
+    }
+    codeEditor.setScrollTop(scrollTopForRatio(ratio, codeEditor.getScrollHeight(), height));
+}
+
+/** First visible line — stable across pane hide/show when word-wrap recalculates scrollHeight. */
+function getDiffEditorAnchorLine(diffEditor: MonacoEditor.IStandaloneDiffEditor | null): number | null {
+    if (!diffEditor) {
+        return null;
+    }
+    const codeEditor = diffEditor.getModifiedEditor();
+    if (codeEditor.getLayoutInfo().height <= 0) {
+        return null;
+    }
+    const ranges = codeEditor.getVisibleRanges();
+    const line = ranges[0]?.startLineNumber;
+    return line != null && line > 0 ? line : null;
+}
+
+function setDiffEditorAnchorLine(diffEditor: MonacoEditor.IStandaloneDiffEditor | null, line: number): void {
+    if (!diffEditor || line <= 0) {
+        return;
+    }
+    const codeEditor = diffEditor.getModifiedEditor();
+    if (codeEditor.getLayoutInfo().height <= 0) {
+        return;
+    }
+    codeEditor.revealLineNearTop(line);
 }
 
 function setDiffEditorScrollBy(diffEditor: MonacoEditor.IStandaloneDiffEditor | null, delta: number): void {
@@ -110,14 +144,14 @@ function setElementScrollBy(element: HTMLElement | null, delta: number): void {
 }
 
 function getElementScrollRatio(element: HTMLElement | null): number | null {
-    if (!element) {
+    if (!element || element.clientHeight <= 0) {
         return null;
     }
     return normalizedScrollRatio(element.scrollTop, element.scrollHeight, element.clientHeight);
 }
 
 function setElementScrollRatio(element: HTMLElement | null, ratio: number): void {
-    if (!element) {
+    if (!element || element.clientHeight <= 0) {
         return;
     }
     element.scrollTop = scrollTopForRatio(ratio, element.scrollHeight, element.clientHeight);
@@ -387,7 +421,7 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
     const { keybinds } = useKeybinds();
     const [files, setFiles] = useState<SessionDiffFile[]>([]);
     const [loading, setLoading] = useState(true);
-    const [selectedPath, setSelectedPath] = useState<string | null>(null);
+    const [selectedPath, setSelectedPath] = useState<string | null>(() => getSelectedDiffPath(sessionId));
     const [fileDiff, setFileDiff] = useState<SessionFileDiff | null>(null);
     const [fileLoading, setFileLoading] = useState(false);
     const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(() => new Set());
@@ -396,7 +430,16 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
     const diffEditorRef = useRef<MonacoEditor.IStandaloneDiffEditor | null>(null);
     const previewScrollRef = useRef<HTMLDivElement | null>(null);
     const pendingScrollRatioRef = useRef<number | null>(null);
+    /** Scroll position for the open file; survives desktop pane `display:none`. */
+    const scrollRatioRef = useRef(0);
+    const scrollAnchorLineRef = useRef(1);
+    const paneActiveRef = useRef(keybindsEnabled);
+    const restoringScrollRef = useRef(false);
+    const scrollPersistTimerRef = useRef<number | null>(null);
     const fileTreeWidthRef = useRef(fileTreeWidth);
+
+    // Keep in sync during render so hide-time Monaco scroll events (0-height) are ignored.
+    paneActiveRef.current = keybindsEnabled;
 
     const tree = useMemo(() => buildFileTree(files), [files]);
     fileTreeWidthRef.current = fileTreeWidth;
@@ -413,19 +456,84 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
         onHasFilesChange?.(hasFiles);
     }, [hasFiles, onHasFilesChange]);
 
-    const applyDiffFiles = useCallback((nextFiles: SessionDiffFile[]) => {
-        const nextSignature = fileListSignature(nextFiles);
-        if (nextSignature === filesSignatureRef.current) {
-            return false;
+    useEffect(() => {
+        setSelectedPath(getSelectedDiffPath(sessionId));
+    }, [sessionId]);
+
+    const selectPath = useCallback(
+        (path: string | null) => {
+            if (scrollPersistTimerRef.current != null) {
+                window.clearTimeout(scrollPersistTimerRef.current);
+                scrollPersistTimerRef.current = null;
+            }
+            scrollRatioRef.current = 0;
+            scrollAnchorLineRef.current = 1;
+            setSelectedPath(path);
+            if (!path) {
+                setSelectedDiffFileState(sessionId, null);
+                return;
+            }
+            setSelectedDiffFileState(sessionId, {
+                path,
+                anchorLine: 1,
+                scrollRatio: 0,
+            });
+        },
+        [sessionId],
+    );
+
+    const persistScrollPosition = useCallback(() => {
+        const path = selectedPathRef.current;
+        if (!path) {
+            return;
         }
-        filesSignatureRef.current = nextSignature;
-        setFiles(nextFiles);
-        const selected = selectedPathRef.current;
-        if (selected && !nextFiles.some((file) => file.path === selected)) {
-            setSelectedPath(null);
+        setSelectedDiffFileState(sessionId, {
+            path,
+            anchorLine: scrollAnchorLineRef.current,
+            scrollRatio: scrollRatioRef.current,
+        });
+    }, [sessionId]);
+
+    const schedulePersistScroll = useCallback(() => {
+        if (scrollPersistTimerRef.current != null) {
+            return;
         }
-        return true;
-    }, []);
+        const pathAtSchedule = selectedPathRef.current;
+        scrollPersistTimerRef.current = window.setTimeout(() => {
+            scrollPersistTimerRef.current = null;
+            if (!pathAtSchedule || selectedPathRef.current !== pathAtSchedule) {
+                return;
+            }
+            persistScrollPosition();
+        }, SCROLL_PERSIST_MS);
+    }, [persistScrollPosition]);
+
+    useEffect(() => {
+        return () => {
+            if (scrollPersistTimerRef.current != null) {
+                window.clearTimeout(scrollPersistTimerRef.current);
+                scrollPersistTimerRef.current = null;
+                persistScrollPosition();
+            }
+        };
+    }, [sessionId, persistScrollPosition]);
+
+    const applyDiffFiles = useCallback(
+        (nextFiles: SessionDiffFile[]) => {
+            const nextSignature = fileListSignature(nextFiles);
+            if (nextSignature === filesSignatureRef.current) {
+                return false;
+            }
+            filesSignatureRef.current = nextSignature;
+            setFiles(nextFiles);
+            const selected = selectedPathRef.current;
+            if (selected && !nextFiles.some((file) => file.path === selected)) {
+                selectPath(null);
+            }
+            return true;
+        },
+        [selectPath],
+    );
 
     useEffect(() => {
         let cancelled = false;
@@ -486,7 +594,7 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
             })
             .catch((err: unknown) => {
                 if (!cancelled) {
-                    setSelectedPath(null);
+                    selectPath(null);
                     showToast(
                         'generic-error',
                         err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed),
@@ -502,12 +610,121 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
         return () => {
             cancelled = true;
         };
-    }, [sessionId, selectedPath, intl]);
+    }, [sessionId, selectedPath, intl, selectPath]);
 
     useEffect(() => {
         setMarkdownViewMode('code');
         pendingScrollRatioRef.current = null;
-    }, [selectedPath]);
+
+        const stored = selectedPath ? getSelectedDiffFileState(sessionId) : null;
+        if (stored && stored.path === selectedPath) {
+            scrollRatioRef.current = stored.scrollRatio;
+            scrollAnchorLineRef.current = stored.anchorLine;
+        } else {
+            scrollRatioRef.current = 0;
+            scrollAnchorLineRef.current = 1;
+        }
+    }, [selectedPath, sessionId]);
+
+    const showingMarkdownPreview =
+        isMarkdownPath(selectedPath) && markdownViewMode === 'preview' && Boolean(fileDiff && !fileDiff.binary);
+
+    const rememberScrollRatio = useCallback(
+        (ratio: number | null) => {
+            if (ratio === null || restoringScrollRef.current || !paneActiveRef.current) {
+                return;
+            }
+            scrollRatioRef.current = ratio;
+            schedulePersistScroll();
+        },
+        [schedulePersistScroll],
+    );
+
+    const rememberScrollAnchorLine = useCallback(
+        (line: number | null) => {
+            if (line == null || restoringScrollRef.current || !paneActiveRef.current) {
+                return;
+            }
+            scrollAnchorLineRef.current = line;
+            schedulePersistScroll();
+        },
+        [schedulePersistScroll],
+    );
+
+    const restoreScrollPosition = useCallback(() => {
+        let frames = 0;
+        restoringScrollRef.current = true;
+
+        const apply = () => {
+            if (!paneActiveRef.current) {
+                restoringScrollRef.current = false;
+                return;
+            }
+
+            if (showingMarkdownPreview) {
+                const ratio = scrollRatioRef.current;
+                const preview = previewScrollRef.current;
+                if (!preview || preview.clientHeight <= 0) {
+                    if (frames++ < 60) {
+                        requestAnimationFrame(apply);
+                        return;
+                    }
+                    restoringScrollRef.current = false;
+                    return;
+                }
+                if (ratio > 0) {
+                    setElementScrollRatio(preview, ratio);
+                    requestAnimationFrame(() => {
+                        setElementScrollRatio(preview, ratio);
+                        restoringScrollRef.current = false;
+                    });
+                    return;
+                }
+                restoringScrollRef.current = false;
+                return;
+            }
+
+            const diffEditor = diffEditorRef.current;
+            const line = scrollAnchorLineRef.current;
+            if (!diffEditor || diffEditor.getModifiedEditor().getLayoutInfo().height <= 0) {
+                if (frames++ < 60) {
+                    requestAnimationFrame(apply);
+                    return;
+                }
+                restoringScrollRef.current = false;
+                return;
+            }
+
+            if (line > 1) {
+                setDiffEditorAnchorLine(diffEditor, line);
+                requestAnimationFrame(() => {
+                    setDiffEditorAnchorLine(diffEditor, line);
+                    requestAnimationFrame(() => {
+                        restoringScrollRef.current = false;
+                    });
+                });
+                return;
+            }
+
+            restoringScrollRef.current = false;
+        };
+
+        requestAnimationFrame(apply);
+    }, [showingMarkdownPreview]);
+
+    const handleDiffEditorMount = useCallback(
+        (editor: MonacoEditor.IStandaloneDiffEditor) => {
+            diffEditorRef.current = editor;
+            editor.getModifiedEditor().onDidScrollChange(() => {
+                rememberScrollAnchorLine(getDiffEditorAnchorLine(editor));
+                rememberScrollRatio(getDiffEditorScrollRatio(editor));
+            });
+            if (paneActiveRef.current) {
+                restoreScrollPosition();
+            }
+        },
+        [rememberScrollAnchorLine, rememberScrollRatio, restoreScrollPosition],
+    );
 
     const handleMarkdownViewModeChange = useCallback(
         (next: MarkdownViewMode) => {
@@ -540,9 +757,9 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
                         ? 0
                         : files.length - 1
                     : (currentIndex + direction + files.length) % files.length;
-            setSelectedPath(files[nextIndex]?.path ?? null);
+            selectPath(files[nextIndex]?.path ?? null);
         },
-        [files, selectedPath],
+        [files, selectedPath, selectPath],
     );
 
     const scrollCurrentFile = useCallback(
@@ -699,11 +916,42 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
             return;
         }
         pendingScrollRatioRef.current = null;
+        scrollRatioRef.current = ratio;
+        schedulePersistScroll();
         const target = markdownViewMode === 'preview' ? 'preview' : 'code';
         const refs = { diffEditor: diffEditorRef.current, preview: previewScrollRef.current };
+        restoringScrollRef.current = true;
         applyScrollRatio(target, ratio, refs);
-        requestAnimationFrame(() => applyScrollRatio(target, ratio, refs));
-    }, [markdownViewMode]);
+        requestAnimationFrame(() => {
+            applyScrollRatio(target, ratio, refs);
+            restoringScrollRef.current = false;
+        });
+    }, [markdownViewMode, schedulePersistScroll]);
+
+    const wasPaneActiveRef = useRef(keybindsEnabled);
+    // Restore scroll when the desktop pane returns from `display:none`.
+    useLayoutEffect(() => {
+        const becameActive = !wasPaneActiveRef.current && keybindsEnabled;
+        wasPaneActiveRef.current = keybindsEnabled;
+        if (becameActive) {
+            restoreScrollPosition();
+        }
+    }, [keybindsEnabled, restoreScrollPosition]);
+
+    useEffect(() => {
+        if (!keybindsEnabled || !showingMarkdownPreview) {
+            return;
+        }
+        const element = previewScrollRef.current;
+        if (!element) {
+            return;
+        }
+        const onScroll = () => {
+            rememberScrollRatio(getElementScrollRatio(element));
+        };
+        element.addEventListener('scroll', onScroll, { passive: true });
+        return () => element.removeEventListener('scroll', onScroll);
+    }, [keybindsEnabled, showingMarkdownPreview, fileDiff, rememberScrollRatio]);
 
     const diffEditorOptions = useMemo(
         () => ({
@@ -791,8 +1039,7 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
     const listPanelClass = selectedPath ? styles.listPanelMobileHidden : styles.listPanel;
     const editorPanelClass = showEditor ? styles.editorPanel : styles.editorPanelMobileHidden;
     const showMarkdownToggle = isMarkdownPath(selectedPath);
-    const showMarkdownPreview =
-        showMarkdownToggle && markdownViewMode === 'preview' && Boolean(fileDiff && !fileDiff.binary);
+    const showMarkdownPreview = showingMarkdownPreview;
 
     const listPanelWrapStyle = isDesktop ? { width: fileTreeWidth } : undefined;
 
@@ -819,7 +1066,7 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
                                 selectedPath={selectedPath}
                                 collapsedPaths={collapsedPaths}
                                 onToggle={toggleFolder}
-                                onSelect={setSelectedPath}
+                                onSelect={selectPath}
                             />
                         </div>
                     )}
@@ -843,7 +1090,7 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
                                 type='button'
                                 className={styles.backButton}
                                 aria-label={intl.formatMessage(messages.backToFiles)}
-                                onClick={() => setSelectedPath(null)}
+                                onClick={() => selectPath(null)}
                             >
                                 <BackIcon />
                             </button>
@@ -887,9 +1134,7 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
                                             language={fileDiff.language}
                                             theme={TETHER_DIFF_THEME}
                                             options={diffEditorOptions}
-                                            onMount={(editor) => {
-                                                diffEditorRef.current = editor;
-                                            }}
+                                            onMount={handleDiffEditorMount}
                                         />
                                     </div>
                                 </div>
@@ -910,6 +1155,7 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
                                         language={fileDiff.language}
                                         theme={TETHER_DIFF_THEME}
                                         options={diffEditorOptions}
+                                        onMount={handleDiffEditorMount}
                                     />
                                 </div>
                             </div>
