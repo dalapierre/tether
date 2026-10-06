@@ -275,7 +275,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
         'session',
         'toggleReview',
         () => {
-            if (session?.type !== 'coding' || !hasReviewFiles) return;
+            if (session?.type !== 'coding') return;
             if (isDesktop) {
                 toggleDesktopReview();
                 return;
@@ -686,12 +686,6 @@ export function SessionView({ sessionId }: SessionViewProps) {
     }, [hasReviewFiles, sessionId, isDesktop]);
 
     useEffect(() => {
-        if (!hasReviewFiles && tab === 'review') {
-            setTab('agent');
-        }
-    }, [hasReviewFiles, tab]);
-
-    useEffect(() => {
         if (!isDesktop && tab !== 'agent') return;
         const fitAddon = fitAddonRef.current;
         const term = termRef.current;
@@ -789,7 +783,6 @@ export function SessionView({ sessionId }: SessionViewProps) {
                             {
                                 value: 'review',
                                 label: intl.formatMessage(messages.reviewView),
-                                disabled: !hasReviewFiles,
                             },
                         ]}
                     />
