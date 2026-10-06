@@ -11,8 +11,12 @@ import {
     setSessionLocalStorageItem,
 } from '@client/libs/storage/sessionLocalStorage';
 
-const REVIEW_PANE_WIDTH_KEY = 'tether.layout.reviewPaneWidthPx';
-const FILE_TREE_WIDTH_KEY = 'tether.layout.fileTreeWidthPx';
+const REVIEW_PANE_WIDTH_PCT_KEY = 'tether.layout.reviewPaneWidthPct';
+const FILE_TREE_WIDTH_PCT_KEY = 'tether.layout.fileTreeWidthPct';
+/** @deprecated Migrated to reviewPaneWidthPct. */
+const LEGACY_REVIEW_PANE_WIDTH_PX_KEY = 'tether.layout.reviewPaneWidthPx';
+/** @deprecated Migrated to fileTreeWidthPct. */
+const LEGACY_FILE_TREE_WIDTH_PX_KEY = 'tether.layout.fileTreeWidthPx';
 /** @deprecated Prefer per-session keys via sessionLocalStorage; kept for one-time migration. */
 const LEGACY_REVIEW_PANEL_OPEN_BY_SESSION_KEY = 'tether.layout.reviewPanelOpenBySession';
 const REVIEW_PANEL_OPEN_SUFFIX = 'reviewPanelOpen';
@@ -29,50 +33,100 @@ export type SelectedDiffFileState = {
     scrollRatio: number;
 };
 
-export const DEFAULT_REVIEW_PANE_WIDTH_PX = 520;
-export const DEFAULT_FILE_TREE_WIDTH_PX = 176;
+export const DEFAULT_REVIEW_PANE_WIDTH_PCT = 40;
+export const DEFAULT_FILE_TREE_WIDTH_PCT = 34;
 
-const MIN_REVIEW_PANE_WIDTH_PX = 320;
-const MIN_FILE_TREE_WIDTH_PX = 120;
-const MAX_FILE_TREE_WIDTH_PX = 420;
+const MIN_REVIEW_PANE_WIDTH_PCT = 15;
+const MAX_REVIEW_PANE_WIDTH_PCT = 90;
+const MIN_FILE_TREE_WIDTH_PCT = 15;
+const MAX_FILE_TREE_WIDTH_PCT = 50;
 
-function maxReviewPaneWidthPx(): number {
+function viewportWidthPx(): number {
     if (typeof window === 'undefined') {
-        return 960;
+        return 1280;
     }
-    return Math.max(MIN_REVIEW_PANE_WIDTH_PX, Math.floor(window.innerWidth * 0.75));
+    return Math.max(1, window.innerWidth);
 }
 
-export function clampReviewPaneWidthPx(width: number): number {
-    return Math.min(maxReviewPaneWidthPx(), Math.max(MIN_REVIEW_PANE_WIDTH_PX, Math.round(width)));
+function roundPct(value: number): number {
+    return Math.round(value * 10) / 10;
 }
 
-export function clampFileTreeWidthPx(width: number): number {
-    return Math.min(MAX_FILE_TREE_WIDTH_PX, Math.max(MIN_FILE_TREE_WIDTH_PX, Math.round(width)));
+export function clampReviewPaneWidthPct(pct: number): number {
+    return Math.min(MAX_REVIEW_PANE_WIDTH_PCT, Math.max(MIN_REVIEW_PANE_WIDTH_PCT, roundPct(pct)));
 }
 
-export function getReviewPaneWidthPx(): number {
-    const stored = getLocalStorageNumber(REVIEW_PANE_WIDTH_KEY);
+export function clampFileTreeWidthPct(pct: number): number {
+    return Math.min(MAX_FILE_TREE_WIDTH_PCT, Math.max(MIN_FILE_TREE_WIDTH_PCT, roundPct(pct)));
+}
+
+/** Convert a horizontal pixel delta into a percentage of `basePx`. */
+export function deltaPxToPct(deltaPx: number, basePx: number): number {
+    return (deltaPx / Math.max(1, basePx)) * 100;
+}
+
+function takeLegacyWidthPx(key: string): number | null {
+    const stored = getLocalStorageNumber(key);
     if (stored === null) {
-        return DEFAULT_REVIEW_PANE_WIDTH_PX;
+        return null;
     }
-    return clampReviewPaneWidthPx(stored);
+    removeLocalStorageItem(key);
+    return Number.isFinite(stored) ? stored : null;
 }
 
-export function setReviewPaneWidthPx(width: number): void {
-    setLocalStorageNumber(REVIEW_PANE_WIDTH_KEY, clampReviewPaneWidthPx(width));
-}
-
-export function getFileTreeWidthPx(): number {
-    const stored = getLocalStorageNumber(FILE_TREE_WIDTH_KEY);
-    if (stored === null) {
-        return DEFAULT_FILE_TREE_WIDTH_PX;
+function migrateLegacyReviewPaneWidthPx(): number | null {
+    const storedPx = takeLegacyWidthPx(LEGACY_REVIEW_PANE_WIDTH_PX_KEY);
+    if (storedPx === null) {
+        return null;
     }
-    return clampFileTreeWidthPx(stored);
+    return clampReviewPaneWidthPct((storedPx / viewportWidthPx()) * 100);
 }
 
-export function setFileTreeWidthPx(width: number): void {
-    setLocalStorageNumber(FILE_TREE_WIDTH_KEY, clampFileTreeWidthPx(width));
+function migrateLegacyFileTreeWidthPx(reviewPaneWidthPct: number): number | null {
+    const storedPx = takeLegacyWidthPx(LEGACY_FILE_TREE_WIDTH_PX_KEY);
+    if (storedPx === null) {
+        return null;
+    }
+    const reviewPaneWidthPx = (reviewPaneWidthPct / 100) * viewportWidthPx();
+    return clampFileTreeWidthPct((storedPx / Math.max(1, reviewPaneWidthPx)) * 100);
+}
+
+export function getReviewPaneWidthPct(): number {
+    const stored = getLocalStorageNumber(REVIEW_PANE_WIDTH_PCT_KEY);
+    if (stored !== null) {
+        return clampReviewPaneWidthPct(stored);
+    }
+
+    const migrated = migrateLegacyReviewPaneWidthPx();
+    if (migrated !== null) {
+        setLocalStorageNumber(REVIEW_PANE_WIDTH_PCT_KEY, migrated);
+        return migrated;
+    }
+
+    return DEFAULT_REVIEW_PANE_WIDTH_PCT;
+}
+
+export function setReviewPaneWidthPct(pct: number): void {
+    setLocalStorageNumber(REVIEW_PANE_WIDTH_PCT_KEY, clampReviewPaneWidthPct(pct));
+}
+
+export function getFileTreeWidthPct(): number {
+    const stored = getLocalStorageNumber(FILE_TREE_WIDTH_PCT_KEY);
+    if (stored !== null) {
+        return clampFileTreeWidthPct(stored);
+    }
+
+    const migrated = migrateLegacyFileTreeWidthPx(getReviewPaneWidthPct());
+    if (migrated !== null) {
+        setLocalStorageNumber(FILE_TREE_WIDTH_PCT_KEY, migrated);
+        return migrated;
+    }
+
+    return DEFAULT_FILE_TREE_WIDTH_PCT;
+}
+
+export function setFileTreeWidthPct(pct: number): void {
+    setLocalStorageNumber(FILE_TREE_WIDTH_PCT_KEY, clampFileTreeWidthPct(pct));
 }
 
 function readLegacyReviewPanelOpenMap(): ReviewPanelOpenBySession {

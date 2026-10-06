@@ -18,12 +18,13 @@ import { bindSessionViewport } from '@client/libs/dom/bindSessionViewport';
 import { useIsDesktop } from '@client/libs/dom/useMediaQuery';
 import { useKeybind } from '@client/libs/keybinds';
 import {
-    clampReviewPaneWidthPx,
-    getReviewPaneWidthPx,
+    clampReviewPaneWidthPct,
+    deltaPxToPct,
+    getReviewPaneWidthPct,
     getReviewPanelOpen,
     getSelectedDiffPath,
     setReviewPanelOpen,
-    setReviewPaneWidthPx,
+    setReviewPaneWidthPct,
 } from '@client/libs/layout/reviewLayoutPreferences';
 import { attachTouchScroll } from '@client/libs/terminal/touchScroll';
 import { AURA_TERMINAL_THEME } from '@client/libs/theme/aura';
@@ -231,11 +232,12 @@ export function SessionView({ sessionId }: SessionViewProps) {
     const [reviewVisited, setReviewVisited] = useState(false);
     const [hasReviewFiles, setHasReviewFiles] = useState(false);
     const [desktopReviewOpen, setDesktopReviewOpen] = useState(false);
-    const [reviewPaneWidth, setReviewPaneWidth] = useState(getReviewPaneWidthPx);
+    const [reviewPaneWidthPct, setReviewPaneWidthPctState] = useState(getReviewPaneWidthPct);
     const [repositoryName, setRepositoryName] = useState<string | null>(null);
     const [pasteOpen, setPasteOpen] = useState(false);
-    const reviewPaneWidthRef = useRef(reviewPaneWidth);
+    const reviewPaneWidthPctRef = useRef(reviewPaneWidthPct);
     const rootRef = useRef<HTMLDivElement | null>(null);
+    const contentRef = useRef<HTMLDivElement | null>(null);
     const terminalRef = useRef<HTMLDivElement | null>(null);
     const socketRef = useRef<WebSocket | null>(null);
     const termRef = useRef<Terminal | null>(null);
@@ -251,10 +253,10 @@ export function SessionView({ sessionId }: SessionViewProps) {
     const reviewPaneVisible = isDesktop ? showDesktopReview : tab === 'review';
     const sessionReady = Boolean(session && !loading && !failed);
 
-    reviewPaneWidthRef.current = reviewPaneWidth;
+    reviewPaneWidthPctRef.current = reviewPaneWidthPct;
 
     const persistReviewPaneWidth = useCallback(() => {
-        setReviewPaneWidthPx(reviewPaneWidthRef.current);
+        setReviewPaneWidthPct(reviewPaneWidthPctRef.current);
     }, []);
 
     function toggleDesktopReview() {
@@ -689,7 +691,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                 refresh: true,
             });
         });
-    }, [tab, isDesktop, showDesktopReview, reviewPaneWidth]);
+    }, [tab, isDesktop, showDesktopReview, reviewPaneWidthPct]);
 
     if (loading) {
         return (
@@ -815,7 +817,15 @@ export function SessionView({ sessionId }: SessionViewProps) {
                     </span>
                 </div>
             </div>
-            <div className={styles.content}>
+            <div
+                ref={contentRef}
+                className={styles.content}
+                style={
+                    isDesktop && showDesktopReview
+                        ? { gridTemplateColumns: `minmax(0, 1fr) ${reviewPaneWidthPct}%` }
+                        : undefined
+                }
+            >
                 <div
                     className={
                         session.type === 'conversation' || isDesktop || tab === 'agent'
@@ -832,14 +842,21 @@ export function SessionView({ sessionId }: SessionViewProps) {
                     <div
                         className={reviewPaneVisible ? styles.paneReview : styles.paneInactive}
                         aria-hidden={!reviewPaneVisible}
-                        style={isDesktop && showDesktopReview ? { width: reviewPaneWidth } : undefined}
                     >
                         {isDesktop && showDesktopReview ? (
                             <PanelResizeHandle
                                 edge='leading'
                                 ariaLabel={intl.formatMessage(panelResizeHandleMessages.resizeReviewPanel)}
                                 onResize={(delta) =>
-                                    setReviewPaneWidth((width) => clampReviewPaneWidthPx(width - delta))
+                                    setReviewPaneWidthPctState((pct) =>
+                                        clampReviewPaneWidthPct(
+                                            pct -
+                                                deltaPxToPct(
+                                                    delta,
+                                                    contentRef.current?.clientWidth ?? window.innerWidth,
+                                                ),
+                                        ),
+                                    )
                                 }
                                 onResizeEnd={persistReviewPaneWidth}
                             />
