@@ -10,6 +10,17 @@ const repoRoot = path.resolve(root, '../..');
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, repoRoot, '');
     const overNetwork = env.OVER_NETWORK === 'true';
+    const sharedServer = {
+        host: overNetwork ? true : ('127.0.0.1' as const),
+        port: 8080,
+        proxy: {
+            '/api': {
+                target: 'http://localhost:3001',
+                changeOrigin: true,
+                ws: true,
+            },
+        },
+    };
 
     return {
         plugins: [react(), tailwindcss()],
@@ -19,16 +30,7 @@ export default defineConfig(({ mode }) => {
             },
         },
         envDir: repoRoot,
-        server: {
-            host: overNetwork ? true : '127.0.0.1',
-            port: 8080,
-            proxy: {
-                '/api': {
-                    target: 'http://localhost:3001',
-                    changeOrigin: true,
-                    ws: true,
-                },
-            },
-        },
+        server: sharedServer,
+        preview: sharedServer,
     };
 });
