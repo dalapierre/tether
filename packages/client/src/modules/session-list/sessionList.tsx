@@ -31,6 +31,21 @@ function PlusIcon() {
     );
 }
 
+function ClearSearchIcon() {
+    return (
+        <svg
+            className={styles.searchClearIcon}
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='2'
+            aria-hidden='true'
+        >
+            <path strokeLinecap='round' strokeLinejoin='round' d='M6 18 18 6M6 6l12 12' />
+        </svg>
+    );
+}
+
 export function SessionList() {
     const intl = useIntl();
     const navigate = useNavigate();
@@ -253,7 +268,6 @@ export function SessionList() {
     return (
         <div className={styles.root}>
             <PageHeader
-                crumbs={[{ label: intl.formatMessage(messages.sessionsCrumb) }]}
                 actions={
                     <IconButton label={intl.formatMessage(messages.newSession)} onClick={() => setCreating(true)}>
                         <PlusIcon />
@@ -261,24 +275,40 @@ export function SessionList() {
                 }
             />
             <div className={styles.search}>
-                <input
-                    ref={searchInputRef}
-                    className={styles.searchInput}
-                    type='search'
-                    value={searchQuery}
-                    placeholder={intl.formatMessage(messages.searchPlaceholder)}
-                    aria-label={intl.formatMessage(messages.searchAriaLabel)}
-                    disabled={sessionsLoading}
-                    onChange={(event) => {
-                        setSearchQuery(event.target.value);
-                        setSelectedIndex(null);
-                    }}
-                    onKeyDown={(event) => {
-                        if (event.key !== 'Escape') return;
-                        event.preventDefault();
-                        event.currentTarget.blur();
-                    }}
-                />
+                <div className={styles.searchField}>
+                    <input
+                        ref={searchInputRef}
+                        className={styles.searchInput}
+                        type='search'
+                        value={searchQuery}
+                        placeholder={intl.formatMessage(messages.searchPlaceholder)}
+                        aria-label={intl.formatMessage(messages.searchAriaLabel)}
+                        disabled={sessionsLoading}
+                        onChange={(event) => {
+                            setSearchQuery(event.target.value);
+                            setSelectedIndex(null);
+                        }}
+                        onKeyDown={(event) => {
+                            if (event.key !== 'Escape') return;
+                            event.preventDefault();
+                            event.currentTarget.blur();
+                        }}
+                    />
+                    {searchQuery ? (
+                        <button
+                            type='button'
+                            className={styles.searchClear}
+                            aria-label={intl.formatMessage(messages.clearSearch)}
+                            onClick={() => {
+                                setSearchQuery('');
+                                setSelectedIndex(null);
+                                searchInputRef.current?.focus();
+                            }}
+                        >
+                            <ClearSearchIcon />
+                        </button>
+                    ) : null}
+                </div>
             </div>
             <div className={bodyClass}>
                 {sessionsLoading ? (

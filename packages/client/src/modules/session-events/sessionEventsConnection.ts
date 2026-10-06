@@ -5,7 +5,12 @@ import {
     type SessionStatus,
 } from '@client/libs/api/sessions';
 import { showToast } from '@client/modules/toast';
-import { applySessionStatus, seedSessionStatuses } from './sessionStatusStore';
+import {
+    applySessionStatus,
+    markSessionReadySeen,
+    seedSessionStatuses,
+    sessionHasBeenReady,
+} from './sessionStatusStore';
 
 const RECONNECT_DELAY_MS = 2000;
 
@@ -32,10 +37,22 @@ function parseEventMessage(raw: string): ServerSessionEventMessage | null {
     }
 }
 
-function maybeToastStatusChange(previous: SessionStatus | null, next: SessionStatus, name: string): void {
+function maybeToastStatusChange(
+    sessionId: string,
+    previous: SessionStatus | null,
+    next: SessionStatus,
+    name: string,
+): void {
     if (previous === 'busy' && next === 'ready') {
-        showToast('session-ready', name);
+        // Skip the first ready after create/startup; toast only when the agent finishes a later turn.
+        if (sessionHasBeenReady(sessionId)) {
+            showToast('session-ready', name);
+        }
+        markSessionReadySeen(sessionId);
         return;
+    }
+    if (next === 'ready') {
+        markSessionReadySeen(sessionId);
     }
     if (previous !== null && previous !== 'error' && next === 'error') {
         showToast('session-error', name);
@@ -90,7 +107,7 @@ function connect() {
             name: parsed.name,
             status: parsed.status,
         });
-        maybeToastStatusChange(previous, parsed.status, parsed.name);
+        maybeToastStatusChange(parsed.sessionId, previous, parsed.status, parsed.name);
     });
 
     nextSocket.addEventListener('close', () => {

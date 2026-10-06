@@ -1,9 +1,9 @@
 import { defineMessages, type NoMessageValues } from 'react-intl';
 
 type Messages = {
-    sessionsCrumb: NoMessageValues;
     searchPlaceholder: NoMessageValues;
     searchAriaLabel: NoMessageValues;
+    clearSearch: NoMessageValues;
     noSessions: NoMessageValues;
     noMatchingSessions: NoMessageValues;
     loadingSessions: NoMessageValues;
@@ -19,10 +19,6 @@ type Messages = {
 
 export const messages = defineMessages<Messages>(
     {
-        sessionsCrumb: {
-            id: 'sessionList.sessionsCrumb',
-            defaultMessage: 'sessions',
-        },
         searchPlaceholder: {
             id: 'sessionList.searchPlaceholder',
             defaultMessage: 'Search sessions…',
@@ -30,6 +26,10 @@ export const messages = defineMessages<Messages>(
         searchAriaLabel: {
             id: 'sessionList.searchAriaLabel',
             defaultMessage: 'Search sessions',
+        },
+        clearSearch: {
+            id: 'sessionList.clearSearch',
+            defaultMessage: 'Clear search',
         },
         noSessions: {
             id: 'sessionList.noSessions',

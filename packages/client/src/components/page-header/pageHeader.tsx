@@ -42,7 +42,7 @@ function BackIcon() {
     );
 }
 
-export function PageHeader({ crumbs, actions, showSettings = true, onBack }: PageHeaderProps) {
+export function PageHeader({ crumbs = [], actions, showSettings = true, onBack }: PageHeaderProps) {
     const intl = useIntl();
     const { openSettings } = useSettings();
 
@@ -54,40 +54,42 @@ export function PageHeader({ crumbs, actions, showSettings = true, onBack }: Pag
                         <BackIcon />
                     </IconButton>
                 ) : null}
-                <nav
-                    className={`${styles.crumbs}${onBack ? '' : ` ${styles.crumbsInset}`}`}
-                    aria-label={intl.formatMessage(messages.breadcrumb)}
-                >
-                    {crumbs.map((crumb, index) => {
-                        const isLast = index === crumbs.length - 1;
-                        const key = `${crumb.label}-${index}`;
+                {crumbs.length > 0 ? (
+                    <nav
+                        className={`${styles.crumbs}${onBack ? '' : ` ${styles.crumbsInset}`}`}
+                        aria-label={intl.formatMessage(messages.breadcrumb)}
+                    >
+                        {crumbs.map((crumb, index) => {
+                            const isLast = index === crumbs.length - 1;
+                            const key = `${crumb.label}-${index}`;
 
-                        return (
-                            <Fragment key={key}>
-                                {index > 0 ? (
-                                    <span className={styles.separator} aria-hidden='true'>
-                                        ›
-                                    </span>
-                                ) : null}
-                                {isLast ? (
-                                    <span className={styles.crumbCurrent} aria-current='page'>
-                                        {crumb.label}
-                                    </span>
-                                ) : crumb.to ? (
-                                    <Link to={crumb.to} className={styles.crumb} onClick={crumb.onClick}>
-                                        {crumb.label}
-                                    </Link>
-                                ) : crumb.onClick ? (
-                                    <button type='button' className={styles.crumbButton} onClick={crumb.onClick}>
-                                        {crumb.label}
-                                    </button>
-                                ) : (
-                                    <span className={styles.crumb}>{crumb.label}</span>
-                                )}
-                            </Fragment>
-                        );
-                    })}
-                </nav>
+                            return (
+                                <Fragment key={key}>
+                                    {index > 0 ? (
+                                        <span className={styles.separator} aria-hidden='true'>
+                                            ›
+                                        </span>
+                                    ) : null}
+                                    {isLast ? (
+                                        <span className={styles.crumbCurrent} aria-current='page'>
+                                            {crumb.label}
+                                        </span>
+                                    ) : crumb.to ? (
+                                        <Link to={crumb.to} className={styles.crumb} onClick={crumb.onClick}>
+                                            {crumb.label}
+                                        </Link>
+                                    ) : crumb.onClick ? (
+                                        <button type='button' className={styles.crumbButton} onClick={crumb.onClick}>
+                                            {crumb.label}
+                                        </button>
+                                    ) : (
+                                        <span className={styles.crumb}>{crumb.label}</span>
+                                    )}
+                                </Fragment>
+                            );
+                        })}
+                    </nav>
+                ) : null}
             </div>
             {actions || showSettings ? (
                 <div className={styles.actions}>

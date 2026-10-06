@@ -7,7 +7,7 @@ export type PageHeaderCrumb = {
 };
 
 export type PageHeaderProps = {
-    crumbs: PageHeaderCrumb[];
+    crumbs?: PageHeaderCrumb[];
     actions?: ReactNode;
     showSettings?: boolean;
     /** When set, shows a back control at the start of the header. */
