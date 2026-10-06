@@ -94,6 +94,34 @@ async function listWorktreeLeaves(worktreesRoot: string): Promise<Set<string>> {
     }
 }
 
+/** Leaf names under `worktreesRoot` that git still has registered (including stale paths). */
+async function listGitWorktreeLeaves(repoPath: string, worktreesRoot: string): Promise<Set<string>> {
+    try {
+        const { stdout } = await execFileAsync('git', ['worktree', 'list', '--porcelain'], { cwd: repoPath });
+        const root = path.resolve(worktreesRoot);
+        const leaves = new Set<string>();
+        for (const line of stdout.split('\n')) {
+            if (!line.startsWith('worktree ')) continue;
+            const worktreePath = line.slice('worktree '.length).trim();
+            const resolved = path.resolve(worktreePath);
+            if (resolved === root || resolved.startsWith(`${root}${path.sep}`)) {
+                leaves.add(path.basename(resolved));
+            }
+        }
+        return leaves;
+    } catch {
+        return new Set();
+    }
+}
+
+async function pruneStaleWorktrees(repoPath: string): Promise<void> {
+    await execFileAsync('git', ['worktree', 'prune'], { cwd: repoPath }).catch(() => undefined);
+}
+
+function isStaleWorktreeRegistrationError(message: string): boolean {
+    return message.includes('missing but already registered') || message.includes('already registered worktree');
+}
+
 /** Matches git check-ref-format --branch rules for new branch names. */
 function isValidBranchName(branch: string): boolean {
     if (!branch || branch === 'HEAD' || branch === '@') {
@@ -149,14 +177,24 @@ async function createWorktree(
     const worktreesRoot = getRepositoryWorktreesDir(projectName);
     const worktreePath = path.join(worktreesRoot, leaf);
     await mkdir(worktreesRoot, { recursive: true });
+    await pruneStaleWorktrees(repoPath);
 
-    if (reuseExisting) {
-        await execFileAsync('git', ['worktree', 'add', worktreePath, branch], { cwd: repoPath });
-        return { branch, worktreePath, baseSha, createdBranch: false };
+    const addArgs = reuseExisting
+        ? (['worktree', 'add', worktreePath, branch] as const)
+        : (['worktree', 'add', '-b', branch, worktreePath] as const);
+
+    try {
+        await execFileAsync('git', [...addArgs], { cwd: repoPath });
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (!isStaleWorktreeRegistrationError(message)) {
+            throw err;
+        }
+        await pruneStaleWorktrees(repoPath);
+        await execFileAsync('git', [...addArgs], { cwd: repoPath });
     }
 
-    await execFileAsync('git', ['worktree', 'add', '-b', branch, worktreePath], { cwd: repoPath });
-    return { branch, worktreePath, baseSha, createdBranch: true };
+    return { branch, worktreePath, baseSha, createdBranch: !reuseExisting };
 }
 
 async function spawnHarness(session: RuntimeSession): Promise<void> {
@@ -303,7 +341,11 @@ async function createCodingSession(input: {
     const takenIds = new Set(sessions.keys());
     if (input.useWorktrees) {
         const worktreesRoot = getRepositoryWorktreesDir(repository.id);
+        await pruneStaleWorktrees(repository.path);
         for (const leaf of await listWorktreeLeaves(worktreesRoot)) {
+            takenIds.add(leaf);
+        }
+        for (const leaf of await listGitWorktreeLeaves(repository.path, worktreesRoot)) {
             takenIds.add(leaf);
         }
         for (const session of sessions.values()) {
@@ -483,6 +525,9 @@ async function cleanupWorktree(session: RuntimeSession): Promise<void> {
     } catch (err: unknown) {
         console.error(`Failed to remove worktree for session ${session.id}`, err);
         await rm(session.worktreePath, { recursive: true, force: true }).catch(() => undefined);
+        if (repository) {
+            await pruneStaleWorktrees(repository.path);
+        }
     }
 
     if (repository && session.branch && session.createdBranch) {

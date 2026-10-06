@@ -9,4 +9,5 @@ export type SegmentedControlProps<T extends string> = {
     value: T;
     onChange: (value: T) => void;
     ariaLabel: string;
+    size?: 'default' | 'compact';
 };

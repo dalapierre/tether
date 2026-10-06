@@ -8,6 +8,8 @@ type Messages = {
     selectFile: NoMessageValues;
     backToFiles: NoMessageValues;
     binaryFile: NoMessageValues;
+    showMarkdownPreview: NoMessageValues;
+    showCodeView: NoMessageValues;
     statusAdded: NoMessageValues;
     statusModified: NoMessageValues;
     statusDeleted: NoMessageValues;
@@ -48,6 +50,14 @@ export const messages = defineMessages<Messages>(
         binaryFile: {
             id: 'sessionCodeView.binaryFile',
             defaultMessage: 'Binary file — diff not shown',
+        },
+        showMarkdownPreview: {
+            id: 'sessionCodeView.showMarkdownPreview',
+            defaultMessage: 'Show markdown preview',
+        },
+        showCodeView: {
+            id: 'sessionCodeView.showCodeView',
+            defaultMessage: 'Show code view',
         },
         statusAdded: {
             id: 'sessionCodeView.statusAdded',

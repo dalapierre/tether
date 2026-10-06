@@ -16,9 +16,11 @@ import {
 import { setupMonaco, TETHER_DIFF_THEME } from '@client/libs/monaco/setup';
 import { showToast } from '@client/modules/toast';
 import { DiffEditor } from '@monaco-editor/react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { editor as MonacoEditor } from 'monaco-editor';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { buildFileTree, type FileTreeDirNode, type FileTreeNode } from './buildFileTree';
+import { MarkdownPreview } from './markdownPreview';
 import { messages } from './sessionCodeView.messages';
 import { styles } from './sessionCodeView.styles';
 import type { SessionCodeViewProps } from './sessionCodeView.types';
@@ -28,6 +30,85 @@ setupMonaco();
 const TREE_INDENT_PX = 12;
 const TREE_BASE_PAD_PX = 12;
 const DIFF_POLL_MS = 3000;
+
+type MarkdownViewMode = 'code' | 'preview';
+
+function isMarkdownPath(path: string | null | undefined): boolean {
+    if (!path) return false;
+    return /\.(md|markdown)$/i.test(path);
+}
+
+function markdownPreviewContent(file: SessionFileDiff): string {
+    if (file.status === 'deleted') {
+        return file.original;
+    }
+    return file.modified;
+}
+
+function normalizedScrollRatio(scrollTop: number, scrollHeight: number, clientHeight: number): number {
+    const range = scrollHeight - clientHeight;
+    if (range <= 0) {
+        return 0;
+    }
+    return Math.min(1, Math.max(0, scrollTop / range));
+}
+
+function scrollTopForRatio(ratio: number, scrollHeight: number, clientHeight: number): number {
+    const range = scrollHeight - clientHeight;
+    if (range <= 0) {
+        return 0;
+    }
+    return ratio * range;
+}
+
+function getDiffEditorScrollRatio(diffEditor: MonacoEditor.IStandaloneDiffEditor | null): number | null {
+    if (!diffEditor) {
+        return null;
+    }
+    const codeEditor = diffEditor.getModifiedEditor();
+    return normalizedScrollRatio(
+        codeEditor.getScrollTop(),
+        codeEditor.getScrollHeight(),
+        codeEditor.getLayoutInfo().height,
+    );
+}
+
+function setDiffEditorScrollRatio(diffEditor: MonacoEditor.IStandaloneDiffEditor | null, ratio: number): void {
+    if (!diffEditor) {
+        return;
+    }
+    const codeEditor = diffEditor.getModifiedEditor();
+    codeEditor.setScrollTop(scrollTopForRatio(ratio, codeEditor.getScrollHeight(), codeEditor.getLayoutInfo().height));
+}
+
+function getElementScrollRatio(element: HTMLElement | null): number | null {
+    if (!element) {
+        return null;
+    }
+    return normalizedScrollRatio(element.scrollTop, element.scrollHeight, element.clientHeight);
+}
+
+function setElementScrollRatio(element: HTMLElement | null, ratio: number): void {
+    if (!element) {
+        return;
+    }
+    element.scrollTop = scrollTopForRatio(ratio, element.scrollHeight, element.clientHeight);
+}
+
+function applyScrollRatio(
+    target: 'code' | 'preview',
+    ratio: number,
+    refs: {
+        diffEditor: MonacoEditor.IStandaloneDiffEditor | null;
+        preview: HTMLDivElement | null;
+    },
+): void {
+    if (target === 'preview') {
+        setElementScrollRatio(refs.preview, ratio);
+    } else {
+        setDiffEditorScrollRatio(refs.diffEditor, ratio);
+    }
+}
 
 function fileListSignature(files: SessionDiffFile[]): string {
     return files
@@ -75,6 +156,44 @@ function BackIcon() {
             aria-hidden='true'
         >
             <path strokeLinecap='round' strokeLinejoin='round' d='M15.75 19.5 8.25 12l7.5-7.5' />
+        </svg>
+    );
+}
+
+function MarkdownCodeViewIcon() {
+    return (
+        <svg
+            className={styles.fileHeaderModeIcon}
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='1.75'
+            aria-hidden='true'
+        >
+            <path
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                d='M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5'
+            />
+        </svg>
+    );
+}
+
+function MarkdownPreviewViewIcon() {
+    return (
+        <svg
+            className={styles.fileHeaderModeIcon}
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='1.75'
+            aria-hidden='true'
+        >
+            <path
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                d='M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125V4.875a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z'
+            />
         </svg>
     );
 }
@@ -244,6 +363,10 @@ export function SessionCodeView({ sessionId, onHasFilesChange }: SessionCodeView
     const [fileLoading, setFileLoading] = useState(false);
     const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(() => new Set());
     const [fileTreeWidth, setFileTreeWidth] = useState(getFileTreeWidthPx);
+    const [markdownViewMode, setMarkdownViewMode] = useState<MarkdownViewMode>('code');
+    const diffEditorRef = useRef<MonacoEditor.IStandaloneDiffEditor | null>(null);
+    const previewScrollRef = useRef<HTMLDivElement | null>(null);
+    const pendingScrollRatioRef = useRef<number | null>(null);
     const fileTreeWidthRef = useRef(fileTreeWidth);
 
     const tree = useMemo(() => buildFileTree(files), [files]);
@@ -352,6 +475,73 @@ export function SessionCodeView({ sessionId, onHasFilesChange }: SessionCodeView
         };
     }, [sessionId, selectedPath, intl]);
 
+    useEffect(() => {
+        setMarkdownViewMode('code');
+        pendingScrollRatioRef.current = null;
+    }, [selectedPath]);
+
+    const handleMarkdownViewModeChange = useCallback(
+        (next: MarkdownViewMode) => {
+            if (next === markdownViewMode) {
+                return;
+            }
+            if (next === 'preview') {
+                const ratio = getDiffEditorScrollRatio(diffEditorRef.current);
+                if (ratio !== null) {
+                    pendingScrollRatioRef.current = ratio;
+                }
+            } else {
+                const ratio = getElementScrollRatio(previewScrollRef.current);
+                if (ratio !== null) {
+                    pendingScrollRatioRef.current = ratio;
+                }
+            }
+            setMarkdownViewMode(next);
+        },
+        [markdownViewMode],
+    );
+
+    useLayoutEffect(() => {
+        const ratio = pendingScrollRatioRef.current;
+        if (ratio === null) {
+            return;
+        }
+        pendingScrollRatioRef.current = null;
+        const target = markdownViewMode === 'preview' ? 'preview' : 'code';
+        const refs = { diffEditor: diffEditorRef.current, preview: previewScrollRef.current };
+        applyScrollRatio(target, ratio, refs);
+        requestAnimationFrame(() => applyScrollRatio(target, ratio, refs));
+    }, [markdownViewMode]);
+
+    const diffEditorOptions = useMemo(
+        () => ({
+            readOnly: true,
+            renderSideBySide: isDesktop,
+            wordWrap: 'on' as const,
+            wrappingIndent: 'same' as const,
+            fontSize: isDesktop ? 13 : 11,
+            lineHeight: isDesktop ? 18 : 16,
+            minimap: { enabled: false },
+            scrollBeyondLastLine: false,
+            renderOverviewRuler: true,
+            overviewRulerLanes: 0,
+            scrollbar: {
+                verticalScrollbarSize: 10,
+                horizontalScrollbarSize: 6,
+            },
+            padding: { top: 8, bottom: 8 },
+            glyphMargin: false,
+            folding: false,
+            lineDecorationsWidth: 8,
+            lineNumbersMinChars: 3,
+            renderLineHighlight: 'none' as const,
+            contextmenu: false,
+            automaticLayout: true,
+            originalEditable: false,
+        }),
+        [isDesktop],
+    );
+
     // Keep the open file's contents fresh even when summary stats are unchanged.
     useEffect(() => {
         if (!selectedPath) return;
@@ -404,6 +594,9 @@ export function SessionCodeView({ sessionId, onHasFilesChange }: SessionCodeView
     const listPanelWrapClass = !isDesktop && selectedPath ? styles.listPanelWrapMobileHidden : styles.listPanelWrap;
     const listPanelClass = selectedPath ? styles.listPanelMobileHidden : styles.listPanel;
     const editorPanelClass = showEditor ? styles.editorPanel : styles.editorPanelMobileHidden;
+    const showMarkdownToggle = isMarkdownPath(selectedPath);
+    const showMarkdownPreview =
+        showMarkdownToggle && markdownViewMode === 'preview' && Boolean(fileDiff && !fileDiff.binary);
 
     const listPanelWrapStyle = isDesktop ? { width: fileTreeWidth } : undefined;
 
@@ -455,11 +648,57 @@ export function SessionCodeView({ sessionId, onHasFilesChange }: SessionCodeView
                                 {intl.formatMessage(messages.backToFiles)}
                             </button>
                             <span className={styles.fileHeaderPath}>{selectedPath}</span>
+                            {showMarkdownToggle ? (
+                                <button
+                                    type='button'
+                                    className={styles.fileHeaderMode}
+                                    aria-label={intl.formatMessage(
+                                        markdownViewMode === 'code'
+                                            ? messages.showMarkdownPreview
+                                            : messages.showCodeView,
+                                    )}
+                                    onClick={() =>
+                                        handleMarkdownViewModeChange(markdownViewMode === 'code' ? 'preview' : 'code')
+                                    }
+                                >
+                                    {markdownViewMode === 'code' ? (
+                                        <MarkdownPreviewViewIcon />
+                                    ) : (
+                                        <MarkdownCodeViewIcon />
+                                    )}
+                                </button>
+                            ) : null}
                         </div>
                         {fileLoading || !fileDiff ? (
                             <Spinner label={loadingLabel} />
                         ) : fileDiff.binary ? (
                             <p className={styles.centered}>{intl.formatMessage(messages.binaryFile)}</p>
+                        ) : showMarkdownToggle ? (
+                            <div className={styles.markdownViewPane}>
+                                <div
+                                    className={`${styles.editorWrap}${showMarkdownPreview ? ` ${styles.markdownViewHidden}` : ''}`}
+                                >
+                                    <div className={styles.editorFill}>
+                                        <DiffEditor
+                                            height='100%'
+                                            width='100%'
+                                            original={fileDiff.original}
+                                            modified={fileDiff.modified}
+                                            language={fileDiff.language}
+                                            theme={TETHER_DIFF_THEME}
+                                            options={diffEditorOptions}
+                                            onMount={(editor) => {
+                                                diffEditorRef.current = editor;
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                                <MarkdownPreview
+                                    ref={previewScrollRef}
+                                    className={`${styles.markdownPreview}${showMarkdownPreview ? '' : ` ${styles.markdownViewHidden}`}`}
+                                    content={markdownPreviewContent(fileDiff)}
+                                />
+                            </div>
                         ) : (
                             <div className={styles.editorWrap}>
                                 <div className={styles.editorFill}>
@@ -470,33 +709,7 @@ export function SessionCodeView({ sessionId, onHasFilesChange }: SessionCodeView
                                         modified={fileDiff.modified}
                                         language={fileDiff.language}
                                         theme={TETHER_DIFF_THEME}
-                                        options={{
-                                            readOnly: true,
-                                            renderSideBySide: isDesktop,
-                                            wordWrap: 'on',
-                                            wrappingIndent: 'same',
-                                            fontSize: isDesktop ? 13 : 11,
-                                            lineHeight: isDesktop ? 18 : 16,
-                                            minimap: { enabled: false },
-                                            scrollBeyondLastLine: false,
-                                            // Diff-editor overview strip (green adds / red deletes), like VS Code & GitHub.
-                                            renderOverviewRuler: true,
-                                            // Keep per-editor overview lanes off — the diff widget owns the shared ruler.
-                                            overviewRulerLanes: 0,
-                                            scrollbar: {
-                                                verticalScrollbarSize: 10,
-                                                horizontalScrollbarSize: 6,
-                                            },
-                                            padding: { top: 8, bottom: 8 },
-                                            glyphMargin: false,
-                                            folding: false,
-                                            lineDecorationsWidth: 8,
-                                            lineNumbersMinChars: 3,
-                                            renderLineHighlight: 'none',
-                                            contextmenu: false,
-                                            automaticLayout: true,
-                                            originalEditable: false,
-                                        }}
+                                        options={diffEditorOptions}
                                     />
                                 </div>
                             </div>
