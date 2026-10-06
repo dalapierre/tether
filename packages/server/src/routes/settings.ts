@@ -1,4 +1,5 @@
 import { isAgentId } from '@server/libs/agents/agents.js';
+import { isKeybinds, normalizeKeybinds } from '@server/libs/settings/keybinds.js';
 import { getSettings, normalizeIncomingProfiles, updateSettings } from '@server/libs/settings/store.js';
 import { Router } from 'express';
 
@@ -20,6 +21,7 @@ settingsRouter.put('/', async (req, res) => {
     const defaultProfileId =
         typeof req.body?.defaultProfileId === 'string' ? req.body.defaultProfileId.trim() : undefined;
     const profiles = normalizeIncomingProfiles(req.body?.profiles);
+    const keybindsRaw = req.body?.keybinds;
 
     if (devDir === undefined) {
         res.status(400).json({ error: 'devDir is required' });
@@ -51,12 +53,18 @@ settingsRouter.put('/', async (req, res) => {
         return;
     }
 
+    if (keybindsRaw !== undefined && !isKeybinds(keybindsRaw)) {
+        res.status(400).json({ error: 'keybinds must include home and session' });
+        return;
+    }
+
     try {
         const settings = await updateSettings({
             devDir,
             defaultAgent: defaultAgentRaw,
             defaultProfileId,
             profiles,
+            keybinds: keybindsRaw !== undefined ? normalizeKeybinds(keybindsRaw) : undefined,
         });
         res.json({ settings });
     } catch (err: unknown) {

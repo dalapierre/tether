@@ -12,9 +12,9 @@ function indicatorClass(indicator: CardIndicator): string {
     }
 }
 
-export function Card({ title, children, onClick, indicator }: CardProps) {
+export function Card({ title, children, onClick, indicator, selected }: CardProps) {
     return (
-        <button type='button' className={styles.button} onClick={onClick}>
+        <button type='button' className={selected ? styles.buttonSelected : styles.button} onClick={onClick}>
             {indicator ? (
                 <span className={`${styles.indicator} ${indicatorClass(indicator)}`} aria-hidden='true' />
             ) : null}

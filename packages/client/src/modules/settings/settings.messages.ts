@@ -27,6 +27,30 @@ type Messages = {
     categoryEditProfile: NoMessageValues;
     categoryEditProfileCrumb: NoMessageValues;
     categoryEditProfileDescription: NoMessageValues;
+    categoryKeybinds: NoMessageValues;
+    categoryKeybindsCrumb: NoMessageValues;
+    categoryKeybindsDescription: NoMessageValues;
+    keybindsTabsLabel: NoMessageValues;
+    keybindsTabHome: NoMessageValues;
+    keybindsTabSession: NoMessageValues;
+    keybindsHint: NoMessageValues;
+    keybindsResetCategory: NoMessageValues;
+    keybindRecording: NoMessageValues;
+    keybindUnbound: NoMessageValues;
+    keybindConflict: NoMessageValues;
+    keybindNewSession: NoMessageValues;
+    keybindOpenSettings: NoMessageValues;
+    keybindPreviousSession: NoMessageValues;
+    keybindNextSession: NoMessageValues;
+    keybindGoBack: NoMessageValues;
+    keybindToggleReview: NoMessageValues;
+    keybindToggleAgentInsert: NoMessageValues;
+    keybindNextFile: NoMessageValues;
+    keybindPreviousFile: NoMessageValues;
+    keybindScrollFileUp: NoMessageValues;
+    keybindScrollFileDown: NoMessageValues;
+    keybindScrollSpeedModifier: NoMessageValues;
+    keybindToggleMarkdownPreview: NoMessageValues;
     devDirLabel: NoMessageValues;
     devDirPlaceholder: NoMessageValues;
     devDirHint: NoMessageValues;
@@ -178,6 +202,102 @@ export const messages = defineMessages<Messages>(
         categoryEditProfileDescription: {
             id: 'settings.categoryEditProfileDescription',
             defaultMessage: 'Update this profile’s harness and defaults.',
+        },
+        categoryKeybinds: {
+            id: 'settings.categoryKeybinds',
+            defaultMessage: 'Keybinds',
+        },
+        categoryKeybindsCrumb: {
+            id: 'settings.categoryKeybindsCrumb',
+            defaultMessage: 'keybinds',
+        },
+        categoryKeybindsDescription: {
+            id: 'settings.categoryKeybindsDescription',
+            defaultMessage: 'Keyboard shortcuts for each part of the app.',
+        },
+        keybindsTabsLabel: {
+            id: 'settings.keybindsTabsLabel',
+            defaultMessage: 'Keybind categories',
+        },
+        keybindsTabHome: {
+            id: 'settings.keybindsTabHome',
+            defaultMessage: 'Home',
+        },
+        keybindsTabSession: {
+            id: 'settings.keybindsTabSession',
+            defaultMessage: 'Session',
+        },
+        keybindsHint: {
+            id: 'settings.keybindsHint',
+            defaultMessage: 'Click a shortcut, then press the new keys. Escape cancels. Backspace clears.',
+        },
+        keybindsResetCategory: {
+            id: 'settings.keybindsResetCategory',
+            defaultMessage: 'Reset this tab to defaults',
+        },
+        keybindRecording: {
+            id: 'settings.keybindRecording',
+            defaultMessage: 'Press keys…',
+        },
+        keybindUnbound: {
+            id: 'settings.keybindUnbound',
+            defaultMessage: 'None',
+        },
+        keybindConflict: {
+            id: 'settings.keybindConflict',
+            defaultMessage: 'Conflicts with another shortcut on this tab',
+        },
+        keybindNewSession: {
+            id: 'settings.keybindNewSession',
+            defaultMessage: 'New session',
+        },
+        keybindOpenSettings: {
+            id: 'settings.keybindOpenSettings',
+            defaultMessage: 'Open settings',
+        },
+        keybindPreviousSession: {
+            id: 'settings.keybindPreviousSession',
+            defaultMessage: 'Previous session',
+        },
+        keybindNextSession: {
+            id: 'settings.keybindNextSession',
+            defaultMessage: 'Next session',
+        },
+        keybindGoBack: {
+            id: 'settings.keybindGoBack',
+            defaultMessage: 'Back to sessions',
+        },
+        keybindToggleReview: {
+            id: 'settings.keybindToggleReview',
+            defaultMessage: 'Toggle review panel',
+        },
+        keybindToggleAgentInsert: {
+            id: 'settings.keybindToggleAgentInsert',
+            defaultMessage: 'Toggle terminal insert',
+        },
+        keybindNextFile: {
+            id: 'settings.keybindNextFile',
+            defaultMessage: 'Next file',
+        },
+        keybindPreviousFile: {
+            id: 'settings.keybindPreviousFile',
+            defaultMessage: 'Previous file',
+        },
+        keybindScrollFileUp: {
+            id: 'settings.keybindScrollFileUp',
+            defaultMessage: 'Scroll file up',
+        },
+        keybindScrollFileDown: {
+            id: 'settings.keybindScrollFileDown',
+            defaultMessage: 'Scroll file down',
+        },
+        keybindScrollSpeedModifier: {
+            id: 'settings.keybindScrollSpeedModifier',
+            defaultMessage: 'Scroll speed modifier',
+        },
+        keybindToggleMarkdownPreview: {
+            id: 'settings.keybindToggleMarkdownPreview',
+            defaultMessage: 'Toggle markdown preview',
         },
         devDirLabel: {
             id: 'settings.devDirLabel',

@@ -12,7 +12,7 @@ export const styles = {
     toolbar: 'flex items-center border-b border-zinc-800 px-3 py-2',
     toolbarTitle: 'min-w-0 truncate text-xs text-zinc-400',
     centered: 'flex flex-1 items-center justify-center px-4 text-sm text-zinc-500',
-    fileList: 'min-h-0 flex-1 overflow-y-auto',
+    fileList: 'code-review-scroll min-h-0 flex-1 overflow-y-auto',
     treeRow:
         'flex w-full items-center gap-2 border-b border-zinc-900/80 py-2 pr-3 text-left active:bg-zinc-900/80 md:hover:bg-zinc-900/80',
     treeRowSelected: 'bg-zinc-900/80',
@@ -47,7 +47,7 @@ export const styles = {
     markdownViewHidden: 'hidden',
     editorWrap: 'relative min-h-0 flex-1',
     editorFill: 'absolute inset-0',
-    markdownPreview: 'min-h-0 flex-1 overflow-y-auto',
+    markdownPreview: 'code-review-scroll min-h-0 flex-1 overflow-y-auto',
     markdownBody: 'mx-auto max-w-3xl px-4 py-6 text-sm leading-relaxed text-zinc-200 md:px-8',
     mdH1: 'mb-4 border-b border-zinc-800 pb-2 text-2xl font-semibold tracking-tight text-zinc-50',
     mdH2: 'mb-3 mt-8 border-b border-zinc-800/80 pb-1.5 text-xl font-semibold tracking-tight text-zinc-50',

@@ -1,5 +1,6 @@
 import { ApiError, apiFetch } from '@client/libs/api/client';
 import type { AgentId } from '@client/libs/agents/agents';
+import { DEFAULT_KEYBINDS, cloneKeybinds, type Keybinds } from '@client/libs/keybinds';
 
 export type AgentProfileType = 'coding' | 'conversation';
 
@@ -17,11 +18,19 @@ export type Settings = {
     defaultAgent: AgentId;
     defaultProfileId: string;
     profiles: AgentProfile[];
+    keybinds: Keybinds;
 };
 
 type SettingsResponse = {
     settings: Settings;
 };
+
+function normalizeSettings(settings: Settings): Settings {
+    return {
+        ...settings,
+        keybinds: settings.keybinds ? cloneKeybinds(settings.keybinds) : cloneKeybinds(DEFAULT_KEYBINDS),
+    };
+}
 
 export async function getSettings(): Promise<Settings> {
     const res = await apiFetch('/api/settings');
@@ -32,7 +41,7 @@ export async function getSettings(): Promise<Settings> {
     }
 
     const data = (await res.json()) as SettingsResponse;
-    return data.settings;
+    return normalizeSettings(data.settings);
 }
 
 export async function updateSettings(settings: Settings): Promise<Settings> {
@@ -47,5 +56,5 @@ export async function updateSettings(settings: Settings): Promise<Settings> {
     }
 
     const data = (await res.json()) as SettingsResponse;
-    return data.settings;
+    return normalizeSettings(data.settings);
 }

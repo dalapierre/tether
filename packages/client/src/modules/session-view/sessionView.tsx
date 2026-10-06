@@ -16,6 +16,7 @@ import {
 } from '@client/libs/api/sessions';
 import { bindSessionViewport } from '@client/libs/dom/bindSessionViewport';
 import { useIsDesktop } from '@client/libs/dom/useMediaQuery';
+import { useKeybind } from '@client/libs/keybinds';
 import {
     clampReviewPaneWidthPx,
     getReviewPaneWidthPx,
@@ -242,6 +243,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
 
     const showDesktopReview = isDesktop && desktopReviewOpen;
     const reviewPaneVisible = isDesktop ? showDesktopReview : tab === 'review';
+    const sessionReady = Boolean(session && !loading && !failed);
 
     reviewPaneWidthRef.current = reviewPaneWidth;
 
@@ -259,6 +261,47 @@ export function SessionView({ sessionId }: SessionViewProps) {
             return next;
         });
     }
+
+    useKeybind('session', 'goBack', () => navigate('/', { replace: true }), { enabled: sessionReady });
+    useKeybind(
+        'session',
+        'toggleReview',
+        () => {
+            if (session?.type !== 'coding' || !hasReviewFiles) return;
+            if (isDesktop) {
+                toggleDesktopReview();
+                return;
+            }
+            setTab((current) => {
+                if (current === 'review') return 'agent';
+                setReviewVisited(true);
+                return 'review';
+            });
+        },
+        { enabled: sessionReady },
+    );
+    useKeybind(
+        'session',
+        'toggleAgentInsert',
+        () => {
+            const term = termRef.current;
+            const insertActive = Boolean(term?.textarea) && document.activeElement === term?.textarea;
+
+            if (insertActive) {
+                term?.blur();
+                return;
+            }
+
+            if (!isDesktop) {
+                setTab('agent');
+            }
+            // Wait a frame so the agent pane is visible before focusing.
+            requestAnimationFrame(() => {
+                focusTerminal();
+            });
+        },
+        { enabled: sessionReady, allowInTerminalInsert: true },
+    );
 
     useEffect(() => {
         const storedOpen = getReviewPanelOpen(sessionId);
@@ -649,7 +692,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         { label: intl.formatMessage(messages.loadingCrumb) },
                     ]}
                     showSettings={false}
-                    onBack={() => navigate('/')}
+                    onBack={() => navigate('/', { replace: true })}
                 />
                 <p className={styles.centered}>{intl.formatMessage(messages.loading)}</p>
             </div>
@@ -665,7 +708,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         { label: intl.formatMessage(messages.notFound) },
                     ]}
                     showSettings={false}
-                    onBack={() => navigate('/')}
+                    onBack={() => navigate('/', { replace: true })}
                 />
                 <p className={styles.centered}>{intl.formatMessage(messages.notFound)}</p>
             </div>
@@ -684,7 +727,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
             <PageHeader
                 crumbs={[{ label: intl.formatMessage(messages.sessionsCrumb), to: '/' }, { label: session.name }]}
                 showSettings={false}
-                onBack={() => navigate('/')}
+                onBack={() => navigate('/', { replace: true })}
                 actions={
                     <div className={styles.mobileActions}>
                         <IconButton label={intl.formatMessage(messages.arrowUp)} onClick={sendArrowUp}>
@@ -794,7 +837,11 @@ export function SessionView({ sessionId }: SessionViewProps) {
                             />
                         ) : null}
                         <div className={styles.reviewBody}>
-                            <SessionCodeView sessionId={session.id} onHasFilesChange={onHasFilesChange} />
+                            <SessionCodeView
+                                sessionId={session.id}
+                                onHasFilesChange={onHasFilesChange}
+                                keybindsEnabled={reviewPaneVisible}
+                            />
                         </div>
                     </div>
                 ) : null}

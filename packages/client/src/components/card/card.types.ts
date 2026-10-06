@@ -7,4 +7,5 @@ export type CardProps = {
     children?: ReactNode;
     onClick?: ButtonHTMLAttributes<HTMLButtonElement>['onClick'];
     indicator?: CardIndicator;
+    selected?: boolean;
 };

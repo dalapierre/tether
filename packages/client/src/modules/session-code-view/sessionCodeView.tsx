@@ -9,6 +9,13 @@ import { PanelResizeHandle, panelResizeHandleMessages } from '@client/components
 import { Spinner } from '@client/components/spinner';
 import { useIsDesktop } from '@client/libs/dom/useMediaQuery';
 import {
+    eventMatchesKeybind,
+    isTerminalInsertTarget,
+    modifierChordHeld,
+    useKeybind,
+    useKeybinds,
+} from '@client/libs/keybinds';
+import {
     clampFileTreeWidthPx,
     getFileTreeWidthPx,
     setFileTreeWidthPx,
@@ -30,6 +37,8 @@ setupMonaco();
 const TREE_INDENT_PX = 12;
 const TREE_BASE_PAD_PX = 12;
 const DIFF_POLL_MS = 3000;
+/** Continuous scroll speed while a scroll keybind is held. */
+const FILE_SCROLL_PX_PER_SEC = 640;
 
 type MarkdownViewMode = 'code' | 'preview';
 
@@ -79,6 +88,25 @@ function setDiffEditorScrollRatio(diffEditor: MonacoEditor.IStandaloneDiffEditor
     }
     const codeEditor = diffEditor.getModifiedEditor();
     codeEditor.setScrollTop(scrollTopForRatio(ratio, codeEditor.getScrollHeight(), codeEditor.getLayoutInfo().height));
+}
+
+function setDiffEditorScrollBy(diffEditor: MonacoEditor.IStandaloneDiffEditor | null, delta: number): void {
+    if (!diffEditor) {
+        return;
+    }
+    const modified = diffEditor.getModifiedEditor();
+    const original = diffEditor.getOriginalEditor();
+    const next = modified.getScrollTop() + delta;
+    // Set both sides in the same turn so the diff view doesn't briefly desync.
+    original.setScrollTop(next);
+    modified.setScrollTop(next);
+}
+
+function setElementScrollBy(element: HTMLElement | null, delta: number): void {
+    if (!element) {
+        return;
+    }
+    element.scrollTop += delta;
 }
 
 function getElementScrollRatio(element: HTMLElement | null): number | null {
@@ -353,9 +381,10 @@ function FileTree({
     );
 }
 
-export function SessionCodeView({ sessionId, onHasFilesChange }: SessionCodeViewProps) {
+export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled = true }: SessionCodeViewProps) {
     const intl = useIntl();
     const isDesktop = useIsDesktop();
+    const { keybinds } = useKeybinds();
     const [files, setFiles] = useState<SessionDiffFile[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedPath, setSelectedPath] = useState<string | null>(null);
@@ -501,6 +530,169 @@ export function SessionCodeView({ sessionId, onHasFilesChange }: SessionCodeView
         [markdownViewMode],
     );
 
+    const selectAdjacentFile = useCallback(
+        (direction: 1 | -1) => {
+            if (files.length === 0) return;
+            const currentIndex = selectedPath ? files.findIndex((file) => file.path === selectedPath) : -1;
+            const nextIndex =
+                currentIndex === -1
+                    ? direction === 1
+                        ? 0
+                        : files.length - 1
+                    : (currentIndex + direction + files.length) % files.length;
+            setSelectedPath(files[nextIndex]?.path ?? null);
+        },
+        [files, selectedPath],
+    );
+
+    const scrollCurrentFile = useCallback(
+        (deltaPx: number) => {
+            if (!selectedPath || deltaPx === 0) return;
+            const showingPreview =
+                isMarkdownPath(selectedPath) && markdownViewMode === 'preview' && Boolean(fileDiff && !fileDiff.binary);
+            if (showingPreview) {
+                setElementScrollBy(previewScrollRef.current, deltaPx);
+                return;
+            }
+            setDiffEditorScrollBy(diffEditorRef.current, deltaPx);
+        },
+        [fileDiff, markdownViewMode, selectedPath],
+    );
+
+    useKeybind('session', 'nextFile', () => selectAdjacentFile(1), {
+        enabled: keybindsEnabled && files.length > 0,
+    });
+    useKeybind('session', 'previousFile', () => selectAdjacentFile(-1), {
+        enabled: keybindsEnabled && files.length > 0,
+    });
+    useKeybind(
+        'session',
+        'toggleMarkdownPreview',
+        () => {
+            if (!isMarkdownPath(selectedPath)) return;
+            handleMarkdownViewModeChange(markdownViewMode === 'code' ? 'preview' : 'code');
+        },
+        { enabled: keybindsEnabled && Boolean(selectedPath) && isMarkdownPath(selectedPath) },
+    );
+
+    useEffect(() => {
+        if (!keybindsEnabled || !selectedPath) return;
+
+        const upChord = keybinds.session.scrollFileUp.trim();
+        const downChord = keybinds.session.scrollFileDown.trim();
+        const speedModifierChord = keybinds.session.scrollSpeedModifier.trim();
+        if (!upChord && !downChord) return;
+
+        let direction: -1 | 0 | 1 = 0;
+        let speedModifierHeld = false;
+        let activeCode: string | null = null;
+        let raf = 0;
+        let lastTs = 0;
+
+        function stop() {
+            direction = 0;
+            activeCode = null;
+            lastTs = 0;
+            if (raf) {
+                cancelAnimationFrame(raf);
+                raf = 0;
+            }
+        }
+
+        function frame(ts: number) {
+            if (direction === 0) {
+                raf = 0;
+                return;
+            }
+            if (lastTs === 0) {
+                lastTs = ts;
+                raf = requestAnimationFrame(frame);
+                return;
+            }
+            const dt = Math.min(33, ts - lastTs);
+            lastTs = ts;
+            const speedScale = speedModifierHeld ? 2 : 1;
+            scrollCurrentFile(direction * FILE_SCROLL_PX_PER_SEC * speedScale * (dt / 1000));
+            raf = requestAnimationFrame(frame);
+        }
+
+        function start(next: -1 | 1, code: string) {
+            if (direction === next && activeCode === code) return;
+            direction = next;
+            activeCode = code;
+            lastTs = 0;
+            if (!raf) {
+                raf = requestAnimationFrame(frame);
+            }
+        }
+
+        function onKeyDown(event: KeyboardEvent) {
+            if (event.defaultPrevented) return;
+            if (document.querySelector('[aria-modal="true"]')) return;
+            if (isTerminalInsertTarget(event.target)) return;
+
+            if (speedModifierChord && eventMatchesKeybind(event, speedModifierChord)) {
+                speedModifierHeld = true;
+            } else if (speedModifierChord) {
+                speedModifierHeld = modifierChordHeld(event, speedModifierChord);
+            }
+
+            if (upChord && eventMatchesKeybind(event, upChord, { ignoreModifiersFrom: speedModifierChord })) {
+                event.preventDefault();
+                event.stopPropagation();
+                if (!event.repeat) start(-1, event.code);
+                return;
+            }
+            if (downChord && eventMatchesKeybind(event, downChord, { ignoreModifiersFrom: speedModifierChord })) {
+                event.preventDefault();
+                event.stopPropagation();
+                if (!event.repeat) start(1, event.code);
+            }
+        }
+
+        function onKeyUp(event: KeyboardEvent) {
+            if (speedModifierChord && eventMatchesKeybind(event, speedModifierChord)) {
+                speedModifierHeld = false;
+            } else if (speedModifierChord) {
+                speedModifierHeld = modifierChordHeld(event, speedModifierChord);
+            }
+
+            if (activeCode && event.code === activeCode) {
+                stop();
+                return;
+            }
+            if (upChord && eventMatchesKeybind(event, upChord) && direction === -1) {
+                stop();
+                return;
+            }
+            if (downChord && eventMatchesKeybind(event, downChord) && direction === 1) {
+                stop();
+            }
+        }
+
+        function onWindowBlur() {
+            speedModifierHeld = false;
+            stop();
+        }
+
+        window.addEventListener('keydown', onKeyDown, true);
+        window.addEventListener('keyup', onKeyUp, true);
+        window.addEventListener('blur', onWindowBlur);
+        return () => {
+            stop();
+            window.removeEventListener('keydown', onKeyDown, true);
+            window.removeEventListener('keyup', onKeyUp, true);
+            window.removeEventListener('blur', onWindowBlur);
+        };
+    }, [
+        keybinds.session.scrollFileDown,
+        keybinds.session.scrollFileUp,
+        keybinds.session.scrollSpeedModifier,
+        keybindsEnabled,
+        scrollCurrentFile,
+        selectedPath,
+    ]);
+
     useLayoutEffect(() => {
         const ratio = pendingScrollRatioRef.current;
         if (ratio === null) {
@@ -527,7 +719,11 @@ export function SessionCodeView({ sessionId, onHasFilesChange }: SessionCodeView
             overviewRulerLanes: 0,
             scrollbar: {
                 verticalScrollbarSize: 10,
-                horizontalScrollbarSize: 6,
+                horizontalScrollbarSize: 10,
+                useShadows: false,
+                verticalHasArrows: false,
+                horizontalHasArrows: false,
+                arrowSize: 0,
             },
             padding: { top: 8, bottom: 8 },
             glyphMargin: false,

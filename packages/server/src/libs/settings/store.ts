@@ -1,7 +1,10 @@
 import { isAgentId, type AgentId } from '@server/libs/agents/agents.js';
 import { getLegacyServerDataDir, getSettingsFilePath, getTetherHomeDir } from '@server/libs/paths.js';
+import { DEFAULT_KEYBINDS, normalizeKeybinds, type Keybinds } from '@server/libs/settings/keybinds.js';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+
+export type { Keybinds } from '@server/libs/settings/keybinds.js';
 
 export type StoredRepository = {
     id: string;
@@ -27,6 +30,7 @@ export type Settings = {
     defaultAgent: AgentId;
     defaultProfileId: string;
     profiles: AgentProfile[];
+    keybinds: Keybinds;
 };
 
 type SettingsFile = {
@@ -34,6 +38,7 @@ type SettingsFile = {
     defaultAgent: AgentId;
     defaultProfileId: string;
     profiles: AgentProfile[];
+    keybinds: Keybinds;
     /** Persisted added repositories — not exposed via the settings API/UI. */
     repositories: StoredRepository[];
 };
@@ -62,6 +67,7 @@ const defaultSettingsFile: SettingsFile = {
     defaultAgent: DEFAULT_AGENT,
     defaultProfileId: DEFAULT_PROFILE_ID,
     profiles: [createDefaultProfile()],
+    keybinds: DEFAULT_KEYBINDS,
     repositories: [],
 };
 
@@ -139,6 +145,10 @@ function toPublicSettings(file: SettingsFile): Settings {
         defaultAgent: file.defaultAgent,
         defaultProfileId: file.defaultProfileId,
         profiles: file.profiles.map((profile) => ({ ...profile })),
+        keybinds: {
+            home: { ...file.keybinds.home },
+            session: { ...file.keybinds.session },
+        },
     };
 }
 
@@ -147,6 +157,7 @@ function normalizeSettingsFile(value: unknown): SettingsFile {
         return {
             ...defaultSettingsFile,
             profiles: [createDefaultProfile()],
+            keybinds: normalizeKeybinds(undefined),
             repositories: [],
         };
     }
@@ -156,9 +167,10 @@ function normalizeSettingsFile(value: unknown): SettingsFile {
     const profiles = normalizeProfiles(record.profiles, record.agent, record.yoloMode);
     const defaultAgent = resolveDefaultAgent(record.defaultAgent ?? record.agent);
     const defaultProfileId = resolveDefaultProfileId(record.defaultProfileId, profiles);
+    const keybinds = normalizeKeybinds(record.keybinds);
     const repositories = Array.isArray(record.repositories) ? record.repositories.filter(isStoredRepository) : [];
 
-    return { devDir, defaultAgent, defaultProfileId, profiles, repositories };
+    return { devDir, defaultAgent, defaultProfileId, profiles, keybinds, repositories };
 }
 
 /** One-time: move settings from packages/server/data into ~/.tether. */
@@ -219,6 +231,7 @@ async function readSettingsFile(): Promise<SettingsFile> {
         return {
             ...defaultSettingsFile,
             profiles: [createDefaultProfile()],
+            keybinds: normalizeKeybinds(undefined),
             repositories: [],
         };
     }
@@ -267,11 +280,13 @@ export async function updateSettings(patch: {
     defaultAgent?: AgentId;
     defaultProfileId?: string;
     profiles?: AgentProfile[];
+    keybinds?: Keybinds;
 }): Promise<Settings> {
     const current = await readSettingsFile();
     const profiles = patch.profiles ?? current.profiles;
     const defaultAgent = resolveDefaultAgent(patch.defaultAgent ?? current.defaultAgent);
     const defaultProfileId = resolveDefaultProfileId(patch.defaultProfileId ?? current.defaultProfileId, profiles);
+    const keybinds = patch.keybinds ? normalizeKeybinds(patch.keybinds) : current.keybinds;
 
     const next: SettingsFile = {
         ...current,
@@ -279,6 +294,7 @@ export async function updateSettings(patch: {
         defaultAgent,
         defaultProfileId,
         profiles,
+        keybinds,
     };
     await writeSettingsFile(next);
     return toPublicSettings(next);

@@ -16,16 +16,18 @@ import {
     type Repository,
 } from '@client/libs/api/repositories';
 import { getSettings, updateSettings, type AgentProfile, type AgentProfileType } from '@client/libs/api/settings';
+import { DEFAULT_KEYBINDS, cloneKeybinds, keybindsEqual, type Keybinds } from '@client/libs/keybinds';
 import { clearAccessToken } from '@client/libs/auth/session';
 import { showToast } from '@client/modules/toast';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { useNavigate } from 'react-router-dom';
+import { KeybindsPanel } from './keybindsPanel';
 import { messages } from './settings.messages';
 import { styles } from './settings.styles';
 import type { SettingsProps } from './settings.types';
 
-type SettingsView = 'root' | 'general' | 'repos' | 'agents' | 'profiles' | 'new-profile' | 'edit-profile';
+type SettingsView = 'root' | 'general' | 'repos' | 'agents' | 'profiles' | 'new-profile' | 'edit-profile' | 'keybinds';
 
 type HeaderCrumb = {
     label: string;
@@ -111,7 +113,7 @@ function pickHarness(availableAgents: AvailableAgent[], preferred: AgentId): Age
     return availableAgents[0]?.id ?? preferred;
 }
 
-export function Settings({ onClose }: SettingsProps) {
+export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
     const intl = useIntl();
     const navigate = useNavigate();
     const [view, setView] = useState<SettingsView>('root');
@@ -119,9 +121,11 @@ export function Settings({ onClose }: SettingsProps) {
     const [defaultAgent, setDefaultAgent] = useState<AgentId>('cursor');
     const [defaultProfileId, setDefaultProfileId] = useState('');
     const [profiles, setProfiles] = useState<AgentProfile[]>([]);
+    const [keybinds, setKeybinds] = useState<Keybinds>(() => cloneKeybinds(DEFAULT_KEYBINDS));
     const [savedDevDir, setSavedDevDir] = useState('');
     const [savedDefaultAgent, setSavedDefaultAgent] = useState<AgentId>('cursor');
     const [savedDefaultProfileId, setSavedDefaultProfileId] = useState('');
+    const [savedKeybinds, setSavedKeybinds] = useState<Keybinds>(() => cloneKeybinds(DEFAULT_KEYBINDS));
     const [repositories, setRepositories] = useState<Repository[]>([]);
     const [available, setAvailable] = useState<AvailableRepository[]>([]);
     const [availableAgents, setAvailableAgents] = useState<AvailableAgent[]>([]);
@@ -146,9 +150,11 @@ export function Settings({ onClose }: SettingsProps) {
                 setDefaultAgent(settings.defaultAgent);
                 setDefaultProfileId(settings.defaultProfileId);
                 setProfiles(settings.profiles);
+                setKeybinds(cloneKeybinds(settings.keybinds));
                 setSavedDevDir(settings.devDir);
                 setSavedDefaultAgent(settings.defaultAgent);
                 setSavedDefaultProfileId(settings.defaultProfileId);
+                setSavedKeybinds(cloneKeybinds(settings.keybinds));
                 setRepositories(items);
                 setAvailableAgents(agents);
 
@@ -240,6 +246,10 @@ export function Settings({ onClose }: SettingsProps) {
             return [root, { label: intl.formatMessage(messages.categoryAgentsCrumb) }];
         }
 
+        if (view === 'keybinds') {
+            return [root, { label: intl.formatMessage(messages.categoryKeybindsCrumb) }];
+        }
+
         const agentsCrumb: HeaderCrumb = {
             label: intl.formatMessage(messages.categoryAgentsCrumb),
             onClick: () => setView('agents'),
@@ -272,14 +282,18 @@ export function Settings({ onClose }: SettingsProps) {
                 defaultAgent,
                 defaultProfileId: nextDefaultProfileId,
                 profiles: nextProfiles,
+                keybinds,
             });
             setDevDir(settings.devDir);
             setDefaultAgent(settings.defaultAgent);
             setDefaultProfileId(settings.defaultProfileId);
             setProfiles(settings.profiles);
+            setKeybinds(cloneKeybinds(settings.keybinds));
             setSavedDevDir(settings.devDir);
             setSavedDefaultAgent(settings.defaultAgent);
             setSavedDefaultProfileId(settings.defaultProfileId);
+            setSavedKeybinds(cloneKeybinds(settings.keybinds));
+            onKeybindsSaved?.(settings.keybinds);
             return true;
         } catch (err: unknown) {
             if (err instanceof ApiError) {
@@ -310,14 +324,18 @@ export function Settings({ onClose }: SettingsProps) {
                 defaultAgent,
                 defaultProfileId,
                 profiles: nextProfiles,
+                keybinds,
             });
             setDevDir(settings.devDir);
             setDefaultAgent(settings.defaultAgent);
             setDefaultProfileId(settings.defaultProfileId);
             setProfiles(settings.profiles);
+            setKeybinds(cloneKeybinds(settings.keybinds));
             setSavedDevDir(settings.devDir);
             setSavedDefaultAgent(settings.defaultAgent);
             setSavedDefaultProfileId(settings.defaultProfileId);
+            setSavedKeybinds(cloneKeybinds(settings.keybinds));
+            onKeybindsSaved?.(settings.keybinds);
             showToast('settings-saved');
 
             try {
@@ -476,7 +494,12 @@ export function Settings({ onClose }: SettingsProps) {
 
     const generalDirty = devDir.trim() !== savedDevDir;
     const agentsDirty = defaultAgent !== savedDefaultAgent || defaultProfileId !== savedDefaultProfileId;
-    const showSaveButton = !loading && ((view === 'general' && generalDirty) || (view === 'agents' && agentsDirty));
+    const keybindsDirty = !keybindsEqual(keybinds, savedKeybinds);
+    const showSaveButton =
+        !loading &&
+        ((view === 'general' && generalDirty) ||
+            (view === 'agents' && agentsDirty) ||
+            (view === 'keybinds' && keybindsDirty));
     const canCreateProfile = draftProfile.name.trim().length > 0 && !creatingProfile;
     const editingProfile = editingProfileId
         ? (profiles.find((profile) => profile.id === editingProfileId) ?? null)
@@ -517,6 +540,11 @@ export function Settings({ onClose }: SettingsProps) {
                 return {
                     title: intl.formatMessage(messages.categoryAgents),
                     description: intl.formatMessage(messages.categoryAgentsDescription),
+                };
+            case 'keybinds':
+                return {
+                    title: intl.formatMessage(messages.categoryKeybinds),
+                    description: intl.formatMessage(messages.categoryKeybindsDescription),
                 };
             case 'profiles':
                 return {
@@ -611,6 +639,21 @@ export function Settings({ onClose }: SettingsProps) {
                                         </span>
                                         <span className={styles.categoryDescription}>
                                             {intl.formatMessage(messages.categoryAgentsDescription)}
+                                        </span>
+                                    </span>
+                                    <CategoryChevron />
+                                </button>
+                                <button
+                                    type='button'
+                                    className={styles.categoryButton}
+                                    onClick={() => setView('keybinds')}
+                                >
+                                    <span className={styles.categoryText}>
+                                        <span className={styles.categoryLabel}>
+                                            {intl.formatMessage(messages.categoryKeybinds)}
+                                        </span>
+                                        <span className={styles.categoryDescription}>
+                                            {intl.formatMessage(messages.categoryKeybindsDescription)}
                                         </span>
                                     </span>
                                     <CategoryChevron />
@@ -753,6 +796,10 @@ export function Settings({ onClose }: SettingsProps) {
                                 </button>
                             </div>
                         </div>
+                    ) : null}
+
+                    {view === 'keybinds' && !loading ? (
+                        <KeybindsPanel keybinds={keybinds} onChange={setKeybinds} disabled={saving} />
                     ) : null}
 
                     {view === 'profiles' && !loading ? (
