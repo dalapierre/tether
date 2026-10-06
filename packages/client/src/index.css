@@ -16,6 +16,18 @@
   }
 }
 
+/* Tailwind v4 uses the default cursor for buttons; restore pointer for clickables. */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled),
+  a[href],
+  label[for],
+  summary,
+  select:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
 html,
 body,
 #root {

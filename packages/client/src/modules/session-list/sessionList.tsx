@@ -130,7 +130,11 @@ export function SessionList() {
                                           <span className={styles.project}>
                                               {projectNames.get(session.repositoryId ?? '') ?? session.repositoryId}
                                           </span>
-                                          <span className={styles.feature}>{session.branch}</span>
+                                          <span className={styles.feature}>
+                                              {intl.formatMessage(messages.branchLabel, {
+                                                  branch: session.branch,
+                                              })}
+                                          </span>
                                       </>
                                   ) : (
                                       <span className={styles.feature}>

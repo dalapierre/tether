@@ -113,7 +113,7 @@ export function SwipeToDelete({ children, onDelete, disabled = false }: SwipeToD
     const opacity = Math.max(0.35, 1 + offset / 180);
 
     return (
-        <div className={styles.root}>
+        <div className={`${styles.root} ${dragging || offset !== 0 ? styles.rootClipping : ''}`}>
             <div
                 className={`${styles.panel} ${dragging ? styles.panelDragging : styles.panelSettling}`}
                 style={{ transform: `translate3d(${offset}px, 0, 0)`, opacity }}

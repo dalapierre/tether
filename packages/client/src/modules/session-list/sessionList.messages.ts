@@ -7,6 +7,7 @@ type Messages = {
     sessionsLoadFailed: NoMessageValues;
     newSession: NoMessageValues;
     conversationSession: NoMessageValues;
+    branchLabel: { branch: string };
     deleteConfirm: { name: string };
     deleteConfirmContinue: NoMessageValues;
     deleteConfirmCancel: NoMessageValues;
@@ -38,6 +39,10 @@ export const messages = defineMessages<Messages>(
         conversationSession: {
             id: 'sessionList.conversationSession',
             defaultMessage: 'Conversation',
+        },
+        branchLabel: {
+            id: 'sessionList.branchLabel',
+            defaultMessage: 'Branch - {branch}',
         },
         deleteConfirm: {
             id: 'sessionList.deleteConfirm',
