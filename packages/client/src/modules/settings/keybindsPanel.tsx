@@ -37,6 +37,8 @@ function actionLabel(
                     return formatMessage(messages.keybindNewSession);
                 case 'openSettings':
                     return formatMessage(messages.keybindOpenSettings);
+                case 'focusSearch':
+                    return formatMessage(messages.keybindFocusSearch);
                 case 'previousSession':
                     return formatMessage(messages.keybindPreviousSession);
                 case 'nextSession':

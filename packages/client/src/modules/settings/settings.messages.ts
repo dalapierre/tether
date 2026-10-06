@@ -40,6 +40,7 @@ type Messages = {
     keybindConflict: NoMessageValues;
     keybindNewSession: NoMessageValues;
     keybindOpenSettings: NoMessageValues;
+    keybindFocusSearch: NoMessageValues;
     keybindPreviousSession: NoMessageValues;
     keybindNextSession: NoMessageValues;
     keybindGoBack: NoMessageValues;
@@ -254,6 +255,10 @@ export const messages = defineMessages<Messages>(
         keybindOpenSettings: {
             id: 'settings.keybindOpenSettings',
             defaultMessage: 'Open settings',
+        },
+        keybindFocusSearch: {
+            id: 'settings.keybindFocusSearch',
+            defaultMessage: 'Focus search',
         },
         keybindPreviousSession: {
             id: 'settings.keybindPreviousSession',

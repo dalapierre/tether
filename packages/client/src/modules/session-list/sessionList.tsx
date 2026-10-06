@@ -9,7 +9,7 @@ import { useKeybind } from '@client/libs/keybinds';
 import { NewSession } from '@client/modules/new-session';
 import { useSettings } from '@client/modules/settings';
 import { showToast } from '@client/modules/toast';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { useNavigate } from 'react-router-dom';
 import { messages } from './sessionList.messages';
@@ -23,44 +23,82 @@ export function SessionList() {
     const [repositories, setRepositories] = useState<Repository[]>([]);
     const [sessions, setSessions] = useState<Session[]>([]);
     const [sessionsLoading, setSessionsLoading] = useState(true);
+    const [searchQuery, setSearchQuery] = useState('');
     const [pendingDelete, setPendingDelete] = useState<Session | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const selectedCardRef = useRef<HTMLDivElement | null>(null);
-    const sessionsRef = useRef(sessions);
+    const searchInputRef = useRef<HTMLInputElement | null>(null);
+    const filteredSessionsRef = useRef<Session[]>([]);
     const selectedIndexRef = useRef(selectedIndex);
-    sessionsRef.current = sessions;
     selectedIndexRef.current = selectedIndex;
 
-    const listInteractive = !creating && !sessionsLoading && sessions.length > 0 && !pendingDelete;
+    const projectNames = useMemo(
+        () => new Map(repositories.map((repository) => [repository.id, repository.name])),
+        [repositories],
+    );
+
+    const filteredSessions = useMemo(() => {
+        const normalized = searchQuery.trim().toLowerCase();
+        if (!normalized) return sessions;
+        return sessions.filter((session) => {
+            const project = projectNames.get(session.repositoryId ?? '') ?? session.repositoryId ?? '';
+            return (
+                session.name.toLowerCase().includes(normalized) ||
+                project.toLowerCase().includes(normalized) ||
+                (session.branch?.toLowerCase().includes(normalized) ?? false)
+            );
+        });
+    }, [sessions, searchQuery, projectNames]);
+
+    filteredSessionsRef.current = filteredSessions;
+
+    const listInteractive = !creating && !sessionsLoading && filteredSessions.length > 0 && !pendingDelete;
+
+    function blurSearch() {
+        if (document.activeElement === searchInputRef.current) {
+            searchInputRef.current?.blur();
+        }
+    }
 
     useKeybind('home', 'newSession', () => setCreating(true), { enabled: !creating && !pendingDelete });
     useKeybind('home', 'openSettings', () => openSettings(), { enabled: !creating && !pendingDelete });
     useKeybind(
         'home',
+        'focusSearch',
+        () => {
+            searchInputRef.current?.focus();
+            setSelectedIndex(null);
+        },
+        { enabled: !creating && !sessionsLoading && !pendingDelete },
+    );
+    useKeybind(
+        'home',
         'previousSession',
         () => {
+            blurSearch();
             setSelectedIndex((current) => {
-                const count = sessionsRef.current.length;
+                const count = filteredSessionsRef.current.length;
                 if (count === 0) return null;
                 if (current === null) return count - 1;
                 return Math.max(0, current - 1);
             });
         },
-        { enabled: listInteractive },
+        { enabled: listInteractive, allowInEditable: true },
     );
     useKeybind(
         'home',
         'nextSession',
         () => {
+            blurSearch();
             setSelectedIndex((current) => {
-                const count = sessionsRef.current.length;
+                const count = filteredSessionsRef.current.length;
                 if (count === 0) return null;
                 if (current === null) return 0;
                 return Math.min(count - 1, current + 1);
             });
         },
-        { enabled: listInteractive },
+        { enabled: listInteractive, allowInEditable: true },
     );
 
     useEffect(() => {
@@ -71,9 +109,10 @@ export function SessionList() {
             if (event.key !== 'Enter') return;
             if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
             if (document.querySelector('[aria-modal="true"]')) return;
+            if (document.activeElement === searchInputRef.current) return;
 
             const index = selectedIndexRef.current;
-            const session = index === null ? null : sessionsRef.current[index];
+            const session = index === null ? null : filteredSessionsRef.current[index];
             if (!session) return;
 
             event.preventDefault();
@@ -86,11 +125,11 @@ export function SessionList() {
 
     useEffect(() => {
         setSelectedIndex((current) => {
-            if (sessions.length === 0) return null;
+            if (filteredSessions.length === 0) return null;
             if (current === null) return null;
-            return Math.min(current, sessions.length - 1);
+            return Math.min(current, filteredSessions.length - 1);
         });
-    }, [sessions]);
+    }, [filteredSessions]);
 
     useEffect(() => {
         selectedCardRef.current?.scrollIntoView({ block: 'nearest' });
@@ -173,19 +212,43 @@ export function SessionList() {
         );
     }
 
-    const projectNames = new Map(repositories.map((repository) => [repository.id, repository.name]));
     const showEmpty = !sessionsLoading && sessions.length === 0;
+    const showNoMatches = !sessionsLoading && sessions.length > 0 && filteredSessions.length === 0;
+    const bodyClass = showEmpty || sessionsLoading || showNoMatches ? styles.bodyEmpty : styles.body;
 
     return (
         <div className={styles.root}>
             <PageHeader crumbs={[{ label: intl.formatMessage(messages.sessionsCrumb) }]} />
-            <div className={showEmpty || sessionsLoading ? styles.bodyEmpty : styles.body}>
+            <div className={styles.search}>
+                <input
+                    ref={searchInputRef}
+                    className={styles.searchInput}
+                    type='search'
+                    value={searchQuery}
+                    placeholder={intl.formatMessage(messages.searchPlaceholder)}
+                    aria-label={intl.formatMessage(messages.searchAriaLabel)}
+                    disabled={sessionsLoading}
+                    onChange={(event) => {
+                        setSearchQuery(event.target.value);
+                        setSelectedIndex(null);
+                    }}
+                    onKeyDown={(event) => {
+                        if (event.key !== 'Escape') return;
+                        event.preventDefault();
+                        event.currentTarget.blur();
+                    }}
+                />
+            </div>
+            <div className={bodyClass}>
                 {sessionsLoading ? (
                     <p className={styles.placeholder}>{intl.formatMessage(messages.loadingSessions)}</p>
                 ) : null}
                 {showEmpty ? <p className={styles.placeholder}>{intl.formatMessage(messages.noSessions)}</p> : null}
+                {showNoMatches ? (
+                    <p className={styles.placeholder}>{intl.formatMessage(messages.noMatchingSessions)}</p>
+                ) : null}
                 {!sessionsLoading
-                    ? sessions.map((session, index) => (
+                    ? filteredSessions.map((session, index) => (
                           <div key={session.id} ref={index === selectedIndex ? selectedCardRef : null}>
                               <SwipeToDelete
                                   disabled={deletingId === session.id}

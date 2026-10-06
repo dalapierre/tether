@@ -5,6 +5,7 @@ export type KeybindCategory = (typeof KEYBIND_CATEGORIES)[number];
 export type HomeKeybinds = {
     newSession: string;
     openSettings: string;
+    focusSearch: string;
     previousSession: string;
     nextSession: string;
 };
@@ -26,7 +27,7 @@ export type Keybinds = {
     session: SessionKeybinds;
 };
 
-const HOME_ACTIONS = ['newSession', 'openSettings', 'previousSession', 'nextSession'] as const;
+const HOME_ACTIONS = ['newSession', 'openSettings', 'focusSearch', 'previousSession', 'nextSession'] as const;
 const SESSION_ACTIONS = [
     'goBack',
     'toggleReview',
@@ -43,6 +44,7 @@ export const DEFAULT_KEYBINDS: Keybinds = {
     home: {
         newSession: 'n',
         openSettings: 'alt+,',
+        focusSearch: 's',
         previousSession: 'arrowup',
         nextSession: 'arrowdown',
     },
