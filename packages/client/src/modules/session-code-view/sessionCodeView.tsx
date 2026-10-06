@@ -16,12 +16,11 @@ import {
     useKeybinds,
 } from '@client/libs/keybinds';
 import {
-    clampFileTreeWidthPct,
-    deltaPxToPct,
-    getFileTreeWidthPct,
+    clampFileTreeWidthPx,
+    getFileTreeWidthPx,
     getSelectedDiffFileState,
     getSelectedDiffPath,
-    setFileTreeWidthPct,
+    setFileTreeWidthPx,
     setSelectedDiffFileState,
 } from '@client/libs/layout/reviewLayoutPreferences';
 import { setupMonaco, TETHER_DIFF_THEME } from '@client/libs/monaco/setup';
@@ -496,7 +495,7 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
     const [fileDiff, setFileDiff] = useState<SessionFileDiff | null>(null);
     const [fileLoading, setFileLoading] = useState(false);
     const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(() => new Set());
-    const [fileTreeWidthPct, setFileTreeWidthPctState] = useState(getFileTreeWidthPct);
+    const [fileTreeWidth, setFileTreeWidth] = useState(getFileTreeWidthPx);
     const [markdownViewMode, setMarkdownViewMode] = useState<MarkdownViewMode>('code');
     const diffEditorRef = useRef<MonacoEditor.IStandaloneDiffEditor | null>(null);
     const previewScrollRef = useRef<HTMLDivElement | null>(null);
@@ -507,20 +506,19 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
     const paneActiveRef = useRef(keybindsEnabled);
     const restoringScrollRef = useRef(false);
     const scrollPersistTimerRef = useRef<number | null>(null);
-    const fileTreeWidthPctRef = useRef(fileTreeWidthPct);
-    const rootRef = useRef<HTMLDivElement | null>(null);
+    const fileTreeWidthRef = useRef(fileTreeWidth);
 
     // Keep in sync during render so hide-time Monaco scroll events (0-height) are ignored.
     paneActiveRef.current = keybindsEnabled;
 
     const tree = useMemo(() => buildFileTree(files), [files]);
-    fileTreeWidthPctRef.current = fileTreeWidthPct;
+    fileTreeWidthRef.current = fileTreeWidth;
     const selectedPathRef = useRef(selectedPath);
     selectedPathRef.current = selectedPath;
     const filesSignatureRef = useRef(fileListSignature(files));
 
     const persistFileTreeWidth = useCallback(() => {
-        setFileTreeWidthPct(fileTreeWidthPctRef.current);
+        setFileTreeWidthPx(fileTreeWidthRef.current);
     }, []);
     const hasFiles = files.length > 0;
 
@@ -1117,10 +1115,10 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
     const showMarkdownToggle = isMarkdownPath(selectedPath);
     const showMarkdownPreview = showingMarkdownPreview;
 
-    const listPanelWrapStyle = isDesktop ? { width: `${fileTreeWidthPct}%` } : undefined;
+    const listPanelWrapStyle = isDesktop ? { width: fileTreeWidth } : undefined;
 
     return (
-        <div ref={rootRef} className={styles.root}>
+        <div className={styles.root}>
             <div className={listPanelWrapClass} style={listPanelWrapStyle}>
                 <div className={listPanelClass}>
                     <div className={styles.toolbar}>
@@ -1152,11 +1150,7 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
                         edge='trailing'
                         className={styles.fileTreeResize}
                         ariaLabel={intl.formatMessage(panelResizeHandleMessages.resizeFileTree)}
-                        onResize={(delta) =>
-                            setFileTreeWidthPctState((pct) =>
-                                clampFileTreeWidthPct(pct + deltaPxToPct(delta, rootRef.current?.clientWidth ?? 1)),
-                            )
-                        }
+                        onResize={(delta) => setFileTreeWidth((width) => clampFileTreeWidthPx(width + delta))}
                         onResizeEnd={persistFileTreeWidth}
                     />
                 ) : null}
