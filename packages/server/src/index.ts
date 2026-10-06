@@ -1,4 +1,5 @@
 import { requireAuth } from '@server/middleware/requireAuth.js';
+import { restoreSessions } from '@server/libs/sessions/store.js';
 import { attachTerminalServer } from '@server/libs/sessions/terminalServer.js';
 import { agentsRouter } from '@server/routes/agents.js';
 import { authRouter } from '@server/routes/auth.js';
@@ -48,12 +49,22 @@ app.post('/api/commands', (_req, res) => {
 const server = http.createServer(app);
 attachTerminalServer(server);
 
-server.listen(PORT, HOST, () => {
-    console.log(`Tether server listening on http://${HOST}:${PORT}`);
-    if (OVER_NETWORK) {
-        console.log('OVER_NETWORK=true — accepting connections from the local network');
+async function start(): Promise<void> {
+    try {
+        await restoreSessions();
+    } catch (err: unknown) {
+        console.error('Failed to restore sessions', err);
     }
-    if (!process.env.ACCESS_KEY) {
-        console.warn('ACCESS_KEY is not set — authentication will reject all logins');
-    }
-});
+
+    server.listen(PORT, HOST, () => {
+        console.log(`Tether server listening on http://${HOST}:${PORT}`);
+        if (OVER_NETWORK) {
+            console.log('OVER_NETWORK=true — accepting connections from the local network');
+        }
+        if (!process.env.ACCESS_KEY) {
+            console.warn('ACCESS_KEY is not set — authentication will reject all logins');
+        }
+    });
+}
+
+void start();

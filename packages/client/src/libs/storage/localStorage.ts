@@ -46,6 +46,27 @@ export function removeLocalStorageItem(key: string): void {
     }
 }
 
+/** Remove every key that starts with `prefix` (safe when localStorage is unavailable). */
+export function removeLocalStorageKeysWithPrefix(prefix: string): void {
+    if (!canUseLocalStorage() || !prefix) {
+        return;
+    }
+    try {
+        const keys: string[] = [];
+        for (let i = 0; i < localStorage.length; i += 1) {
+            const key = localStorage.key(i);
+            if (key?.startsWith(prefix)) {
+                keys.push(key);
+            }
+        }
+        for (const key of keys) {
+            localStorage.removeItem(key);
+        }
+    } catch {
+        // ignore
+    }
+}
+
 export function getLocalStorageNumber(key: string): number | null {
     const raw = getLocalStorageItem(key);
     if (raw === null) {

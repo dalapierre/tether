@@ -16,6 +16,11 @@ export function getSettingsFilePath(): string {
     return path.join(getTetherHomeDir(), 'settings.json');
 }
 
+/** Persisted session metadata for restore after server restart: `~/.tether/sessions.json`. */
+export function getSessionsFilePath(): string {
+    return path.join(getTetherHomeDir(), 'sessions.json');
+}
+
 export function getWorktreesDir(): string {
     return path.join(getTetherHomeDir(), 'worktrees');
 }

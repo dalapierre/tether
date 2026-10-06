@@ -1,6 +1,7 @@
 import { ApiError, apiFetch } from '@client/libs/api/client';
 import type { AgentId } from '@client/libs/agents/agents';
 import { getAccessToken } from '@client/libs/auth/session';
+import { clearSessionLocalStorage } from '@client/libs/storage/sessionLocalStorage';
 
 export type SessionStatus = 'ready' | 'busy' | 'error';
 
@@ -9,6 +10,7 @@ export type SessionType = 'coding' | 'conversation';
 export type Session = {
     id: string;
     name: string;
+    profileId: string;
     agent: AgentId;
     type: SessionType;
     repositoryId: string | null;
@@ -130,6 +132,8 @@ export async function deleteSession(id: string): Promise<void> {
         const body = (await res.json().catch(() => null)) as { error?: string } | null;
         throw new ApiError(res.status, body?.error ?? `HTTP ${res.status}`);
     }
+
+    clearSessionLocalStorage(id);
 }
 
 export async function getSessionDiff(sessionId: string): Promise<SessionDiffSummary> {

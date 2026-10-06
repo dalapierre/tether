@@ -1,5 +1,11 @@
-import type { AgentId } from '@server/libs/agents/agents.js';
-import { getConversationSessionDir, getConversationsDir, getRepositoryWorktreesDir } from '@server/libs/paths.js';
+import { isAgentId, type AgentId } from '@server/libs/agents/agents.js';
+import {
+    getConversationSessionDir,
+    getConversationsDir,
+    getRepositoryWorktreesDir,
+    getSessionsFilePath,
+    getTetherHomeDir,
+} from '@server/libs/paths.js';
 import { countBehindRemoteDefault, getRepository, listLocalBranches } from '@server/libs/repositories/store.js';
 import {
     ensureCursorStatusIndicatorsEnabled,
@@ -13,7 +19,7 @@ import {
     type SessionDiffSummary,
     type SessionFileDiff,
 } from '@server/libs/sessions/diff.js';
-import { ensureWorkspaceTrusted, resolveHarnessLaunch } from '@server/libs/sessions/harness.js';
+import { createAgentSessionId, ensureWorkspaceTrusted, resolveHarnessLaunch } from '@server/libs/sessions/harness.js';
 import {
     appendOutput,
     attachTerminalClient,
@@ -21,11 +27,11 @@ import {
     clearTerminal,
     parseClientMessage,
 } from '@server/libs/sessions/terminalHub.js';
-import type { Session, SessionStatus, SessionType } from '@server/libs/sessions/types.js';
+import type { Session, SessionStatus, SessionType, StoredSession } from '@server/libs/sessions/types.js';
 import { getProfile } from '@server/libs/settings/store.js';
 import { slugify, uniqueSlug } from '@server/libs/slug/slug.js';
 import { execFile } from 'node:child_process';
-import { mkdir, readdir, rm } from 'node:fs/promises';
+import { access, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import type { IPty } from 'node-pty';
@@ -43,11 +49,114 @@ type RuntimeSession = Omit<Session, 'behindDefault'> & {
     baseSha: string;
     /** Sticky: once true, review baseSha no longer auto-advances on upstream sync. */
     hadLocalCommits: boolean;
+    agentSessionId: string | null;
     pty: IPty | null;
     oscTitleState: OscTitleParseState;
 };
 
 const sessions = new Map<string, RuntimeSession>();
+const sessionsFile = getSessionsFilePath();
+let persistChain: Promise<void> = Promise.resolve();
+
+function isSessionStatus(value: unknown): value is SessionStatus {
+    return value === 'ready' || value === 'busy' || value === 'error';
+}
+
+function isSessionType(value: unknown): value is SessionType {
+    return value === 'coding' || value === 'conversation';
+}
+
+function isStoredSession(value: unknown): value is StoredSession {
+    if (!value || typeof value !== 'object') return false;
+    const session = value as Partial<StoredSession>;
+    return (
+        typeof session.id === 'string' &&
+        session.id.length > 0 &&
+        typeof session.name === 'string' &&
+        typeof session.profileId === 'string' &&
+        isAgentId(session.agent) &&
+        isSessionType(session.type) &&
+        (session.repositoryId === null || typeof session.repositoryId === 'string') &&
+        (session.branch === null || typeof session.branch === 'string') &&
+        isSessionStatus(session.status) &&
+        typeof session.createdAt === 'number' &&
+        typeof session.yoloMode === 'boolean' &&
+        typeof session.useWorktrees === 'boolean' &&
+        typeof session.createdBranch === 'boolean' &&
+        typeof session.worktreePath === 'string' &&
+        typeof session.baseSha === 'string' &&
+        typeof session.hadLocalCommits === 'boolean' &&
+        (session.agentSessionId === null || typeof session.agentSessionId === 'string')
+    );
+}
+
+function toStored(session: RuntimeSession): StoredSession {
+    return {
+        id: session.id,
+        name: session.name,
+        profileId: session.profileId,
+        agent: session.agent,
+        type: session.type,
+        repositoryId: session.repositoryId,
+        branch: session.branch,
+        status: session.status,
+        createdAt: session.createdAt,
+        yoloMode: session.yoloMode,
+        useWorktrees: session.useWorktrees,
+        createdBranch: session.createdBranch,
+        worktreePath: session.worktreePath,
+        baseSha: session.baseSha,
+        hadLocalCommits: session.hadLocalCommits,
+        agentSessionId: session.agentSessionId,
+    };
+}
+
+async function writeSessionsFile(): Promise<void> {
+    const items = [...sessions.values()].map(toStored).sort((a, b) => b.createdAt - a.createdAt);
+    await mkdir(getTetherHomeDir(), { recursive: true });
+    await writeFile(sessionsFile, `${JSON.stringify(items, null, 2)}\n`, 'utf8');
+}
+
+/** Serialize disk writes so concurrent status updates cannot clobber each other. */
+function persistSessions(): Promise<void> {
+    persistChain = persistChain.then(writeSessionsFile, writeSessionsFile);
+    return persistChain;
+}
+
+async function readStoredSessions(): Promise<StoredSession[]> {
+    let raw: string;
+    try {
+        raw = await readFile(sessionsFile, 'utf8');
+    } catch (err: unknown) {
+        if (err && typeof err === 'object' && 'code' in err && err.code === 'ENOENT') {
+            return [];
+        }
+        throw err;
+    }
+
+    let parsed: unknown;
+    try {
+        parsed = JSON.parse(raw);
+    } catch {
+        console.error('Failed to parse sessions.json — starting with an empty session list');
+        return [];
+    }
+
+    if (!Array.isArray(parsed)) {
+        return [];
+    }
+
+    return parsed.filter(isStoredSession);
+}
+
+async function pathExists(target: string): Promise<boolean> {
+    try {
+        await access(target);
+        return true;
+    } catch {
+        return false;
+    }
+}
 
 async function toPublic(session: RuntimeSession): Promise<Session> {
     let behindDefault: number | null = null;
@@ -58,6 +167,7 @@ async function toPublic(session: RuntimeSession): Promise<Session> {
     return {
         id: session.id,
         name: session.name,
+        profileId: session.profileId,
         agent: session.agent,
         type: session.type,
         repositoryId: session.repositoryId,
@@ -72,6 +182,9 @@ function setStatus(session: RuntimeSession, status: SessionStatus): void {
     if (session.status === status) return;
     session.status = status;
     broadcastStatus(session.id, status);
+    void persistSessions().catch((err: unknown) => {
+        console.error(`Failed to persist status for session ${session.id}`, err);
+    });
 }
 
 function applyAgentStatusFromOutput(session: RuntimeSession, data: string): void {
@@ -197,9 +310,13 @@ async function createWorktree(
     return { branch, worktreePath, baseSha, createdBranch: !reuseExisting };
 }
 
-async function spawnHarness(session: RuntimeSession): Promise<void> {
+async function spawnHarness(session: RuntimeSession, options: { resume?: boolean } = {}): Promise<void> {
     await ensureWorkspaceTrusted(session.agent, session.worktreePath);
-    const harness = await resolveHarnessLaunch(session.agent, { yoloMode: session.yoloMode });
+    const harness = await resolveHarnessLaunch(session.agent, {
+        yoloMode: session.yoloMode,
+        agentSessionId: session.agentSessionId,
+        resume: options.resume,
+    });
     try {
         const term = pty.spawn(harness.file, harness.args, {
             name: 'xterm-256color',
@@ -212,7 +329,8 @@ async function spawnHarness(session: RuntimeSession): Promise<void> {
         setStatus(session, 'busy');
 
         const argv = [harness.displayCommand, ...harness.displayArgs].join(' ');
-        appendOutput(session.id, `\r\n[starting ${session.agent}: ${argv}]\r\n`);
+        const label = options.resume ? 'resuming' : 'starting';
+        appendOutput(session.id, `\r\n[${label} ${session.agent}: ${argv}]\r\n`);
 
         term.onData((data) => {
             appendOutput(session.id, data);
@@ -253,9 +371,10 @@ export async function createSession(input: {
     const type: SessionType = profile.type;
     const yoloMode = profile.yoloMode;
     const useWorktrees = profile.type === 'coding' ? profile.useWorktrees : false;
+    const profileId = profile.id;
 
     if (type === 'conversation') {
-        return createConversationSession({ name, agent, yoloMode });
+        return createConversationSession({ name, profileId, agent, yoloMode });
     }
 
     const repositoryId = input.repositoryId?.trim() ?? '';
@@ -268,17 +387,22 @@ export async function createSession(input: {
         if (!branch) {
             throw new Error('Branch is required');
         }
-        return createCodingSession({ name, agent, yoloMode, useWorktrees: true, repositoryId, branch });
+        return createCodingSession({ name, profileId, agent, yoloMode, useWorktrees: true, repositoryId, branch });
     }
 
-    return createCodingSession({ name, agent, yoloMode, useWorktrees: false, repositoryId });
+    return createCodingSession({ name, profileId, agent, yoloMode, useWorktrees: false, repositoryId });
 }
 
 async function allocateSessionId(takenIds: Set<string>, name: string): Promise<string> {
     return uniqueSlug(slugify(name) || 'session', takenIds);
 }
 
-async function createConversationSession(input: { name: string; agent: AgentId; yoloMode: boolean }): Promise<Session> {
+async function createConversationSession(input: {
+    name: string;
+    profileId: string;
+    agent: AgentId;
+    yoloMode: boolean;
+}): Promise<Session> {
     const takenIds = new Set(sessions.keys());
     try {
         for (const leaf of await listWorktreeLeaves(getConversationsDir())) {
@@ -292,9 +416,12 @@ async function createConversationSession(input: { name: string; agent: AgentId; 
     const worktreePath = getConversationSessionDir(id);
     await mkdir(worktreePath, { recursive: true });
 
+    const agentSessionId = await createAgentSessionId(input.agent);
+
     const session: RuntimeSession = {
         id,
         name: input.name,
+        profileId: input.profileId,
         agent: input.agent,
         type: 'conversation',
         repositoryId: null,
@@ -307,11 +434,13 @@ async function createConversationSession(input: { name: string; agent: AgentId; 
         worktreePath,
         baseSha: '',
         hadLocalCommits: false,
+        agentSessionId,
         pty: null,
         oscTitleState: { pending: '' },
     };
 
     sessions.set(id, session);
+    await persistSessions();
 
     try {
         if (input.agent === 'cursor') {
@@ -327,6 +456,7 @@ async function createConversationSession(input: { name: string; agent: AgentId; 
 
 async function createCodingSession(input: {
     name: string;
+    profileId: string;
     agent: AgentId;
     yoloMode: boolean;
     useWorktrees: boolean;
@@ -384,9 +514,12 @@ async function createCodingSession(input: {
         };
     }
 
+    const agentSessionId = await createAgentSessionId(input.agent);
+
     const session: RuntimeSession = {
         id,
         name: input.name,
+        profileId: input.profileId,
         agent: input.agent,
         type: 'coding',
         repositoryId: repository.id,
@@ -399,11 +532,13 @@ async function createCodingSession(input: {
         worktreePath: workspace.worktreePath,
         baseSha: workspace.baseSha,
         hadLocalCommits: false,
+        agentSessionId,
         pty: null,
         oscTitleState: { pending: '' },
     };
 
     sessions.set(id, session);
+    await persistSessions();
 
     try {
         if (input.agent === 'cursor') {
@@ -415,6 +550,64 @@ async function createCodingSession(input: {
     }
 
     return await toPublic(session);
+}
+
+/**
+ * Reload persisted sessions into memory and re-attach agent harnesses.
+ * Call once during server startup before accepting requests.
+ */
+export async function restoreSessions(): Promise<void> {
+    const stored = await readStoredSessions();
+    if (stored.length === 0) {
+        return;
+    }
+
+    console.log(`Restoring ${stored.length} session(s) from disk`);
+
+    for (const item of stored) {
+        if (sessions.has(item.id)) {
+            continue;
+        }
+
+        const session: RuntimeSession = {
+            id: item.id,
+            name: item.name,
+            profileId: item.profileId,
+            agent: item.agent,
+            type: item.type,
+            repositoryId: item.repositoryId,
+            branch: item.branch,
+            status: 'error',
+            createdAt: item.createdAt,
+            yoloMode: item.yoloMode,
+            useWorktrees: item.useWorktrees,
+            createdBranch: item.createdBranch,
+            worktreePath: item.worktreePath,
+            baseSha: item.baseSha,
+            hadLocalCommits: item.hadLocalCommits,
+            agentSessionId: item.agentSessionId,
+            pty: null,
+            oscTitleState: { pending: '' },
+        };
+
+        sessions.set(item.id, session);
+
+        if (!(await pathExists(session.worktreePath))) {
+            appendOutput(session.id, '\r\n[session restore failed: workspace missing]\r\n');
+            continue;
+        }
+
+        try {
+            if (session.agent === 'cursor') {
+                await ensureCursorStatusIndicatorsEnabled();
+            }
+            await spawnHarness(session, { resume: Boolean(session.agentSessionId) });
+        } catch (err: unknown) {
+            console.error(`Failed to restore session ${session.id}`, err);
+        }
+    }
+
+    await persistSessions();
 }
 
 export async function listSessions(repositoryId?: string): Promise<Session[]> {
@@ -438,8 +631,14 @@ async function syncReviewBase(session: RuntimeSession): Promise<string> {
         baseSha: session.baseSha,
         hadLocalCommits: session.hadLocalCommits,
     });
+    const changed = session.baseSha !== next.baseSha || session.hadLocalCommits !== next.hadLocalCommits;
     session.baseSha = next.baseSha;
     session.hadLocalCommits = next.hadLocalCommits;
+    if (changed) {
+        await persistSessions().catch((err: unknown) => {
+            console.error(`Failed to persist review base for session ${session.id}`, err);
+        });
+    }
     return session.baseSha;
 }
 
@@ -555,6 +754,9 @@ export function deleteSession(id: string): boolean {
     sessions.delete(id);
     clearTerminal(id);
 
+    void persistSessions().catch((err: unknown) => {
+        console.error(`Failed to persist sessions after deleting ${id}`, err);
+    });
     void cleanupWorktree(session);
 
     return true;

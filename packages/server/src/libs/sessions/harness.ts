@@ -1,8 +1,13 @@
 import { getAgentCommandCandidates, type AgentId } from '@server/libs/agents/agents.js';
 import { getHomeDir } from '@server/libs/paths.js';
 import { findCommandOnPath, resolvePtyLaunch, type PtyLaunch } from '@server/libs/process/resolveCommand.js';
+import { execFile } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
 
 export type HarnessCommand = {
     command: string;
@@ -11,15 +16,26 @@ export type HarnessCommand = {
 
 export type HarnessOptions = {
     yoloMode?: boolean;
+    /** Agent-native chat/conversation id used to resume after restarts. */
+    agentSessionId?: string | null;
+    /** When true, attach to an existing agent session instead of creating one. */
+    resume?: boolean;
 };
 
 /** Logical CLI name + argv for an agent (before PATH / Windows resolution). */
 export function getHarnessCommand(agent: AgentId, options: HarnessOptions = {}): HarnessCommand {
     const command = getAgentCommandCandidates(agent)[0] ?? agent;
+    const sessionId = options.agentSessionId?.trim() || null;
+    const resume = Boolean(options.resume && sessionId);
+
     switch (agent) {
         case 'cursor': {
             // Always trust the session workspace so the interactive trust prompt never blocks a phone session.
             const args = ['--trust'];
+            if (sessionId) {
+                // Prefer = form so a bare --resume never opens the interactive picker.
+                args.push(`--resume=${sessionId}`);
+            }
             if (options.yoloMode) {
                 args.push('--yolo');
             }
@@ -27,12 +43,24 @@ export function getHarnessCommand(agent: AgentId, options: HarnessOptions = {}):
         }
         case 'claude': {
             const args: string[] = [];
+            if (resume && sessionId) {
+                args.push('--resume', sessionId);
+            } else if (sessionId) {
+                args.push('--session-id', sessionId);
+            }
             if (options.yoloMode) {
                 args.push('--dangerously-skip-permissions');
             }
             return { command, args };
         }
         case 'codex': {
+            if (resume && sessionId) {
+                const args = ['resume', sessionId];
+                if (options.yoloMode) {
+                    args.push('--ask-for-approval', 'never');
+                }
+                return { command, args };
+            }
             const args: string[] = [];
             if (options.yoloMode) {
                 args.push('--ask-for-approval', 'never');
@@ -41,11 +69,49 @@ export function getHarnessCommand(agent: AgentId, options: HarnessOptions = {}):
         }
         case 'opencode': {
             const args: string[] = [];
+            if (resume && sessionId) {
+                args.push('--session', sessionId);
+            }
             if (options.yoloMode) {
                 args.push('--auto');
             }
             return { command, args };
         }
+    }
+}
+
+/**
+ * Allocate an agent-native session id when the CLI supports a known id up front.
+ * Returns null when the agent only assigns ids after start (Codex / OpenCode).
+ */
+export async function createAgentSessionId(agent: AgentId): Promise<string | null> {
+    switch (agent) {
+        case 'cursor': {
+            const candidates = getAgentCommandCandidates(agent);
+            for (const candidate of candidates) {
+                if (!(await findCommandOnPath(candidate))) {
+                    continue;
+                }
+                try {
+                    const { stdout } = await execFileAsync(candidate, ['create-chat'], {
+                        encoding: 'utf8',
+                        timeout: 30_000,
+                    });
+                    const id = stdout.trim().split(/\s+/)[0] ?? '';
+                    if (id) {
+                        return id;
+                    }
+                } catch (err: unknown) {
+                    console.error(`Failed to create Cursor chat via ${candidate}`, err);
+                }
+            }
+            return null;
+        }
+        case 'claude':
+            return randomUUID();
+        case 'codex':
+        case 'opencode':
+            return null;
     }
 }
 

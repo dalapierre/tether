@@ -1,13 +1,17 @@
 import {
-    getLocalStorageJson,
     getLocalStorageNumber,
+    getLocalStorageJson,
+    removeLocalStorageItem,
     setLocalStorageJson,
     setLocalStorageNumber,
 } from '@client/libs/storage/localStorage';
+import { getSessionLocalStorageItem, setSessionLocalStorageItem } from '@client/libs/storage/sessionLocalStorage';
 
 const REVIEW_PANE_WIDTH_KEY = 'tether.layout.reviewPaneWidthPx';
 const FILE_TREE_WIDTH_KEY = 'tether.layout.fileTreeWidthPx';
-const REVIEW_PANEL_OPEN_BY_SESSION_KEY = 'tether.layout.reviewPanelOpenBySession';
+/** @deprecated Prefer per-session keys via sessionLocalStorage; kept for one-time migration. */
+const LEGACY_REVIEW_PANEL_OPEN_BY_SESSION_KEY = 'tether.layout.reviewPanelOpenBySession';
+const REVIEW_PANEL_OPEN_SUFFIX = 'reviewPanelOpen';
 
 type ReviewPanelOpenBySession = Record<string, boolean>;
 
@@ -57,20 +61,38 @@ export function setFileTreeWidthPx(width: number): void {
     setLocalStorageNumber(FILE_TREE_WIDTH_KEY, clampFileTreeWidthPx(width));
 }
 
-function readReviewPanelOpenMap(): ReviewPanelOpenBySession {
-    return getLocalStorageJson<ReviewPanelOpenBySession>(REVIEW_PANEL_OPEN_BY_SESSION_KEY) ?? {};
+function readLegacyReviewPanelOpenMap(): ReviewPanelOpenBySession {
+    return getLocalStorageJson<ReviewPanelOpenBySession>(LEGACY_REVIEW_PANEL_OPEN_BY_SESSION_KEY) ?? {};
 }
 
-export function getReviewPanelOpen(sessionId: string): boolean | null {
-    const map = readReviewPanelOpenMap();
+function takeLegacyReviewPanelOpen(sessionId: string): boolean | null {
+    const map = readLegacyReviewPanelOpenMap();
     if (!(sessionId in map)) {
         return null;
     }
-    return map[sessionId];
+    const value = map[sessionId];
+    delete map[sessionId];
+    if (Object.keys(map).length === 0) {
+        removeLocalStorageItem(LEGACY_REVIEW_PANEL_OPEN_BY_SESSION_KEY);
+    } else {
+        setLocalStorageJson(LEGACY_REVIEW_PANEL_OPEN_BY_SESSION_KEY, map);
+    }
+    return value;
+}
+
+export function getReviewPanelOpen(sessionId: string): boolean | null {
+    const raw = getSessionLocalStorageItem(sessionId, REVIEW_PANEL_OPEN_SUFFIX);
+    if (raw === '1') return true;
+    if (raw === '0') return false;
+
+    const legacy = takeLegacyReviewPanelOpen(sessionId);
+    if (legacy === null) {
+        return null;
+    }
+    setReviewPanelOpen(sessionId, legacy);
+    return legacy;
 }
 
 export function setReviewPanelOpen(sessionId: string, open: boolean): void {
-    const map = readReviewPanelOpenMap();
-    map[sessionId] = open;
-    setLocalStorageJson(REVIEW_PANEL_OPEN_BY_SESSION_KEY, map);
+    setSessionLocalStorageItem(sessionId, REVIEW_PANEL_OPEN_SUFFIX, open ? '1' : '0');
 }
