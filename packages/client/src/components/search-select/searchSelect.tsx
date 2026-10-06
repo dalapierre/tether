@@ -20,7 +20,6 @@ export function SearchSelect<T extends string>({
     const inputRef = useRef<HTMLInputElement | null>(null);
     const [query, setQuery] = useState('');
     const [open, setOpen] = useState(false);
-    const [focused, setFocused] = useState(false);
     /** -1 means no option highlighted (creatable: Enter submits typed text). */
     const [activeIndex, setActiveIndex] = useState(allowCustom ? -1 : 0);
 
@@ -37,17 +36,23 @@ export function SearchSelect<T extends string>({
         return options.filter((option) => option.label.toLowerCase().includes(normalized));
     }, [options, filterSource]);
 
-    const inputValue = allowCustom ? (value ?? '') : focused ? query : query || selectedOption?.label || '';
+    // While open, show the filter query; while closed, show the selected label.
+    const inputValue = allowCustom ? (value ?? '') : open ? query : selectedOption?.label || '';
 
     useEffect(() => {
         setActiveIndex(allowCustom ? -1 : 0);
     }, [filterSource, options, allowCustom]);
 
     useEffect(() => {
+        if (!open || activeIndex < 0) return;
+        const option = document.getElementById(`${listboxId}-option-${activeIndex}`);
+        option?.scrollIntoView({ block: 'nearest' });
+    }, [activeIndex, listboxId, open]);
+
+    useEffect(() => {
         function onPointerDown(event: MouseEvent) {
             if (!rootRef.current?.contains(event.target as Node)) {
                 setOpen(false);
-                setFocused(false);
                 if (!allowCustom) {
                     setQuery('');
                 }
@@ -60,6 +65,13 @@ export function SearchSelect<T extends string>({
         };
     }, [allowCustom]);
 
+    function closeDropdown() {
+        setOpen(false);
+        if (!allowCustom) {
+            setQuery('');
+        }
+    }
+
     function selectOption(option: SearchSelectOption<T>) {
         onSelect(option);
         if (allowCustom) {
@@ -68,19 +80,17 @@ export function SearchSelect<T extends string>({
             setQuery('');
         }
         setOpen(false);
-        setFocused(false);
-        inputRef.current?.blur();
+        // Keep focus so the user can Tab to the next field.
+        inputRef.current?.focus();
     }
 
     function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
         if (disabled) return;
 
         if (event.key === 'ArrowDown') {
+            // Arrows only navigate after Enter (or click/type) opens the list.
+            if (!open) return;
             event.preventDefault();
-            if (!open) {
-                setOpen(true);
-                return;
-            }
             if (filtered.length === 0) return;
             setActiveIndex((current) => {
                 if (allowCustom && current < 0) return 0;
@@ -90,11 +100,8 @@ export function SearchSelect<T extends string>({
         }
 
         if (event.key === 'ArrowUp') {
+            if (!open) return;
             event.preventDefault();
-            if (!open) {
-                setOpen(true);
-                return;
-            }
             if (filtered.length === 0) return;
             setActiveIndex((current) => {
                 if (allowCustom && current < 0) return filtered.length - 1;
@@ -104,7 +111,20 @@ export function SearchSelect<T extends string>({
         }
 
         if (event.key === 'Enter') {
-            if (!open || filtered.length === 0) return;
+            if (!open) {
+                // Enter activates the control so arrows can change the value.
+                event.preventDefault();
+                setOpen(true);
+                return;
+            }
+
+            if (filtered.length === 0) {
+                if (allowCustom) {
+                    // Nothing to pick — let the form submit with the typed value.
+                    setOpen(false);
+                }
+                return;
+            }
 
             if (allowCustom) {
                 const typed = (value ?? '').trim();
@@ -129,16 +149,18 @@ export function SearchSelect<T extends string>({
             return;
         }
 
+        if (event.key === 'Tab') {
+            if (open) {
+                closeDropdown();
+            }
+            return;
+        }
+
         if (event.key === 'Escape') {
             if (!open) return;
             event.preventDefault();
             event.stopPropagation();
-            setOpen(false);
-            if (!allowCustom) {
-                setQuery('');
-            }
-            setFocused(false);
-            inputRef.current?.blur();
+            closeDropdown();
         }
     }
 
@@ -176,13 +198,20 @@ export function SearchSelect<T extends string>({
                     setOpen(true);
                 }}
                 onFocus={() => {
-                    setFocused(true);
                     if (!allowCustom) {
                         setQuery('');
                     }
-                    setOpen(true);
                 }}
-                onClick={() => setOpen(true)}
+                onBlur={(event) => {
+                    const next = event.relatedTarget as Node | null;
+                    if (rootRef.current?.contains(next)) return;
+                    closeDropdown();
+                }}
+                onClick={() => {
+                    if (!disabled && !loading) {
+                        setOpen(true);
+                    }
+                }}
                 onKeyDown={handleKeyDown}
             />
             {showDropdown ? (

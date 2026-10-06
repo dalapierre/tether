@@ -217,106 +217,110 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                         </IconButton>
                     }
                 />
-                <div className={styles.body}>
-                    <div className={styles.sectionHeader}>
-                        <h2 className={styles.sectionTitle}>{intl.formatMessage(messages.title)}</h2>
-                        <p className={styles.sectionDescription}>{intl.formatMessage(messages.description)}</p>
-                    </div>
+                <form
+                    className={styles.form}
+                    onSubmit={(event) => {
+                        event.preventDefault();
+                        void handleStart();
+                    }}
+                >
+                    <div className={styles.body}>
+                        <div className={styles.sectionHeader}>
+                            <h2 className={styles.sectionTitle}>{intl.formatMessage(messages.title)}</h2>
+                            <p className={styles.sectionDescription}>{intl.formatMessage(messages.description)}</p>
+                        </div>
 
-                    {loading ? <p className={styles.loading}>{intl.formatMessage(messages.loading)}</p> : null}
+                        {loading ? <p className={styles.loading}>{intl.formatMessage(messages.loading)}</p> : null}
 
-                    {!loading ? (
-                        <form
-                            className={styles.form}
-                            onSubmit={(event) => {
-                                event.preventDefault();
-                                void handleStart();
-                            }}
-                        >
-                            <label className={styles.label}>
-                                {intl.formatMessage(messages.nameLabel)}
-                                <input
-                                    className={styles.input}
-                                    type='text'
-                                    value={name}
-                                    onChange={(event) => setName(event.target.value)}
-                                    placeholder={intl.formatMessage(messages.namePlaceholder)}
-                                    autoComplete='off'
-                                    autoCapitalize='off'
-                                    autoCorrect='off'
-                                    spellCheck={false}
-                                    autoFocus
-                                    disabled={starting}
-                                />
-                            </label>
+                        {!loading ? (
+                            <div className={styles.fields}>
+                                <label className={styles.label}>
+                                    {intl.formatMessage(messages.nameLabel)}
+                                    <input
+                                        className={styles.input}
+                                        type='text'
+                                        value={name}
+                                        onChange={(event) => setName(event.target.value)}
+                                        placeholder={intl.formatMessage(messages.namePlaceholder)}
+                                        autoComplete='off'
+                                        autoCapitalize='off'
+                                        autoCorrect='off'
+                                        spellCheck={false}
+                                        autoFocus
+                                        disabled={starting}
+                                    />
+                                </label>
 
-                            <div>
-                                <p className={styles.label}>{intl.formatMessage(messages.profileLabel)}</p>
-                                <SearchSelect
-                                    options={profileOptions}
-                                    value={profileId || null}
-                                    onSelect={(option) => setProfileId(option.value)}
-                                    placeholder={intl.formatMessage(messages.profilePlaceholder)}
-                                    emptyMessage={intl.formatMessage(messages.profilesEmpty)}
-                                    noResultsMessage={intl.formatMessage(messages.profileNoResults)}
-                                    disabled={starting}
-                                    ariaLabel={intl.formatMessage(messages.profileLabel)}
-                                />
-                            </div>
+                                <div>
+                                    <p className={styles.label}>{intl.formatMessage(messages.profileLabel)}</p>
+                                    <SearchSelect
+                                        options={profileOptions}
+                                        value={profileId || null}
+                                        onSelect={(option) => setProfileId(option.value)}
+                                        placeholder={intl.formatMessage(messages.profilePlaceholder)}
+                                        emptyMessage={intl.formatMessage(messages.profilesEmpty)}
+                                        noResultsMessage={intl.formatMessage(messages.profileNoResults)}
+                                        disabled={starting}
+                                        ariaLabel={intl.formatMessage(messages.profileLabel)}
+                                    />
+                                </div>
 
-                            {isCoding ? (
-                                <>
-                                    <label className={styles.label}>
-                                        {intl.formatMessage(messages.projectLabel)}
-                                        <select
-                                            className={styles.select}
-                                            value={repositoryId}
-                                            disabled={starting || repositories.length === 0}
-                                            onChange={(event) => {
-                                                setRepositoryId(event.target.value);
-                                                setBranch('');
-                                            }}
-                                        >
-                                            <option value='' disabled>
-                                                {intl.formatMessage(
-                                                    repositories.length === 0
-                                                        ? messages.projectsEmpty
-                                                        : messages.projectPlaceholder,
-                                                )}
-                                            </option>
-                                            {repositories.map((repository) => (
-                                                <option key={repository.id} value={repository.id}>
-                                                    {repository.name}
+                                {isCoding ? (
+                                    <>
+                                        <label className={styles.label}>
+                                            {intl.formatMessage(messages.projectLabel)}
+                                            <select
+                                                className={styles.select}
+                                                value={repositoryId}
+                                                disabled={starting || repositories.length === 0}
+                                                onChange={(event) => {
+                                                    setRepositoryId(event.target.value);
+                                                    setBranch('');
+                                                }}
+                                            >
+                                                <option value='' disabled>
+                                                    {intl.formatMessage(
+                                                        repositories.length === 0
+                                                            ? messages.projectsEmpty
+                                                            : messages.projectPlaceholder,
+                                                    )}
                                                 </option>
-                                            ))}
-                                        </select>
-                                    </label>
+                                                {repositories.map((repository) => (
+                                                    <option key={repository.id} value={repository.id}>
+                                                        {repository.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </label>
 
-                                    {usesWorktrees ? (
-                                        <div>
-                                            <p className={styles.label}>{intl.formatMessage(messages.branchLabel)}</p>
-                                            <SearchSelect
-                                                options={branchOptions}
-                                                value={branch}
-                                                allowCustom
-                                                onChange={setBranch}
-                                                onSelect={(option) => setBranch(option.value)}
-                                                placeholder={intl.formatMessage(messages.branchPlaceholder)}
-                                                disabled={starting || !repositoryId}
-                                                ariaLabel={intl.formatMessage(messages.branchLabel)}
-                                            />
-                                        </div>
-                                    ) : null}
-                                </>
-                            ) : null}
-                        </form>
-                    ) : null}
-                </div>
-                <div className={styles.footer}>
-                    <Button type='button' onClick={() => void handleStart()} disabled={!canStart}>
-                        {intl.formatMessage(starting ? messages.starting : messages.start)}
-                    </Button>
-                </div>
+                                        {usesWorktrees ? (
+                                            <div>
+                                                <p className={styles.label}>
+                                                    {intl.formatMessage(messages.branchLabel)}
+                                                </p>
+                                                <SearchSelect
+                                                    options={branchOptions}
+                                                    value={branch}
+                                                    allowCustom
+                                                    onChange={setBranch}
+                                                    onSelect={(option) => setBranch(option.value)}
+                                                    placeholder={intl.formatMessage(messages.branchPlaceholder)}
+                                                    disabled={starting || !repositoryId}
+                                                    ariaLabel={intl.formatMessage(messages.branchLabel)}
+                                                />
+                                            </div>
+                                        ) : null}
+                                    </>
+                                ) : null}
+                            </div>
+                        ) : null}
+                    </div>
+                    <div className={styles.footer}>
+                        <Button type='submit' disabled={!canStart}>
+                            {intl.formatMessage(starting ? messages.starting : messages.start)}
+                        </Button>
+                    </div>
+                </form>
             </div>
         </div>
     );
