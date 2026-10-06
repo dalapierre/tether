@@ -1,17 +1,22 @@
 import { verifyAccessToken } from '@server/libs/authTokens.js';
 import { attachSessionTerminal, hasSession } from '@server/libs/sessions/store.js';
+import { attachStatusClient } from '@server/libs/sessions/statusHub.js';
 import type { Server as HttpServer } from 'node:http';
 import { WebSocketServer } from 'ws';
 
 const TERMINAL_PATH = /^\/api\/sessions\/([^/]+)\/terminal$/;
+const EVENTS_PATH = '/api/sessions/events';
 
 export function attachTerminalServer(server: HttpServer): void {
     const wss = new WebSocketServer({ noServer: true });
 
     server.on('upgrade', (request, socket, head) => {
         const url = new URL(request.url ?? '', 'http://localhost');
-        const match = TERMINAL_PATH.exec(url.pathname);
-        if (!match) {
+        const pathname = url.pathname;
+        const terminalMatch = TERMINAL_PATH.exec(pathname);
+        const isEvents = pathname === EVENTS_PATH;
+
+        if (!terminalMatch && !isEvents) {
             socket.destroy();
             return;
         }
@@ -23,7 +28,14 @@ export function attachTerminalServer(server: HttpServer): void {
             return;
         }
 
-        const sessionId = match[1];
+        if (isEvents) {
+            wss.handleUpgrade(request, socket, head, (ws) => {
+                attachStatusClient(ws);
+            });
+            return;
+        }
+
+        const sessionId = terminalMatch?.[1];
         if (!sessionId || !hasSession(sessionId)) {
             socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
             socket.destroy();

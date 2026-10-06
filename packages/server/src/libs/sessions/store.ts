@@ -20,6 +20,7 @@ import {
     type SessionFileDiff,
 } from '@server/libs/sessions/diff.js';
 import { createAgentSessionId, ensureWorkspaceTrusted, resolveHarnessLaunch } from '@server/libs/sessions/harness.js';
+import { broadcastSessionStatus } from '@server/libs/sessions/statusHub.js';
 import {
     appendOutput,
     attachTerminalClient,
@@ -182,6 +183,7 @@ function setStatus(session: RuntimeSession, status: SessionStatus): void {
     if (session.status === status) return;
     session.status = status;
     broadcastStatus(session.id, status);
+    broadcastSessionStatus({ sessionId: session.id, name: session.name, status });
     void persistSessions().catch((err: unknown) => {
         console.error(`Failed to persist status for session ${session.id}`, err);
     });

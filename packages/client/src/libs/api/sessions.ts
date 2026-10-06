@@ -23,6 +23,13 @@ export type Session = {
 export type ServerTerminalMessage =
     { type: 'history'; data: string } | { type: 'output'; data: string } | { type: 'status'; status: SessionStatus };
 
+export type ServerSessionEventMessage = {
+    type: 'status';
+    sessionId: string;
+    name: string;
+    status: SessionStatus;
+};
+
 export type ClientTerminalMessage =
     | { type: 'message'; text: string }
     | { type: 'input'; data: string }
@@ -169,6 +176,17 @@ export function connectSessionTerminal(sessionId: string): WebSocket {
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const url = `${protocol}//${window.location.host}/api/sessions/${encodeURIComponent(sessionId)}/terminal?token=${encodeURIComponent(token)}`;
+    return new WebSocket(url);
+}
+
+export function connectSessionEvents(): WebSocket {
+    const token = getAccessToken();
+    if (!token) {
+        throw new Error('Not authenticated');
+    }
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const url = `${protocol}//${window.location.host}/api/sessions/events?token=${encodeURIComponent(token)}`;
     return new WebSocket(url);
 }
 

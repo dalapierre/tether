@@ -3,7 +3,7 @@ import { TOASTS, type ToastArgs, type ToastId } from './toasts';
 
 type Listener = () => void;
 
-const TOAST_DURATION_MS = 5000;
+const TOAST_DURATION_MS = 20_000;
 
 let toasts: ActiveToast[] = [];
 const listeners = new Set<Listener>();

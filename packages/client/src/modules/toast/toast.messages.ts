@@ -7,6 +7,10 @@ type Messages = {
     invalidBranchMessage: NoMessageValues;
     settingsSavedTitle: NoMessageValues;
     settingsSavedMessage: NoMessageValues;
+    sessionReadyTitle: { name: string };
+    sessionReadyMessage: NoMessageValues;
+    sessionErrorTitle: { name: string };
+    sessionErrorMessage: NoMessageValues;
     dismiss: NoMessageValues;
 };
 
@@ -35,6 +39,22 @@ export const messages = defineMessages<Messages>(
         settingsSavedMessage: {
             id: 'toast.settingsSaved.message',
             defaultMessage: 'Your settings have been updated.',
+        },
+        sessionReadyTitle: {
+            id: 'toast.sessionReady.title',
+            defaultMessage: 'Session {name} is ready',
+        },
+        sessionReadyMessage: {
+            id: 'toast.sessionReady.message',
+            defaultMessage: 'The agent finished working.',
+        },
+        sessionErrorTitle: {
+            id: 'toast.sessionError.title',
+            defaultMessage: 'Session {name} encountered an error',
+        },
+        sessionErrorMessage: {
+            id: 'toast.sessionError.message',
+            defaultMessage: 'Check the session for details.',
         },
         dismiss: {
             id: 'toast.dismiss',

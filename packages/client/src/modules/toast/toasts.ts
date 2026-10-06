@@ -27,6 +27,18 @@ export const TOASTS = {
         title: messages.settingsSavedTitle,
         message: messages.settingsSavedMessage,
     },
+    'session-ready': {
+        type: 'success',
+        title: messages.sessionReadyTitle,
+        message: messages.sessionReadyMessage,
+        values: (name: string) => ({ name }),
+    },
+    'session-error': {
+        type: 'error',
+        title: messages.sessionErrorTitle,
+        message: messages.sessionErrorMessage,
+        values: (name: string) => ({ name }),
+    },
 } as const satisfies Record<string, ToastDefinition>;
 
 export type ToastId = keyof typeof TOASTS;

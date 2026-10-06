@@ -316,6 +316,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
         setDesktopReviewOpen(storedOpen === true);
         setReviewVisited(storedOpen === true);
         setHasReviewFiles(false);
+        setStatus('busy');
     }, [sessionId]);
 
     useEffect(() => {

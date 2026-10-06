@@ -18,6 +18,14 @@ export default defineConfig(({ mode }) => {
                 target: 'http://localhost:3001',
                 changeOrigin: true,
                 ws: true,
+                configure: (proxy) => {
+                    proxy.on('error', (err) => {
+                        const code = (err as NodeJS.ErrnoException).code;
+                        // Client/HMR closes mid-write; noisy but harmless in dev.
+                        if (code === 'EPIPE' || code === 'ECONNRESET') return;
+                        console.error('[vite] api proxy error:', err);
+                    });
+                },
             },
         },
     };

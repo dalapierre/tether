@@ -7,9 +7,10 @@ import { listRepositories, type Repository } from '@client/libs/api/repositories
 import { deleteSession, listSessions, type Session } from '@client/libs/api/sessions';
 import { useKeybind } from '@client/libs/keybinds';
 import { NewSession } from '@client/modules/new-session';
+import { getSnapshot, removeSessionStatus, subscribe, upsertSessionStatus } from '@client/modules/session-events';
 import { useSettings } from '@client/modules/settings';
 import { showToast } from '@client/modules/toast';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useIntl } from 'react-intl';
 import { useNavigate } from 'react-router-dom';
 import { messages } from './sessionList.messages';
@@ -33,6 +34,18 @@ export function SessionList() {
     const selectedIndexRef = useRef(selectedIndex);
     selectedIndexRef.current = selectedIndex;
 
+    const liveStatuses = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+
+    const sessionsWithLiveStatus = useMemo(
+        () =>
+            sessions.map((session) => {
+                const live = liveStatuses.get(session.id);
+                if (!live || live.status === session.status) return session;
+                return { ...session, status: live.status };
+            }),
+        [sessions, liveStatuses],
+    );
+
     const projectNames = useMemo(
         () => new Map(repositories.map((repository) => [repository.id, repository.name])),
         [repositories],
@@ -40,8 +53,8 @@ export function SessionList() {
 
     const filteredSessions = useMemo(() => {
         const normalized = searchQuery.trim().toLowerCase();
-        if (!normalized) return sessions;
-        return sessions.filter((session) => {
+        if (!normalized) return sessionsWithLiveStatus;
+        return sessionsWithLiveStatus.filter((session) => {
             const project = projectNames.get(session.repositoryId ?? '') ?? session.repositoryId ?? '';
             return (
                 session.name.toLowerCase().includes(normalized) ||
@@ -49,7 +62,7 @@ export function SessionList() {
                 (session.branch?.toLowerCase().includes(normalized) ?? false)
             );
         });
-    }, [sessions, searchQuery, projectNames]);
+    }, [sessionsWithLiveStatus, searchQuery, projectNames]);
 
     filteredSessionsRef.current = filteredSessions;
 
@@ -189,6 +202,7 @@ export function SessionList() {
         setDeletingId(session.id);
         setPendingDelete(null);
         setSessions((current) => current.filter((item) => item.id !== session.id));
+        removeSessionStatus(session.id);
 
         try {
             await deleteSession(session.id);
@@ -205,6 +219,11 @@ export function SessionList() {
             <NewSession
                 onClose={() => setCreating(false)}
                 onStarted={(session) => {
+                    upsertSessionStatus({
+                        sessionId: session.id,
+                        name: session.name,
+                        status: session.status,
+                    });
                     setCreating(false);
                     navigate(`/sessions/${session.id}`);
                 }}
