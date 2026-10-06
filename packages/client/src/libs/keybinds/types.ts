@@ -61,9 +61,9 @@ export const DEFAULT_KEYBINDS: Keybinds = {
         nextSession: 'arrowdown',
     },
     session: {
-        goBack: 'q',
+        goBack: 'escape',
         toggleReview: '.',
-        toggleAgentInsert: 'super+1',
+        toggleAgentInsert: 'i',
         nextFile: 'x',
         previousFile: 'z',
         scrollFileUp: 'arrowup',

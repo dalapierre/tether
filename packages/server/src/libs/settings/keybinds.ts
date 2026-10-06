@@ -49,9 +49,9 @@ export const DEFAULT_KEYBINDS: Keybinds = {
         nextSession: 'arrowdown',
     },
     session: {
-        goBack: 'q',
+        goBack: 'escape',
         toggleReview: '.',
-        toggleAgentInsert: 'super+1',
+        toggleAgentInsert: 'i',
         nextFile: 'x',
         previousFile: 'z',
         scrollFileUp: 'arrowup',
@@ -108,6 +108,16 @@ export function normalizeKeybinds(value: unknown): Keybinds {
     // Migrate renamed focusAgent → toggleAgentInsert.
     if (!isChordString(sessionSource.toggleAgentInsert) && isChordString(sessionSource.focusAgent)) {
         sessionSource.toggleAgentInsert = sessionSource.focusAgent;
+    }
+
+    // Migrate previous default (toggle via super+1) to enter with i / exit with super+i.
+    if (sessionSource.toggleAgentInsert === 'super+1') {
+        sessionSource.toggleAgentInsert = 'i';
+    }
+
+    // Migrate previous default goBack chord.
+    if (sessionSource.goBack === 'q') {
+        sessionSource.goBack = 'escape';
     }
 
     return {

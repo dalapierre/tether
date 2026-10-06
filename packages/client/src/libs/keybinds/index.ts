@@ -7,6 +7,7 @@ export {
     modifierChordHeld,
     parseKeybind,
     serializeKeybind,
+    withSuperModifier,
 } from './chords';
 export { formatKeybind } from './format';
 export { KeybindsContext, useKeybinds } from './keybindsContext';
@@ -29,4 +30,4 @@ export type {
     SessionKeybindAction,
     SessionKeybinds,
 } from './types';
-export { useKeybind } from './useKeybind';
+export { useKeybind, useKeybindChord } from './useKeybind';

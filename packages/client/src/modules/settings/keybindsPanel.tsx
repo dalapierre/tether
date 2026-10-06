@@ -4,6 +4,7 @@ import {
     KEYBIND_ACTIONS_BY_CATEGORY,
     chordFromKeyboardEvent,
     formatKeybind,
+    withSuperModifier,
     type HomeKeybindAction,
     type KeybindCategory,
     type Keybinds,
@@ -73,6 +74,23 @@ function actionLabel(
 
 function actionsForCategory(category: KeybindCategory): readonly string[] {
     return KEYBIND_ACTIONS_BY_CATEGORY[category];
+}
+
+/** Enter chord plus Alt/⌘+key exit when those differ. */
+function formatSessionInsertKeybind(chord: string): string {
+    const enterLabel = formatKeybind(chord);
+    if (!enterLabel) return '';
+    const exitChord = withSuperModifier(chord);
+    if (exitChord === chord.trim().toLowerCase()) return enterLabel;
+    const exitLabel = formatKeybind(exitChord);
+    return exitLabel ? `${enterLabel} / ${exitLabel}` : enterLabel;
+}
+
+function formatActionKeybind(category: KeybindCategory, action: string, chord: string): string {
+    if (category === 'session' && action === 'toggleAgentInsert') {
+        return formatSessionInsertKeybind(chord);
+    }
+    return formatKeybind(chord);
 }
 
 function categoryDiffersFromDefault(keybinds: Keybinds, category: KeybindCategory): boolean {
@@ -216,7 +234,7 @@ export function KeybindsPanel({ keybinds, onChange, disabled }: KeybindsPanelPro
                                 {isRecording
                                     ? intl.formatMessage(messages.keybindRecording)
                                     : chord
-                                      ? formatKeybind(chord)
+                                      ? formatActionKeybind(tab, action, chord)
                                       : intl.formatMessage(messages.keybindUnbound)}
                             </button>
                         </div>

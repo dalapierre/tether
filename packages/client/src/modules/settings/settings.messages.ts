@@ -278,7 +278,7 @@ export const messages = defineMessages<Messages>(
         },
         keybindToggleAgentInsert: {
             id: 'settings.keybindToggleAgentInsert',
-            defaultMessage: 'Toggle terminal insert',
+            defaultMessage: 'Enter terminal insert',
         },
         keybindNextFile: {
             id: 'settings.keybindNextFile',

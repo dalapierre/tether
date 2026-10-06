@@ -144,6 +144,14 @@ export function serializeKeybind(parsed: ParsedKeybind): string {
     return parts.join('+');
 }
 
+/** Add the app "super" modifier (⌘ / Alt) so a chord can exit insert mode. */
+export function withSuperModifier(chord: string): string {
+    const parsed = parseKeybind(chord);
+    if (!parsed || !parsed.key) return chord;
+    if (parsed.super) return serializeKeybind(parsed);
+    return serializeKeybind({ ...parsed, super: true });
+}
+
 function keyFromKeyboardEvent(event: KeyboardEvent): string | null {
     const raw = event.key;
     if (!raw) return null;
