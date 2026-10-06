@@ -15,8 +15,8 @@ export const styles = {
     categoryChevron: 'h-4 w-4 shrink-0 text-zinc-500',
     fields: 'mt-6 flex flex-col gap-3',
     label: 'block text-sm text-zinc-400',
-    input: 'mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-base text-zinc-100 outline-none focus:border-zinc-500',
-    select: 'mt-1 w-full appearance-none rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-base text-zinc-100 outline-none focus:border-zinc-500',
+    input: 'mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-base text-zinc-100 outline-none focus:border-aura-green',
+    select: 'mt-1 w-full appearance-none rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-base text-zinc-100 outline-none focus:border-aura-green',
     hint: 'text-xs text-zinc-500',
     repositories: 'mt-1 flex flex-col gap-2',
     repositoryRow:
@@ -37,7 +37,7 @@ export const styles = {
     keybindButton:
         'shrink-0 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-1.5 font-mono text-xs text-zinc-200 outline-none active:bg-zinc-800 md:hover:bg-zinc-800',
     keybindButtonRecording:
-        'shrink-0 rounded-md border border-sky-600 bg-sky-950 px-3 py-1.5 font-mono text-xs text-sky-200 outline-none',
+        'shrink-0 rounded-md border border-aura-green bg-aura-green/15 px-3 py-1.5 font-mono text-xs text-aura-green outline-none',
     keybindButtonConflict:
         'shrink-0 rounded-md border border-amber-700 bg-zinc-950 px-3 py-1.5 font-mono text-xs text-amber-200 outline-none active:bg-zinc-800 md:hover:bg-zinc-800',
     keybindReset: 'self-start text-sm text-zinc-400 underline-offset-2 active:text-zinc-200 md:hover:text-zinc-200',

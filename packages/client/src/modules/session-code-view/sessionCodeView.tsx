@@ -45,6 +45,70 @@ const FILE_SCROLL_PX_PER_SEC = 640;
 /** Coalesce scroll position writes while the user is scrolling. */
 const SCROLL_PERSIST_MS = 150;
 
+type SessionDiffEditorProps = {
+    original: string;
+    modified: string;
+    language: string;
+    options: MonacoEditor.IDiffEditorConstructionOptions;
+    onMount: (editor: MonacoEditor.IStandaloneDiffEditor) => void;
+    onUnmount?: () => void;
+};
+
+/**
+ * DiffEditor wrapper that avoids a @monaco-editor/react teardown bug:
+ * the library disposes TextModels before DiffEditorWidget, which throws
+ * "TextModel got disposed before DiffEditorWidget model got reset".
+ * Keep models during wrapper cleanup, then dispose them after the widget.
+ */
+function SessionDiffEditor({ original, modified, language, options, onMount, onUnmount }: SessionDiffEditorProps) {
+    const editorRef = useRef<MonacoEditor.IStandaloneDiffEditor | null>(null);
+    const onUnmountRef = useRef(onUnmount);
+    onUnmountRef.current = onUnmount;
+
+    useEffect(() => {
+        return () => {
+            const editor = editorRef.current;
+            editorRef.current = null;
+            onUnmountRef.current?.();
+            if (!editor) {
+                return;
+            }
+            const model = editor.getModel();
+            queueMicrotask(() => {
+                if (model?.original && !model.original.isDisposed()) {
+                    model.original.dispose();
+                }
+                if (model?.modified && !model.modified.isDisposed()) {
+                    model.modified.dispose();
+                }
+            });
+        };
+    }, []);
+
+    const handleMount = useCallback(
+        (editor: MonacoEditor.IStandaloneDiffEditor) => {
+            editorRef.current = editor;
+            onMount(editor);
+        },
+        [onMount],
+    );
+
+    return (
+        <DiffEditor
+            height='100%'
+            width='100%'
+            original={original}
+            modified={modified}
+            language={language}
+            theme={TETHER_DIFF_THEME}
+            options={options}
+            onMount={handleMount}
+            keepCurrentOriginalModel
+            keepCurrentModifiedModel
+        />
+    );
+}
+
 type MarkdownViewMode = 'code' | 'preview';
 
 function isMarkdownPath(path: string | null | undefined): boolean {
@@ -726,6 +790,10 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
         [rememberScrollAnchorLine, rememberScrollRatio, restoreScrollPosition],
     );
 
+    const handleDiffEditorUnmount = useCallback(() => {
+        diffEditorRef.current = null;
+    }, []);
+
     const handleMarkdownViewModeChange = useCallback(
         (next: MarkdownViewMode) => {
             if (next === markdownViewMode) {
@@ -1126,15 +1194,13 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
                                     className={`${styles.editorWrap}${showMarkdownPreview ? ` ${styles.markdownViewHidden}` : ''}`}
                                 >
                                     <div className={styles.editorFill}>
-                                        <DiffEditor
-                                            height='100%'
-                                            width='100%'
+                                        <SessionDiffEditor
                                             original={fileDiff.original}
                                             modified={fileDiff.modified}
                                             language={fileDiff.language}
-                                            theme={TETHER_DIFF_THEME}
                                             options={diffEditorOptions}
                                             onMount={handleDiffEditorMount}
+                                            onUnmount={handleDiffEditorUnmount}
                                         />
                                     </div>
                                 </div>
@@ -1147,15 +1213,13 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
                         ) : (
                             <div className={styles.editorWrap}>
                                 <div className={styles.editorFill}>
-                                    <DiffEditor
-                                        height='100%'
-                                        width='100%'
+                                    <SessionDiffEditor
                                         original={fileDiff.original}
                                         modified={fileDiff.modified}
                                         language={fileDiff.language}
-                                        theme={TETHER_DIFF_THEME}
                                         options={diffEditorOptions}
                                         onMount={handleDiffEditorMount}
+                                        onUnmount={handleDiffEditorUnmount}
                                     />
                                 </div>
                             </div>

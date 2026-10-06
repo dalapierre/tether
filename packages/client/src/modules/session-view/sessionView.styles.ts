@@ -22,7 +22,7 @@ export const styles = {
     // on internals which would otherwise punch through `invisible`.
     paneInactive: 'pointer-events-none absolute inset-0 z-0 flex flex-col invisible md:pointer-events-none md:hidden',
     reviewBody: 'flex min-h-0 flex-1 flex-col',
-    terminalWrap: 'relative min-h-0 flex-1 overflow-hidden bg-black pb-[env(safe-area-inset-bottom)]',
+    terminalWrap: 'relative min-h-0 flex-1 overflow-hidden bg-zinc-950 pb-[env(safe-area-inset-bottom)]',
     // Pin xterm's helper textarea to the top so iOS doesn't pan the visual
     // viewport chasing the cursor into the soft keyboard.
     terminal:
@@ -36,6 +36,6 @@ export const styles = {
     pasteTitle: 'text-base font-medium text-zinc-100',
     pasteHint: 'mt-1 text-sm text-zinc-400',
     pasteInput:
-        'mt-4 w-full resize-none rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-zinc-500',
+        'mt-4 w-full resize-none rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-aura-green',
     pasteActions: 'mt-4 flex flex-col gap-2',
 };

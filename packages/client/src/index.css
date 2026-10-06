@@ -1,7 +1,76 @@
 @import "tailwindcss";
 
+/*
+ * Aura Dark — app-wide Tailwind palette.
+ * Remaps zinc + status accents so existing utilities pick up Aura colors.
+ * Source: https://github.com/daltonmenezes/aura-theme (MIT)
+ */
 @theme {
   --animate-toast-drop-in: toast-drop-in 0.22s ease-out;
+
+  /* Surfaces (zinc scale keeps existing class names working) */
+  --color-zinc-50: #f5f4f6;
+  --color-zinc-100: #edecee;
+  --color-zinc-200: #e0dfe1;
+  --color-zinc-300: #cdccce;
+  --color-zinc-400: #adacae;
+  --color-zinc-500: #6d6d6d;
+  --color-zinc-600: #525156;
+  --color-zinc-700: #3b334b;
+  --color-zinc-800: #2a2834;
+  --color-zinc-900: #1c1b24;
+  --color-zinc-950: #15141b;
+
+  /* Aura accents (used as emerald / amber / red / sky in styles) */
+  --color-emerald-300: #7affd4;
+  --color-emerald-400: #61ffca;
+  --color-emerald-500: #49c29a;
+  --color-emerald-600: #3ea784;
+  --color-emerald-700: #2f7f64;
+  --color-emerald-800: #245f4b;
+  --color-emerald-900: #1a4335;
+  --color-emerald-950: #0f2820;
+
+  --color-amber-200: #ffe0b3;
+  --color-amber-300: #ffd49a;
+  --color-amber-400: #ffca85;
+  --color-amber-500: #e6b574;
+  --color-amber-600: #c7975a;
+  --color-amber-700: #8f6c3f;
+  --color-amber-800: #5c4528;
+  --color-amber-900: #3a2c1a;
+  --color-amber-950: #221910;
+
+  --color-red-100: #ffe0e0;
+  --color-red-200: #ffc4c4;
+  --color-red-300: #ff9b9b;
+  --color-red-400: #ff6767;
+  --color-red-500: #ff6767;
+  --color-red-600: #e05555;
+  --color-red-700: #b34444;
+  --color-red-800: #7a2e2e;
+  --color-red-900: #4a1c1c;
+  --color-red-950: #2a1010;
+
+  --color-sky-200: #c8f3ff;
+  --color-sky-300: #a5ebff;
+  --color-sky-400: #82e2ff;
+  --color-sky-500: #6cb2c7;
+  --color-sky-600: #4f8a9c;
+  --color-sky-700: #3a6775;
+  --color-sky-800: #284850;
+  --color-sky-900: #1a2f35;
+  --color-sky-950: #0f1c20;
+
+  /* Named Aura tokens for deliberate accents */
+  --color-aura-purple: #a277ff;
+  --color-aura-green: #61ffca;
+  --color-aura-orange: #ffca85;
+  --color-aura-pink: #f694ff;
+  --color-aura-blue: #82e2ff;
+  --color-aura-red: #ff6767;
+  --color-aura-fg: #edecee;
+  --color-aura-bg: #15141b;
 }
 
 @keyframes toast-drop-in {
@@ -26,6 +95,16 @@
   select:not(:disabled) {
     cursor: pointer;
   }
+
+  html {
+    color-scheme: dark;
+  }
+
+  html,
+  body {
+    background-color: var(--color-aura-bg);
+    color: var(--color-aura-fg);
+  }
 }
 
 html,
@@ -48,7 +127,7 @@ body {
   overflow: hidden;
 }
 
-/* VS Code–like subtle scrollbars for code review panes. */
+/* Aura-aligned scrollbars for code review panes (match Monaco slider). */
 .code-review-scroll {
   scrollbar-width: thin;
   scrollbar-color: rgba(121, 121, 121, 0.4) transparent;

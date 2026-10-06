@@ -26,6 +26,7 @@ import {
     setReviewPaneWidthPx,
 } from '@client/libs/layout/reviewLayoutPreferences';
 import { attachTouchScroll } from '@client/libs/terminal/touchScroll';
+import { AURA_TERMINAL_THEME } from '@client/libs/theme/aura';
 import { SessionCodeView } from '@client/modules/session-code-view';
 import { showToast } from '@client/modules/toast';
 import { FitAddon } from '@xterm/addon-fit';
@@ -388,10 +389,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
             cursorBlink: true,
             fontSize: 13,
             scrollback: 10000,
-            theme: {
-                background: '#000000',
-                foreground: '#e4e4e7',
-            },
+            theme: AURA_TERMINAL_THEME,
         });
         const fitAddon = new FitAddon();
         term.loadAddon(fitAddon);

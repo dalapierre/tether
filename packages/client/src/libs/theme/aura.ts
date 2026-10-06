@@ -1,0 +1,60 @@
+/**
+ * Aura Dark palette.
+ * Colors adapted from https://github.com/daltonmenezes/aura-theme (MIT).
+ * Shared by Monaco, xterm, and Tailwind theme tokens.
+ */
+export const AURA = {
+    purple: '#a277ff',
+    green: '#61ffca',
+    orange: '#ffca85',
+    pink: '#f694ff',
+    blue: '#82e2ff',
+    red: '#ff6767',
+    foreground: '#edecee',
+    foregroundMuted: '#adacae',
+    foregroundSubtle: '#cdccce',
+    comment: '#6d6d6d',
+    background: '#15141b',
+    backgroundDeep: '#110f18',
+    backgroundElevated: '#1c1b24',
+    backgroundMuted: '#242329',
+    backgroundHover: '#2a2834',
+    backgroundSelection: '#29263c',
+    backgroundWidget: '#121016',
+    border: '#2d2d2d',
+    borderStrong: '#3b334b',
+    selection: '#3d375e7f',
+    purpleMuted: '#a394f0',
+    purpleMutedSoft: '#a394f033',
+    greenSoft: '#00d89023',
+    greenSoftLine: '#00d89014',
+    redSoft: '#ff474720',
+    redSoftLine: '#ff474714',
+    greenSolid: '#49c29a',
+} as const;
+
+/** xterm.js theme aligned with Aura Dark. */
+export const AURA_TERMINAL_THEME = {
+    background: AURA.background,
+    foreground: AURA.foreground,
+    cursor: AURA.purple,
+    cursorAccent: AURA.background,
+    selectionBackground: AURA.selection,
+    selectionInactiveBackground: AURA.selection,
+    black: AURA.backgroundDeep,
+    red: AURA.red,
+    green: AURA.green,
+    yellow: AURA.orange,
+    blue: AURA.purple,
+    magenta: AURA.pink,
+    cyan: AURA.green,
+    white: AURA.foreground,
+    brightBlack: AURA.comment,
+    brightRed: AURA.red,
+    brightGreen: AURA.green,
+    brightYellow: AURA.orange,
+    brightBlue: AURA.blue,
+    brightMagenta: AURA.pink,
+    brightCyan: AURA.blue,
+    brightWhite: AURA.foreground,
+} as const;

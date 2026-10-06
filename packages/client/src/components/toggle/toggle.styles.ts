@@ -6,7 +6,7 @@ export const styles = {
     track: 'relative h-7 w-12 shrink-0 rounded-full transition-colors',
     trackOn: 'bg-emerald-500',
     trackOff: 'bg-zinc-700',
-    thumb: 'absolute top-0.5 left-0.5 size-6 rounded-full bg-white transition-transform',
+    thumb: 'absolute top-0.5 left-0.5 size-6 rounded-full bg-zinc-100 transition-transform',
     thumbOn: 'translate-x-5',
     thumbOff: 'translate-x-0',
 };

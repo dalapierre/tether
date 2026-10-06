@@ -54,7 +54,7 @@ export const styles = {
     mdH3: 'mb-2 mt-6 text-lg font-semibold text-zinc-100',
     mdH4: 'mb-2 mt-5 text-base font-semibold text-zinc-100',
     mdP: 'mb-4 text-zinc-300',
-    mdLink: 'text-sky-400 underline decoration-sky-400/40 underline-offset-2 hover:text-sky-300',
+    mdLink: 'text-aura-blue underline decoration-aura-blue/40 underline-offset-2 hover:text-sky-300',
     mdUl: 'mb-4 list-disc space-y-1 pl-5 text-zinc-300',
     mdOl: 'mb-4 list-decimal space-y-1 pl-5 text-zinc-300',
     mdLi: 'leading-relaxed',
