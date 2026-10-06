@@ -1,5 +1,6 @@
-import type { AgentId } from '@server/libs/agents/agents.js';
+import { getAgentCommandCandidates, type AgentId } from '@server/libs/agents/agents.js';
 import { getHomeDir } from '@server/libs/paths.js';
+import { findCommandOnPath, resolvePtyLaunch, type PtyLaunch } from '@server/libs/process/resolveCommand.js';
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -12,7 +13,9 @@ export type HarnessOptions = {
     yoloMode?: boolean;
 };
 
+/** Logical CLI name + argv for an agent (before PATH / Windows resolution). */
 export function getHarnessCommand(agent: AgentId, options: HarnessOptions = {}): HarnessCommand {
+    const command = getAgentCommandCandidates(agent)[0] ?? agent;
     switch (agent) {
         case 'cursor': {
             // Always trust the session workspace so the interactive trust prompt never blocks a phone session.
@@ -20,30 +23,55 @@ export function getHarnessCommand(agent: AgentId, options: HarnessOptions = {}):
             if (options.yoloMode) {
                 args.push('--yolo');
             }
-            return { command: 'agent', args };
+            return { command, args };
         }
         case 'claude': {
             const args: string[] = [];
             if (options.yoloMode) {
                 args.push('--dangerously-skip-permissions');
             }
-            return { command: 'claude', args };
+            return { command, args };
         }
         case 'codex': {
             const args: string[] = [];
             if (options.yoloMode) {
                 args.push('--ask-for-approval', 'never');
             }
-            return { command: 'codex', args };
+            return { command, args };
         }
         case 'opencode': {
             const args: string[] = [];
             if (options.yoloMode) {
                 args.push('--auto');
             }
-            return { command: 'opencode', args };
+            return { command, args };
         }
     }
+}
+
+/**
+ * Resolve the first available agent CLI on PATH into a node-pty launch descriptor.
+ * Handles Windows PATHEXT / npm `.cmd` shims and `agent` vs `cursor-agent` aliases.
+ */
+export async function resolveHarnessLaunch(
+    agent: AgentId,
+    options: HarnessOptions = {},
+): Promise<PtyLaunch & { displayCommand: string; displayArgs: string[] }> {
+    const { args } = getHarnessCommand(agent, options);
+    const candidates = getAgentCommandCandidates(agent);
+
+    for (const candidate of candidates) {
+        if (!(await findCommandOnPath(candidate))) {
+            continue;
+        }
+        const launch = await resolvePtyLaunch(candidate, args);
+        return { ...launch, displayCommand: candidate, displayArgs: args };
+    }
+
+    // Fall back to the primary name so the spawn error still names something useful.
+    const fallback = candidates[0] ?? agent;
+    const launch = await resolvePtyLaunch(fallback, args);
+    return { ...launch, displayCommand: fallback, displayArgs: args };
 }
 
 /**

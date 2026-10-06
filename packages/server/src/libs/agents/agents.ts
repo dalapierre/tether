@@ -1,6 +1,4 @@
-import { access } from 'node:fs/promises';
-import { constants as fsConstants } from 'node:fs';
-import path from 'node:path';
+import { isCommandOnPath } from '@server/libs/process/resolveCommand.js';
 
 export type AgentId = 'cursor' | 'claude' | 'codex' | 'opencode';
 
@@ -10,7 +8,7 @@ export type AgentInfo = {
 };
 
 type AgentDefinition = AgentInfo & {
-    /** CLI binaries to look for on PATH (first match wins for availability). */
+    /** CLI binaries to look for on PATH (first match wins for availability and spawn). */
     commands: string[];
 };
 
@@ -27,18 +25,9 @@ export function isAgentId(value: unknown): value is AgentId {
     return typeof value === 'string' && AGENT_IDS.has(value);
 }
 
-async function isExecutableOnPath(command: string): Promise<boolean> {
-    const pathEnv = process.env.PATH ?? '';
-    for (const dir of pathEnv.split(path.delimiter)) {
-        if (!dir) continue;
-        try {
-            await access(path.join(dir, command), fsConstants.X_OK);
-            return true;
-        } catch {
-            // Keep scanning PATH.
-        }
-    }
-    return false;
+export function getAgentCommandCandidates(agent: AgentId): string[] {
+    const definition = SUPPORTED_AGENTS.find((entry) => entry.id === agent);
+    return definition?.commands ?? [];
 }
 
 /** Returns CLI harnesses that are installed and available on this machine. */
@@ -48,7 +37,7 @@ export async function listAvailableAgents(): Promise<AgentInfo[]> {
     for (const agent of SUPPORTED_AGENTS) {
         let found = false;
         for (const command of agent.commands) {
-            if (await isExecutableOnPath(command)) {
+            if (await isCommandOnPath(command)) {
                 found = true;
                 break;
             }

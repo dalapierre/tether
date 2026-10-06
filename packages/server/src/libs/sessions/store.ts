@@ -13,7 +13,7 @@ import {
     type SessionDiffSummary,
     type SessionFileDiff,
 } from '@server/libs/sessions/diff.js';
-import { ensureWorkspaceTrusted, getHarnessCommand } from '@server/libs/sessions/harness.js';
+import { ensureWorkspaceTrusted, resolveHarnessLaunch } from '@server/libs/sessions/harness.js';
 import {
     appendOutput,
     attachTerminalClient,
@@ -161,9 +161,9 @@ async function createWorktree(
 
 async function spawnHarness(session: RuntimeSession): Promise<void> {
     await ensureWorkspaceTrusted(session.agent, session.worktreePath);
-    const harness = getHarnessCommand(session.agent, { yoloMode: session.yoloMode });
+    const harness = await resolveHarnessLaunch(session.agent, { yoloMode: session.yoloMode });
     try {
-        const term = pty.spawn(harness.command, harness.args, {
+        const term = pty.spawn(harness.file, harness.args, {
             name: 'xterm-256color',
             cols: 80,
             rows: 24,
@@ -173,7 +173,7 @@ async function spawnHarness(session: RuntimeSession): Promise<void> {
         session.pty = term;
         setStatus(session, 'busy');
 
-        const argv = [harness.command, ...harness.args].join(' ');
+        const argv = [harness.displayCommand, ...harness.displayArgs].join(' ');
         appendOutput(session.id, `\r\n[starting ${session.agent}: ${argv}]\r\n`);
 
         term.onData((data) => {
