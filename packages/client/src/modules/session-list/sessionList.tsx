@@ -1,6 +1,6 @@
-import { Button } from '@client/components/button';
 import { Card } from '@client/components/card';
 import { ConfirmDialog } from '@client/components/confirm-dialog';
+import { IconButton } from '@client/components/icon-button';
 import { PageHeader } from '@client/components/page-header';
 import { SwipeToDelete } from '@client/components/swipe-to-delete';
 import { listRepositories, type Repository } from '@client/libs/api/repositories';
@@ -15,6 +15,21 @@ import { useIntl } from 'react-intl';
 import { useNavigate } from 'react-router-dom';
 import { messages } from './sessionList.messages';
 import { styles } from './sessionList.styles';
+
+function PlusIcon() {
+    return (
+        <svg
+            className={styles.plusIcon}
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='2'
+            aria-hidden='true'
+        >
+            <path strokeLinecap='round' strokeLinejoin='round' d='M12 4.5v15m7.5-7.5h-15' />
+        </svg>
+    );
+}
 
 export function SessionList() {
     const intl = useIntl();
@@ -237,7 +252,14 @@ export function SessionList() {
 
     return (
         <div className={styles.root}>
-            <PageHeader crumbs={[{ label: intl.formatMessage(messages.sessionsCrumb) }]} />
+            <PageHeader
+                crumbs={[{ label: intl.formatMessage(messages.sessionsCrumb) }]}
+                actions={
+                    <IconButton label={intl.formatMessage(messages.newSession)} onClick={() => setCreating(true)}>
+                        <PlusIcon />
+                    </IconButton>
+                }
+            />
             <div className={styles.search}>
                 <input
                     ref={searchInputRef}
@@ -302,11 +324,6 @@ export function SessionList() {
                           </div>
                       ))
                     : null}
-            </div>
-            <div className={styles.footer}>
-                <Button type='button' onClick={() => setCreating(true)}>
-                    {intl.formatMessage(messages.newSession)}
-                </Button>
             </div>
             {pendingDelete ? (
                 <ConfirmDialog
