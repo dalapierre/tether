@@ -5,10 +5,6 @@ export const messages = defineMessages({
         id: 'loginPage.title',
         defaultMessage: 'Tether',
     },
-    subtitle: {
-        id: 'loginPage.subtitle',
-        defaultMessage: 'Enter the access key to continue.',
-    },
     accessKeyLabel: {
         id: 'loginPage.accessKeyLabel',
         defaultMessage: 'Access key',

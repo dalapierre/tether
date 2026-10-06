@@ -45,7 +45,6 @@ export function LoginPage() {
         <main className={styles.main}>
             <div className={styles.panel}>
                 <h1 className={styles.title}>{intl.formatMessage(messages.title)}</h1>
-                <p className={styles.subtitle}>{intl.formatMessage(messages.subtitle)}</p>
                 <form className={styles.form} onSubmit={onSubmit}>
                     <label className={styles.label}>
                         {intl.formatMessage(messages.accessKeyLabel)}
