@@ -1091,12 +1091,13 @@ export function SessionView({ sessionId }: SessionViewProps) {
                             <span className={styles.metaRepo}>{repositoryName ?? session.repositoryId}</span>
                             {' > '}
                             {session.branch}
-                            {session.behindDefault != null && session.behindDefault > 0 ? (
+                            {session.behindDefault != null && session.behindDefault > 0 && session.defaultBranch ? (
                                 <>
                                     {' · '}
                                     <span className={styles.metaBehind}>
                                         {intl.formatMessage(messages.branchBehindDefault, {
                                             count: session.behindDefault,
+                                            defaultBranch: session.defaultBranch,
                                         })}
                                     </span>
                                 </>

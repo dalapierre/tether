@@ -1,6 +1,6 @@
 import { isAgentId, type AgentId } from '@server/libs/agents/agents.js';
 import { getRepositoryWorktreesDir, getSessionsFilePath, getTetherHomeDir } from '@server/libs/paths.js';
-import { countBehindRemoteDefault, getRepository, listLocalBranches } from '@server/libs/repositories/store.js';
+import { getBehindRemoteDefault, getRepository, listLocalBranches } from '@server/libs/repositories/store.js';
 import {
     ensureCursorStatusIndicatorsEnabled,
     extractStatusFromOutput,
@@ -39,7 +39,7 @@ import type { WebSocket } from 'ws';
 
 const execFileAsync = promisify(execFile);
 
-type RuntimeSession = Omit<Session, 'behindDefault'> & {
+type RuntimeSession = Omit<Session, 'behindDefault' | 'defaultBranch'> & {
     yoloMode: boolean;
     useWorktrees: boolean;
     /** True when this session created the branch; only then is the branch deleted on cleanup. */
@@ -161,8 +161,11 @@ async function pathExists(target: string): Promise<boolean> {
 
 async function toPublic(session: RuntimeSession): Promise<Session> {
     let behindDefault: number | null = null;
+    let defaultBranch: string | null = null;
     if (session.type === 'coding' && session.branch) {
-        behindDefault = await countBehindRemoteDefault(session.worktreePath, session.branch);
+        const behind = await getBehindRemoteDefault(session.worktreePath, session.branch);
+        behindDefault = behind.behind;
+        defaultBranch = behind.defaultBranch;
     }
 
     return {
@@ -174,6 +177,7 @@ async function toPublic(session: RuntimeSession): Promise<Session> {
         repositoryId: session.repositoryId,
         branch: session.branch,
         behindDefault,
+        defaultBranch,
         status: session.status,
         createdAt: session.createdAt,
     };

@@ -214,20 +214,30 @@ async function resolveRemoteDefaultRef(repoPath: string): Promise<string | null>
     return null;
 }
 
-/** How many commits `ref` is behind the remote default branch (0 if unknown). */
-export async function countBehindRemoteDefault(repoPath: string, ref = 'HEAD'): Promise<number> {
+function shortRemoteBranchName(remoteRef: string): string {
+    const prefix = 'refs/remotes/origin/';
+    return remoteRef.startsWith(prefix) ? remoteRef.slice(prefix.length) : remoteRef;
+}
+
+/** How many commits `ref` is behind the remote default, plus that branch's short name. */
+export async function getBehindRemoteDefault(
+    repoPath: string,
+    ref = 'HEAD',
+): Promise<{ behind: number; defaultBranch: string | null }> {
     const defaultRef = await resolveRemoteDefaultRef(repoPath);
     if (!defaultRef) {
-        return 0;
+        return { behind: 0, defaultBranch: null };
     }
+
+    const defaultBranch = shortRemoteBranchName(defaultRef);
 
     try {
         const { stdout } = await execFileAsync('git', ['rev-list', '--count', `${ref}..${defaultRef}`], {
             cwd: repoPath,
         });
-        return Number.parseInt(stdout.trim(), 10) || 0;
+        return { behind: Number.parseInt(stdout.trim(), 10) || 0, defaultBranch };
     } catch {
-        return 0;
+        return { behind: 0, defaultBranch };
     }
 }
 

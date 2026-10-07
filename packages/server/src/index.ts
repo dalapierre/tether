@@ -19,7 +19,7 @@ const repoRoot = path.resolve(packageRoot, '../..');
 dotenv.config({ path: path.join(repoRoot, '.env') });
 dotenv.config({ path: path.join(packageRoot, '.env') });
 
-const PORT = Number(process.env.PORT) || 3001;
+const PORT = Number(process.env.PORT) || 1928;
 const OVER_NETWORK = process.env.OVER_NETWORK === 'true';
 const HOST = OVER_NETWORK ? '0.0.0.0' : '127.0.0.1';
 

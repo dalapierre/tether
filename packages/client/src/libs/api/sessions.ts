@@ -16,6 +16,7 @@ export type Session = {
     repositoryId: string | null;
     branch: string | null;
     behindDefault: number | null;
+    defaultBranch: string | null;
     status: SessionStatus;
     createdAt: number;
 };

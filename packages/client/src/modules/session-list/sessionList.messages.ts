@@ -63,7 +63,7 @@ export const messages = defineMessages<Messages>(
         },
         deleteConfirm: {
             id: 'sessionList.deleteConfirm',
-            defaultMessage: 'Are you sure you want to delete {name}?',
+            defaultMessage: 'Are you sure you want to delete {name}? All data related to this session will be lost.',
         },
         deleteConfirmContinue: {
             id: 'sessionList.deleteConfirmContinue',

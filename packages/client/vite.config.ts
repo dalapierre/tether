@@ -10,12 +10,14 @@ const repoRoot = path.resolve(root, '../..');
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, repoRoot, '');
     const overNetwork = env.OVER_NETWORK === 'true';
+    const clientPort = Number(env.CLIENT_PORT) || 1111;
+    const serverPort = Number(env.PORT) || 1928;
     const sharedServer = {
         host: overNetwork ? true : ('127.0.0.1' as const),
-        port: 8080,
+        port: clientPort,
         proxy: {
             '/api': {
-                target: 'http://localhost:3001',
+                target: `http://localhost:${serverPort}`,
                 changeOrigin: true,
                 ws: true,
                 configure: (proxy) => {

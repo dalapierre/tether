@@ -9,7 +9,7 @@ type Messages = {
     connecting: NoMessageValues;
     disconnected: NoMessageValues;
     metaConversation: { harness: string };
-    branchBehindDefault: { count: number };
+    branchBehindDefault: { count: number; defaultBranch: string };
     viewTabs: NoMessageValues;
     agentView: NoMessageValues;
     terminalView: NoMessageValues;
@@ -64,7 +64,7 @@ export const messages = defineMessages<Messages>(
         },
         branchBehindDefault: {
             id: 'sessionView.branchBehindDefault',
-            defaultMessage: '{count} behind',
+            defaultMessage: '{count, plural, one {# commit} other {# commits}} behind {defaultBranch}',
         },
         viewTabs: {
             id: 'sessionView.viewTabs',

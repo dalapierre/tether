@@ -15,6 +15,8 @@ export type Session = {
     branch: string | null;
     /** Commits the session branch is behind the remote default; null when N/A. */
     behindDefault: number | null;
+    /** Remote default branch short name (e.g. main); null when N/A. */
+    defaultBranch: string | null;
     status: SessionStatus;
     createdAt: number;
 };
