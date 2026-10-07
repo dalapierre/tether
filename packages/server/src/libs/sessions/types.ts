@@ -43,7 +43,7 @@ export type StoredSession = {
      */
     ownedBranch?: string | null;
     worktreePath: string;
-    /** Tip of origin's default branch used as the review diff base (cached). */
+    /** Cached HEAD of the session checkout; review diffs are working tree vs this commit. */
     baseSha: string;
     /** Retained for sessions.json back-compat; unused for review basing. */
     hadLocalCommits: boolean;

@@ -16,13 +16,7 @@ import {
 } from '@client/libs/api/sessions';
 import { bindSessionViewport } from '@client/libs/dom/bindSessionViewport';
 import { useIsDesktop } from '@client/libs/dom/useMediaQuery';
-import {
-    isTerminalInsertTarget,
-    useKeybind,
-    useKeybindChord,
-    useKeybinds,
-    withSuperModifier,
-} from '@client/libs/keybinds';
+import { isTerminalInsertTarget, useKeybind, useKeybindChord, useKeybinds } from '@client/libs/keybinds';
 import {
     clampReviewPaneWidthPct,
     clampShellPaneHeightPct,
@@ -406,8 +400,8 @@ export function SessionView({ sessionId }: SessionViewProps) {
         allowInTerminalInsert: true,
     });
     const { keybinds } = useKeybinds();
-    const enterInsertChord = keybinds.session.toggleAgentInsert;
-    const exitInsertChord = withSuperModifier(enterInsertChord);
+    const enterInsertChord = keybinds.session.enterAgentInsert;
+    const exitInsertChord = keybinds.session.exitAgentInsert;
     const insertUsesSameChord = enterInsertChord.trim() === exitInsertChord.trim();
 
     useKeybindChord(
@@ -417,7 +411,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
             const insertActive = Boolean(term?.textarea) && document.activeElement === term?.textarea;
 
             if (insertActive) {
-                // Same chord for enter/exit (already includes super) — toggle out.
+                // Same chord for enter/exit — toggle out.
                 if (insertUsesSameChord) {
                     term?.blur();
                 }

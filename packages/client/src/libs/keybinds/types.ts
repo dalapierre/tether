@@ -14,7 +14,8 @@ export type SessionKeybindAction =
     | 'goBack'
     | 'toggleReview'
     | 'toggleTerminal'
-    | 'toggleAgentInsert'
+    | 'enterAgentInsert'
+    | 'exitAgentInsert'
     | 'enterShellInsert'
     | 'nextFile'
     | 'previousFile'
@@ -52,7 +53,8 @@ export const SESSION_KEYBIND_ACTIONS: readonly SessionKeybindAction[] = [
     'goBack',
     'toggleReview',
     'toggleTerminal',
-    'toggleAgentInsert',
+    'enterAgentInsert',
+    'exitAgentInsert',
     'enterShellInsert',
     'nextFile',
     'previousFile',
@@ -83,7 +85,8 @@ export const DEFAULT_KEYBINDS: Keybinds = {
         goBack: 'escape',
         toggleReview: '.',
         toggleTerminal: 'alt+q',
-        toggleAgentInsert: 'i',
+        enterAgentInsert: 'i',
+        exitAgentInsert: 'alt+i',
         enterShellInsert: 't',
         nextFile: 'x',
         previousFile: 'z',

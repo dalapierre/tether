@@ -1,11 +1,6 @@
 import { isAgentId, type AgentId } from '@server/libs/agents/agents.js';
 import { getRepositoryWorktreesDir, getSessionsFilePath, getTetherHomeDir } from '@server/libs/paths.js';
-import {
-    getBehindRemoteDefault,
-    getRemoteDefaultHead,
-    getRepository,
-    listLocalBranches,
-} from '@server/libs/repositories/store.js';
+import { getBehindRemoteDefault, getRepository, listLocalBranches } from '@server/libs/repositories/store.js';
 import {
     ensureCursorStatusIndicatorsEnabled,
     extractStatusFromOutput,
@@ -52,9 +47,9 @@ type RuntimeSession = Omit<Session, 'behindDefault' | 'defaultBranch'> & {
     /** Branch created for this session (cleanup target); null when reusing an existing branch. */
     ownedBranch: string | null;
     worktreePath: string;
-    /** Cached tip of origin's default branch used as the review diff base. */
+    /** Cached HEAD of the session checkout; review diffs are working tree vs this commit. */
     baseSha: string;
-    /** Retained for sessions.json back-compat; no longer used for review basing. */
+    /** Retained for sessions.json back-compat; unused for review basing. */
     hadLocalCommits: boolean;
     agentSessionId: string | null;
     pty: IPty | null;
@@ -452,14 +447,10 @@ async function createWorktree(
     const branch = requestedBranch;
     const reuseExisting = localBranches.has(branch);
 
-    const remoteDefault = await getRemoteDefaultHead(repoPath);
-    let baseSha = remoteDefault?.sha ?? '';
-    if (!baseSha) {
-        const { stdout: headStdout } = await execFileAsync('git', ['rev-parse', reuseExisting ? branch : 'HEAD'], {
-            cwd: repoPath,
-        });
-        baseSha = headStdout.trim();
-    }
+    const { stdout: headStdout } = await execFileAsync('git', ['rev-parse', reuseExisting ? branch : 'HEAD'], {
+        cwd: repoPath,
+    });
+    const baseSha = headStdout.trim();
 
     const worktreesRoot = getRepositoryWorktreesDir(projectName);
     const worktreePath = path.join(worktreesRoot, leaf);
@@ -614,7 +605,6 @@ async function createCodingSession(input: {
             );
         }
     } else {
-        const remoteDefault = await getRemoteDefaultHead(repository.path);
         const [{ stdout: headStdout }, { stdout: branchStdout }] = await Promise.all([
             execFileAsync('git', ['rev-parse', 'HEAD'], { cwd: repository.path }),
             execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: repository.path }),
@@ -622,7 +612,7 @@ async function createCodingSession(input: {
         workspace = {
             branch: branchStdout.trim() || 'HEAD',
             worktreePath: repository.path,
-            baseSha: remoteDefault?.sha ?? headStdout.trim(),
+            baseSha: headStdout.trim(),
             createdBranch: false,
         };
     }
@@ -771,19 +761,29 @@ export async function restartSession(id: string): Promise<Session | null> {
     return toPublic(session);
 }
 
-/** Review diffs are working tree / HEAD vs origin's default-branch tip. */
+/**
+ * Keep the review base on the current checkout tip so the file hierarchy reflects
+ * uncommitted work only. Advances past new commits and branch switches.
+ */
 async function syncReviewBase(session: RuntimeSession): Promise<string> {
-    const remote = await getRemoteDefaultHead(session.worktreePath);
-    if (!remote) {
+    try {
+        const { stdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], {
+            cwd: session.worktreePath,
+        });
+        const head = stdout.trim();
+        if (!head) {
+            return session.baseSha;
+        }
+        if (session.baseSha !== head) {
+            session.baseSha = head;
+            void persistSessions().catch((err: unknown) => {
+                console.error(`Failed to persist review base for session ${session.id}`, err);
+            });
+        }
+        return session.baseSha;
+    } catch {
         return session.baseSha;
     }
-    if (session.baseSha !== remote.sha) {
-        session.baseSha = remote.sha;
-        void persistSessions().catch((err: unknown) => {
-            console.error(`Failed to persist review base for session ${session.id}`, err);
-        });
-    }
-    return session.baseSha;
 }
 
 export async function getSessionDiff(id: string): Promise<SessionDiffSummary | null> {

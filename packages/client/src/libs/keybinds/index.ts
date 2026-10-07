@@ -7,7 +7,6 @@ export {
     modifierChordHeld,
     parseKeybind,
     serializeKeybind,
-    withSuperModifier,
 } from './chords';
 export { formatKeybind } from './format';
 export { KeybindsContext, useKeybinds } from './keybindsContext';

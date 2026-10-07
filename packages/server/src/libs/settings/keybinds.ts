@@ -16,7 +16,8 @@ export type SessionKeybinds = {
     goBack: string;
     toggleReview: string;
     toggleTerminal: string;
-    toggleAgentInsert: string;
+    enterAgentInsert: string;
+    exitAgentInsert: string;
     enterShellInsert: string;
     nextFile: string;
     previousFile: string;
@@ -46,7 +47,8 @@ const SESSION_ACTIONS = [
     'goBack',
     'toggleReview',
     'toggleTerminal',
-    'toggleAgentInsert',
+    'enterAgentInsert',
+    'exitAgentInsert',
     'enterShellInsert',
     'nextFile',
     'previousFile',
@@ -72,7 +74,8 @@ export const DEFAULT_KEYBINDS: Keybinds = {
         goBack: 'escape',
         toggleReview: '.',
         toggleTerminal: 'alt+q',
-        toggleAgentInsert: 'i',
+        enterAgentInsert: 'i',
+        exitAgentInsert: 'alt+i',
         enterShellInsert: 't',
         nextFile: 'x',
         previousFile: 'z',
@@ -129,14 +132,18 @@ export function normalizeKeybinds(value: unknown): Keybinds {
         }
     }
 
-    // Migrate renamed focusAgent → toggleAgentInsert.
-    if (!isChordString(sessionSource.toggleAgentInsert) && isChordString(sessionSource.focusAgent)) {
-        sessionSource.toggleAgentInsert = sessionSource.focusAgent;
+    // Migrate renamed focusAgent / toggleAgentInsert → enterAgentInsert.
+    if (!isChordString(sessionSource.enterAgentInsert)) {
+        if (isChordString(sessionSource.toggleAgentInsert)) {
+            sessionSource.enterAgentInsert = sessionSource.toggleAgentInsert;
+        } else if (isChordString(sessionSource.focusAgent)) {
+            sessionSource.enterAgentInsert = sessionSource.focusAgent;
+        }
     }
 
-    // Migrate previous default (toggle via super+1) to enter with i / exit with super+i.
-    if (sessionSource.toggleAgentInsert === 'super+1') {
-        sessionSource.toggleAgentInsert = 'i';
+    // Migrate previous default (toggle via super+1) to enter with i.
+    if (sessionSource.enterAgentInsert === 'super+1') {
+        sessionSource.enterAgentInsert = 'i';
     }
 
     // Migrate previous default goBack chord.
