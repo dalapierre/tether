@@ -44,6 +44,7 @@ type Messages = {
     keybindPreviousSession: NoMessageValues;
     keybindNextSession: NoMessageValues;
     keybindDeleteSession: NoMessageValues;
+    keybindRestartSession: NoMessageValues;
     keybindGoBack: NoMessageValues;
     keybindToggleReview: NoMessageValues;
     keybindToggleTerminal: NoMessageValues;
@@ -271,6 +272,10 @@ export const messages = defineMessages<Messages>(
         keybindDeleteSession: {
             id: 'settings.keybindDeleteSession',
             defaultMessage: 'Delete session',
+        },
+        keybindRestartSession: {
+            id: 'settings.keybindRestartSession',
+            defaultMessage: 'Restart session',
         },
         keybindGoBack: {
             id: 'settings.keybindGoBack',

@@ -4,7 +4,7 @@ import { IconButton } from '@client/components/icon-button';
 import { PageHeader } from '@client/components/page-header';
 import { SwipeToDelete } from '@client/components/swipe-to-delete';
 import { listRepositories, type Repository } from '@client/libs/api/repositories';
-import { deleteSession, listSessions, type Session } from '@client/libs/api/sessions';
+import { deleteSession, listSessions, restartSession, type Session } from '@client/libs/api/sessions';
 import { useKeybind } from '@client/libs/keybinds';
 import { NewSession } from '@client/modules/new-session';
 import { getSnapshot, removeSessionStatus, subscribe, upsertSessionStatus } from '@client/modules/session-events';
@@ -57,6 +57,7 @@ export function SessionList() {
     const [searchQuery, setSearchQuery] = useState('');
     const [pendingDelete, setPendingDelete] = useState<Session | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [restartingId, setRestartingId] = useState<string | null>(null);
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const selectedCardRef = useRef<HTMLDivElement | null>(null);
     const searchInputRef = useRef<HTMLInputElement | null>(null);
@@ -153,6 +154,17 @@ export function SessionList() {
             setPendingDelete(session);
         },
         { enabled: listInteractive },
+    );
+    useKeybind(
+        'home',
+        'restartSession',
+        () => {
+            const index = selectedIndexRef.current;
+            const session = index === null ? null : filteredSessionsRef.current[index];
+            if (!session || session.status !== 'error') return;
+            void handleRestart(session);
+        },
+        { enabled: listInteractive && !restartingId },
     );
 
     useEffect(() => {
@@ -255,6 +267,38 @@ export function SessionList() {
         }
     }
 
+    async function handleRestart(session: Session) {
+        if (restartingId || session.status !== 'error') return;
+
+        setRestartingId(session.id);
+        upsertSessionStatus({
+            sessionId: session.id,
+            name: session.name,
+            status: 'busy',
+        });
+
+        try {
+            const updated = await restartSession(session.id);
+            setSessions((current) =>
+                current.map((item) => (item.id === updated.id ? { ...item, status: updated.status } : item)),
+            );
+            upsertSessionStatus({
+                sessionId: updated.id,
+                name: updated.name,
+                status: updated.status,
+            });
+        } catch (err: unknown) {
+            upsertSessionStatus({
+                sessionId: session.id,
+                name: session.name,
+                status: 'error',
+            });
+            showToast('generic-error', err instanceof Error ? err.message : intl.formatMessage(messages.restartFailed));
+        } finally {
+            setRestartingId(null);
+        }
+    }
+
     if (creating) {
         return (
             <NewSession
@@ -343,6 +387,15 @@ export function SessionList() {
                                       indicator={session.status}
                                       selected={index === selectedIndex}
                                       onClick={() => navigate(`/sessions/${session.id}`)}
+                                      onRestart={
+                                          session.status === 'error'
+                                              ? () => {
+                                                    void handleRestart(session);
+                                                }
+                                              : undefined
+                                      }
+                                      restartLabel={intl.formatMessage(messages.restartSession)}
+                                      restartDisabled={restartingId === session.id}
                                   >
                                       {session.type === 'coding' ? (
                                           <>

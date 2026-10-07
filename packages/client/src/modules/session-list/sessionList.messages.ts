@@ -15,6 +15,8 @@ type Messages = {
     deleteConfirmContinue: NoMessageValues;
     deleteConfirmCancel: NoMessageValues;
     deleteFailed: NoMessageValues;
+    restartSession: NoMessageValues;
+    restartFailed: NoMessageValues;
 };
 
 export const messages = defineMessages<Messages>(
@@ -74,6 +76,14 @@ export const messages = defineMessages<Messages>(
         deleteFailed: {
             id: 'sessionList.deleteFailed',
             defaultMessage: 'Failed to delete session',
+        },
+        restartSession: {
+            id: 'sessionList.restartSession',
+            defaultMessage: 'Restart session',
+        },
+        restartFailed: {
+            id: 'sessionList.restartFailed',
+            defaultMessage: 'Failed to restart session',
         },
     },
     { typed: true },

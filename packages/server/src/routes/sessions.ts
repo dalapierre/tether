@@ -5,6 +5,7 @@ import {
     getSessionDiff,
     getSessionDiffFile,
     listSessions,
+    restartSession,
 } from '@server/libs/sessions/store.js';
 import { Router } from 'express';
 
@@ -81,6 +82,25 @@ sessionsRouter.delete('/:id', (req, res) => {
         return;
     }
     res.status(204).send();
+});
+
+sessionsRouter.post('/:id/restart', async (req, res) => {
+    try {
+        const session = await restartSession(req.params.id);
+        if (!session) {
+            res.status(404).json({ error: 'Session not found' });
+            return;
+        }
+        res.json({ session });
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Failed to restart session';
+        if (message === 'Session is still running' || message === 'Workspace missing') {
+            res.status(400).json({ error: message });
+            return;
+        }
+        console.error('Failed to restart session', err);
+        res.status(500).json({ error: 'Failed to restart session' });
+    }
 });
 
 sessionsRouter.post('/', async (req, res) => {

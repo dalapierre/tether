@@ -8,4 +8,7 @@ export type CardProps = {
     onClick?: ButtonHTMLAttributes<HTMLButtonElement>['onClick'];
     indicator?: CardIndicator;
     selected?: boolean;
+    onRestart?: () => void;
+    restartLabel?: string;
+    restartDisabled?: boolean;
 };

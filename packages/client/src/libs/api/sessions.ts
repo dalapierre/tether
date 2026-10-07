@@ -143,6 +143,20 @@ export async function deleteSession(id: string): Promise<void> {
     clearSessionLocalStorage(id);
 }
 
+export async function restartSession(id: string): Promise<Session> {
+    const res = await apiFetch(`/api/sessions/${encodeURIComponent(id)}/restart`, {
+        method: 'POST',
+    });
+
+    if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new ApiError(res.status, body?.error ?? `HTTP ${res.status}`);
+    }
+
+    const data = (await res.json()) as SessionResponse;
+    return data.session;
+}
+
 export async function getSessionDiff(sessionId: string): Promise<SessionDiffSummary> {
     const res = await apiFetch(`/api/sessions/${encodeURIComponent(sessionId)}/diff`);
 

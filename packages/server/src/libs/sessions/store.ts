@@ -567,6 +567,29 @@ export async function getSession(id: string): Promise<Session | null> {
     return session ? toPublic(session) : null;
 }
 
+/** Respawn the agent for an exited session, resuming via agentSessionId when available. */
+export async function restartSession(id: string): Promise<Session | null> {
+    const session = sessions.get(id);
+    if (!session) {
+        return null;
+    }
+    if (session.pty) {
+        throw new Error('Session is still running');
+    }
+
+    if (!(await pathExists(session.worktreePath))) {
+        appendOutput(session.id, '\r\n[session restart failed: workspace missing]\r\n');
+        setStatus(session, 'error');
+        throw new Error('Workspace missing');
+    }
+
+    if (session.agent === 'cursor') {
+        await ensureCursorStatusIndicatorsEnabled();
+    }
+    await spawnHarness(session, { resume: Boolean(session.agentSessionId) });
+    return toPublic(session);
+}
+
 async function syncReviewBase(session: RuntimeSession): Promise<string> {
     const next = await resolveReviewBaseSha(session.worktreePath, session.branch, {
         baseSha: session.baseSha,

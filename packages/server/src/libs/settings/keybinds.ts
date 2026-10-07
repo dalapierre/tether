@@ -9,6 +9,7 @@ export type HomeKeybinds = {
     previousSession: string;
     nextSession: string;
     deleteSession: string;
+    restartSession: string;
 };
 
 export type SessionKeybinds = {
@@ -37,6 +38,7 @@ const HOME_ACTIONS = [
     'previousSession',
     'nextSession',
     'deleteSession',
+    'restartSession',
 ] as const;
 const SESSION_ACTIONS = [
     'goBack',
@@ -60,6 +62,7 @@ export const DEFAULT_KEYBINDS: Keybinds = {
         previousSession: 'arrowup',
         nextSession: 'arrowdown',
         deleteSession: 'delete',
+        restartSession: 'r',
     },
     session: {
         goBack: 'escape',
