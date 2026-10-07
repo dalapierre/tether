@@ -1,6 +1,6 @@
 import { isCommandOnPath } from '@server/libs/process/resolveCommand.js';
 
-export type AgentId = 'cursor' | 'claude' | 'codex' | 'opencode';
+export type AgentId = 'cursor' | 'claude' | 'codex' | 'opencode' | 'rovo';
 
 export type AgentInfo = {
     id: AgentId;
@@ -17,6 +17,8 @@ export const SUPPORTED_AGENTS: AgentDefinition[] = [
     { id: 'claude', label: 'Claude Code', commands: ['claude'] },
     { id: 'codex', label: 'Codex', commands: ['codex'] },
     { id: 'opencode', label: 'OpenCode', commands: ['opencode'] },
+    // Prefer the standalone `rovo` binary; fall back to legacy `acli rovodev`.
+    { id: 'rovo', label: 'Rovo Dev', commands: ['rovo', 'acli'] },
 ];
 
 const AGENT_IDS = new Set<string>(SUPPORTED_AGENTS.map((agent) => agent.id));

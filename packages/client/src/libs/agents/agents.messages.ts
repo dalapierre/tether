@@ -17,4 +17,8 @@ export const messages = defineMessages({
         id: 'agents.opencode',
         defaultMessage: 'OpenCode',
     },
+    rovo: {
+        id: 'agents.rovo',
+        defaultMessage: 'Rovo Dev',
+    },
 });

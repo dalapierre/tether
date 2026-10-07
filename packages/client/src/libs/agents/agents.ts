@@ -5,6 +5,7 @@ export const AGENTS = [
     { id: 'claude', labelMessage: messages.claude },
     { id: 'codex', labelMessage: messages.codex },
     { id: 'opencode', labelMessage: messages.opencode },
+    { id: 'rovo', labelMessage: messages.rovo },
 ] as const;
 
 export type AgentId = (typeof AGENTS)[number]['id'];

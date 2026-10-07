@@ -23,8 +23,13 @@ export type HarnessOptions = {
 };
 
 /** Logical CLI name + argv for an agent (before PATH / Windows resolution). */
-export function getHarnessCommand(agent: AgentId, options: HarnessOptions = {}): HarnessCommand {
-    const command = getAgentCommandCandidates(agent)[0] ?? agent;
+export function getHarnessCommand(
+    agent: AgentId,
+    options: HarnessOptions = {},
+    /** Concrete binary from getAgentCommandCandidates (when already chosen). */
+    commandName?: string,
+): HarnessCommand {
+    const command = commandName ?? getAgentCommandCandidates(agent)[0] ?? agent;
     const sessionId = options.agentSessionId?.trim() || null;
     const resume = Boolean(options.resume && sessionId);
 
@@ -77,12 +82,24 @@ export function getHarnessCommand(agent: AgentId, options: HarnessOptions = {}):
             }
             return { command, args };
         }
+        case 'rovo': {
+            // Standalone `rovo …` (newer) vs legacy `acli rovodev run …`.
+            const flags: string[] = [];
+            if (resume && sessionId) {
+                flags.push('--restore', sessionId);
+            }
+            if (options.yoloMode) {
+                flags.push('--yolo');
+            }
+            const args = command === 'acli' ? ['rovodev', 'run', ...flags] : flags;
+            return { command, args };
+        }
     }
 }
 
 /**
  * Allocate an agent-native session id when the CLI supports a known id up front.
- * Returns null when the agent only assigns ids after start (Codex / OpenCode).
+ * Returns null when the agent only assigns ids after start (Codex / OpenCode / Rovo).
  */
 export async function createAgentSessionId(agent: AgentId): Promise<string | null> {
     switch (agent) {
@@ -111,31 +128,33 @@ export async function createAgentSessionId(agent: AgentId): Promise<string | nul
             return randomUUID();
         case 'codex':
         case 'opencode':
+        case 'rovo':
             return null;
     }
 }
 
 /**
  * Resolve the first available agent CLI on PATH into a node-pty launch descriptor.
- * Handles Windows PATHEXT / npm `.cmd` shims and `agent` vs `cursor-agent` aliases.
+ * Handles Windows PATHEXT / npm `.cmd` shims and `agent`/`cursor-agent` / `rovo`/`acli` aliases.
  */
 export async function resolveHarnessLaunch(
     agent: AgentId,
     options: HarnessOptions = {},
 ): Promise<PtyLaunch & { displayCommand: string; displayArgs: string[] }> {
-    const { args } = getHarnessCommand(agent, options);
     const candidates = getAgentCommandCandidates(agent);
 
     for (const candidate of candidates) {
         if (!(await findCommandOnPath(candidate))) {
             continue;
         }
+        const { args } = getHarnessCommand(agent, options, candidate);
         const launch = await resolvePtyLaunch(candidate, args);
         return { ...launch, displayCommand: candidate, displayArgs: args };
     }
 
     // Fall back to the primary name so the spawn error still names something useful.
     const fallback = candidates[0] ?? agent;
+    const { args } = getHarnessCommand(agent, options, fallback);
     const launch = await resolvePtyLaunch(fallback, args);
     return { ...launch, displayCommand: fallback, displayArgs: args };
 }
@@ -143,7 +162,7 @@ export async function resolveHarnessLaunch(
 /**
  * Pre-accept workspace trust for harnesses that prompt on first open of a directory.
  * Cursor uses `--trust` in getHarnessCommand; Claude/Codex store trust in user config.
- * OpenCode has no workspace-trust prompt.
+ * OpenCode and Rovo have no workspace-trust prompt (Rovo uses YOLO / toolPermissions instead).
  */
 export async function ensureWorkspaceTrusted(agent: AgentId, workspacePath: string): Promise<void> {
     const resolved = path.resolve(workspacePath);
@@ -151,6 +170,7 @@ export async function ensureWorkspaceTrusted(agent: AgentId, workspacePath: stri
         switch (agent) {
             case 'cursor':
             case 'opencode':
+            case 'rovo':
                 return;
             case 'claude':
                 await ensureClaudeWorkspaceTrusted(resolved);
