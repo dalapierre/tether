@@ -12,4 +12,6 @@ export type PageHeaderProps = {
     showSettings?: boolean;
     /** When set, shows a back control at the start of the header. */
     onBack?: () => void;
+    /** Called when the home/logo control is activated. */
+    onHomeClick?: () => void;
 };

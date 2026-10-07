@@ -43,14 +43,19 @@ function BackIcon() {
     );
 }
 
-export function PageHeader({ crumbs = [], actions, showSettings = true, onBack }: PageHeaderProps) {
+export function PageHeader({ crumbs = [], actions, showSettings = true, onBack, onHomeClick }: PageHeaderProps) {
     const intl = useIntl();
     const { openSettings } = useSettings();
 
     return (
         <header className={styles.header}>
             <div className={styles.start}>
-                <Link to='/' className={styles.logoLink} aria-label={intl.formatMessage(messages.home)}>
+                <Link
+                    to='/'
+                    className={styles.logoLink}
+                    aria-label={intl.formatMessage(messages.home)}
+                    onClick={onHomeClick}
+                >
                     <img className={styles.logo} src={logoLight} alt='' />
                 </Link>
                 {onBack ? (
