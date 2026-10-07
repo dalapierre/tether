@@ -12,7 +12,6 @@ import {
     sendTerminalMessage,
     type ServerTerminalMessage,
     type Session,
-    type SessionStatus,
 } from '@client/libs/api/sessions';
 import { bindSessionViewport } from '@client/libs/dom/bindSessionViewport';
 import { useIsDesktop } from '@client/libs/dom/useMediaQuery';
@@ -120,28 +119,6 @@ function harnessLabel(agent: AgentId, formatMessage: ReturnType<typeof useIntl>[
     return formatMessage(agentLabelMessage(agent));
 }
 
-function statusLabel(status: SessionStatus, formatMessage: ReturnType<typeof useIntl>['formatMessage']): string {
-    switch (status) {
-        case 'ready':
-            return formatMessage(messages.statusReady);
-        case 'busy':
-            return formatMessage(messages.statusBusy);
-        case 'error':
-            return formatMessage(messages.statusError);
-    }
-}
-
-function statusDotClass(status: SessionStatus): string {
-    switch (status) {
-        case 'ready':
-            return styles.statusReady;
-        case 'busy':
-            return styles.statusBusy;
-        case 'error':
-            return styles.statusError;
-    }
-}
-
 function prepareMobileTextarea(term: Terminal): void {
     const textarea = term.textarea;
     if (!textarea) return;
@@ -226,7 +203,6 @@ export function SessionView({ sessionId }: SessionViewProps) {
     const [session, setSession] = useState<Session | null>(null);
     const [loading, setLoading] = useState(true);
     const [failed, setFailed] = useState(false);
-    const [status, setStatus] = useState<SessionStatus>('busy');
     const [connection, setConnection] = useState<ConnectionState>('connecting');
     const [tab, setTab] = useState<SessionTab>('agent');
     const [reviewVisited, setReviewVisited] = useState(false);
@@ -330,7 +306,6 @@ export function SessionView({ sessionId }: SessionViewProps) {
         setDesktopReviewOpen(storedOpen === true);
         setReviewVisited(storedOpen === true);
         setHasReviewFiles(false);
-        setStatus('busy');
     }, [sessionId]);
 
     useEffect(() => {
@@ -346,7 +321,6 @@ export function SessionView({ sessionId }: SessionViewProps) {
                     return;
                 }
                 setSession(item);
-                setStatus(item.status);
                 setFailed(false);
             })
             .catch((err: unknown) => {
@@ -508,11 +482,6 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         term.scrollToBottom();
                     }
                 });
-                return;
-            }
-
-            if (parsed.type === 'status') {
-                setStatus(parsed.status);
             }
         });
 
@@ -813,17 +782,13 @@ export function SessionView({ sessionId }: SessionViewProps) {
                     )}
                     {connectionLabel ? ` · ${connectionLabel}` : ''}
                 </p>
-                <div className={styles.metaEnd}>
-                    {session.type === 'coding' ? (
+                {session.type === 'coding' ? (
+                    <div className={styles.metaEnd}>
                         <button type='button' className={styles.reviewToggle} onClick={toggleDesktopReview}>
                             {intl.formatMessage(desktopReviewOpen ? messages.closeReview : messages.openReview)}
                         </button>
-                    ) : null}
-                    <span className={styles.status}>
-                        <span className={`${styles.statusDot} ${statusDotClass(status)}`} aria-hidden='true' />
-                        {statusLabel(status, intl.formatMessage)}
-                    </span>
-                </div>
+                    </div>
+                ) : null}
             </div>
             <div
                 ref={contentRef}
