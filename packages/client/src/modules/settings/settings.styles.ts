@@ -29,6 +29,8 @@ export const styles = {
     repositoriesList: 'mt-3',
     actions: 'mt-auto pt-10 pb-6',
     footer: 'px-4 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:mx-auto md:w-full md:max-w-2xl md:pb-4',
+    footerActions: 'flex flex-row gap-2',
+    footerAction: 'min-w-0 flex-1',
     keybindList: 'overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900',
     keybindRow: 'flex items-center justify-between gap-3 border-b border-zinc-800 px-4 py-3 last:border-b-0',
     keybindText: 'min-w-0 flex flex-col gap-0.5',
@@ -40,5 +42,4 @@ export const styles = {
         'shrink-0 rounded-md border border-aura-green bg-aura-green/15 px-3 py-1.5 font-mono text-xs text-aura-green outline-none',
     keybindButtonConflict:
         'shrink-0 rounded-md border border-amber-700 bg-zinc-950 px-3 py-1.5 font-mono text-xs text-amber-200 outline-none active:bg-zinc-800 md:hover:bg-zinc-800',
-    keybindReset: 'self-start text-sm text-zinc-400 underline-offset-2 active:text-zinc-200 md:hover:text-zinc-200',
 };

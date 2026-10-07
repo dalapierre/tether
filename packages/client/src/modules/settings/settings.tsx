@@ -134,6 +134,7 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
     const [addingPath, setAddingPath] = useState<string | null>(null);
     const [pendingRemoveRepo, setPendingRemoveRepo] = useState<Repository | null>(null);
     const [pendingRemoveProfile, setPendingRemoveProfile] = useState<AgentProfile | null>(null);
+    const [pendingDiscard, setPendingDiscard] = useState(false);
     const [removingId, setRemovingId] = useState<string | null>(null);
 
     useEffect(() => {
@@ -202,10 +203,44 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
         onClose();
     }, [availableAgents, defaultAgent, onClose, view]);
 
+    const generalDirty = devDir.trim() !== savedDevDir;
+    const agentsDirty = defaultAgent !== savedDefaultAgent || defaultProfileId !== savedDefaultProfileId;
+    const keybindsDirty = !keybindsEqual(keybinds, savedKeybinds);
+    const editingProfile = editingProfileId
+        ? (profiles.find((profile) => profile.id === editingProfileId) ?? null)
+        : null;
+    const editProfileDirty =
+        view === 'edit-profile' && editingProfile !== null && !profileDraftEquals(draftProfile, editingProfile);
+    const hasUnsavedChanges =
+        (view === 'general' && generalDirty) ||
+        (view === 'agents' && agentsDirty) ||
+        (view === 'keybinds' && keybindsDirty) ||
+        editProfileDirty;
+
+    function discardChanges() {
+        if (view === 'general') {
+            setDevDir(savedDevDir);
+        } else if (view === 'agents') {
+            setDefaultAgent(savedDefaultAgent);
+            setDefaultProfileId(savedDefaultProfileId);
+        } else if (view === 'keybinds') {
+            setKeybinds(cloneKeybinds(savedKeybinds));
+        } else if (view === 'edit-profile' && editingProfile) {
+            setDraftProfile(draftFromProfile(editingProfile));
+        }
+        setPendingDiscard(false);
+    }
+
     useEffect(() => {
         function onKeyDown(event: KeyboardEvent) {
             if (event.key !== 'Escape') return;
-            if (pendingRemoveRepo || pendingRemoveProfile) return;
+            // Open confirm dialogs handle Escape themselves (closes / toggles off).
+            if (pendingRemoveRepo || pendingRemoveProfile || pendingDiscard) return;
+            if (hasUnsavedChanges) {
+                event.preventDefault();
+                setPendingDiscard(true);
+                return;
+            }
             goBack();
         }
 
@@ -213,7 +248,7 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
         return () => {
             window.removeEventListener('keydown', onKeyDown);
         };
-    }, [goBack, pendingRemoveProfile, pendingRemoveRepo]);
+    }, [goBack, hasUnsavedChanges, pendingDiscard, pendingRemoveProfile, pendingRemoveRepo]);
 
     const availableOptions = useMemo(
         () => available.map((repository) => ({ value: repository.path, label: repository.name })),
@@ -486,21 +521,13 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
         }
     }
 
-    const generalDirty = devDir.trim() !== savedDevDir;
-    const agentsDirty = defaultAgent !== savedDefaultAgent || defaultProfileId !== savedDefaultProfileId;
-    const keybindsDirty = !keybindsEqual(keybinds, savedKeybinds);
     const showSaveButton =
         !loading &&
         ((view === 'general' && generalDirty) ||
             (view === 'agents' && agentsDirty) ||
             (view === 'keybinds' && keybindsDirty));
     const canCreateProfile = draftProfile.name.trim().length > 0 && !creatingProfile;
-    const editingProfile = editingProfileId
-        ? (profiles.find((profile) => profile.id === editingProfileId) ?? null)
-        : null;
     const profileFormBusy = creatingProfile || savingProfile;
-    const editProfileDirty =
-        view === 'edit-profile' && editingProfile !== null && !profileDraftEquals(draftProfile, editingProfile);
     const canSaveProfile =
         editProfileDirty && draftProfile.name.trim().length > 0 && !savingProfile && Boolean(editingProfile);
     const showProfileForm = (view === 'new-profile' || view === 'edit-profile') && !loading;
@@ -901,9 +928,23 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
                 </div>
                 {showSaveButton ? (
                     <div className={styles.footer}>
-                        <Button type='button' onClick={() => void handleSave()} disabled={saving}>
-                            {saving ? intl.formatMessage(messages.saving) : intl.formatMessage(messages.save)}
-                        </Button>
+                        <div className={styles.footerActions}>
+                            <div className={styles.footerAction}>
+                                <Button
+                                    type='button'
+                                    variant='secondary'
+                                    onClick={() => setPendingDiscard(true)}
+                                    disabled={saving}
+                                >
+                                    {intl.formatMessage(messages.cancel)}
+                                </Button>
+                            </div>
+                            <div className={styles.footerAction}>
+                                <Button type='button' onClick={() => void handleSave()} disabled={saving}>
+                                    {saving ? intl.formatMessage(messages.saving) : intl.formatMessage(messages.save)}
+                                </Button>
+                            </div>
+                        </div>
                     </div>
                 ) : null}
                 {view === 'profiles' && !loading ? (
@@ -929,9 +970,25 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
                 ) : null}
                 {view === 'edit-profile' && !loading && canSaveProfile ? (
                     <div className={styles.footer}>
-                        <Button type='button' onClick={() => void handleSaveProfile()} disabled={savingProfile}>
-                            {savingProfile ? intl.formatMessage(messages.saving) : intl.formatMessage(messages.save)}
-                        </Button>
+                        <div className={styles.footerActions}>
+                            <div className={styles.footerAction}>
+                                <Button
+                                    type='button'
+                                    variant='secondary'
+                                    onClick={() => setPendingDiscard(true)}
+                                    disabled={savingProfile}
+                                >
+                                    {intl.formatMessage(messages.cancel)}
+                                </Button>
+                            </div>
+                            <div className={styles.footerAction}>
+                                <Button type='button' onClick={() => void handleSaveProfile()} disabled={savingProfile}>
+                                    {savingProfile
+                                        ? intl.formatMessage(messages.saving)
+                                        : intl.formatMessage(messages.save)}
+                                </Button>
+                            </div>
+                        </div>
                     </div>
                 ) : null}
             </div>
@@ -961,6 +1018,15 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
                     onConfirm={() => {
                         void confirmRemoveProfile();
                     }}
+                />
+            ) : null}
+            {pendingDiscard ? (
+                <ConfirmDialog
+                    message={intl.formatMessage(messages.discardChangesConfirm)}
+                    cancelLabel={intl.formatMessage(messages.cancel)}
+                    confirmLabel={intl.formatMessage(messages.discardChangesConfirmContinue)}
+                    onCancel={() => setPendingDiscard(false)}
+                    onConfirm={discardChanges}
                 />
             ) : null}
         </div>

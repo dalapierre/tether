@@ -34,7 +34,6 @@ type Messages = {
     keybindsTabHome: NoMessageValues;
     keybindsTabSession: NoMessageValues;
     keybindsHint: NoMessageValues;
-    keybindsResetCategory: NoMessageValues;
     keybindRecording: NoMessageValues;
     keybindUnbound: NoMessageValues;
     keybindConflict: NoMessageValues;
@@ -104,6 +103,9 @@ type Messages = {
     signOut: NoMessageValues;
     saving: NoMessageValues;
     save: NoMessageValues;
+    cancel: NoMessageValues;
+    discardChangesConfirm: NoMessageValues;
+    discardChangesConfirmContinue: NoMessageValues;
 };
 
 export const messages = defineMessages<Messages>(
@@ -239,10 +241,6 @@ export const messages = defineMessages<Messages>(
         keybindsHint: {
             id: 'settings.keybindsHint',
             defaultMessage: 'Click a shortcut, then press the new keys. Escape cancels. Backspace clears.',
-        },
-        keybindsResetCategory: {
-            id: 'settings.keybindsResetCategory',
-            defaultMessage: 'Reset this tab to defaults',
         },
         keybindRecording: {
             id: 'settings.keybindRecording',
@@ -519,6 +517,18 @@ export const messages = defineMessages<Messages>(
         save: {
             id: 'settings.save',
             defaultMessage: 'Save',
+        },
+        cancel: {
+            id: 'settings.cancel',
+            defaultMessage: 'Cancel',
+        },
+        discardChangesConfirm: {
+            id: 'settings.discardChangesConfirm',
+            defaultMessage: 'Are you sure you want to discard your changes?',
+        },
+        discardChangesConfirmContinue: {
+            id: 'settings.discardChangesConfirmContinue',
+            defaultMessage: 'Discard',
         },
     },
     { typed: true },

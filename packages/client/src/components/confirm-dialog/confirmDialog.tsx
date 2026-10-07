@@ -1,5 +1,5 @@
 import { Button } from '@client/components/button';
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { styles } from './confirmDialog.styles';
 import type { ConfirmDialogProps } from './confirmDialog.types';
 
@@ -12,8 +12,6 @@ export function ConfirmDialog({
     busy = false,
     ariaLabel,
 }: ConfirmDialogProps) {
-    const panelRef = useRef<HTMLDivElement | null>(null);
-
     useEffect(() => {
         function onKeyDown(event: KeyboardEvent) {
             if (busy || event.defaultPrevented || event.repeat) return;
@@ -37,10 +35,6 @@ export function ConfirmDialog({
         };
     }, [busy, onCancel, onConfirm]);
 
-    useEffect(() => {
-        panelRef.current?.focus();
-    }, []);
-
     return (
         <div
             className={styles.backdrop}
@@ -52,14 +46,7 @@ export function ConfirmDialog({
                 }
             }}
         >
-            <div
-                ref={panelRef}
-                className={styles.panel}
-                role='alertdialog'
-                aria-modal='true'
-                aria-label={ariaLabel ?? message}
-                tabIndex={-1}
-            >
+            <div className={styles.panel} role='alertdialog' aria-modal='true' aria-label={ariaLabel ?? message}>
                 <p className={styles.message}>{message}</p>
                 <div className={styles.actions}>
                     <Button type='button' onClick={onConfirm} disabled={busy}>

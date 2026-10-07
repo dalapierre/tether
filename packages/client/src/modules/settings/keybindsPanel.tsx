@@ -1,9 +1,9 @@
 import { SegmentedControl } from '@client/components/segmented-control';
 import {
-    DEFAULT_KEYBINDS,
     KEYBIND_ACTIONS_BY_CATEGORY,
     chordFromKeyboardEvent,
     formatKeybind,
+    parseKeybind,
     type HomeKeybindAction,
     type KeybindCategory,
     type Keybinds,
@@ -97,14 +97,6 @@ function actionsForCategory(category: KeybindCategory): readonly string[] {
     return KEYBIND_ACTIONS_BY_CATEGORY[category];
 }
 
-function categoryDiffersFromDefault(keybinds: Keybinds, category: KeybindCategory): boolean {
-    const current = keybinds[category];
-    const defaults = DEFAULT_KEYBINDS[category];
-    return actionsForCategory(category).some(
-        (action) => (current[action as never] as string) !== (defaults[action as never] as string),
-    );
-}
-
 export function KeybindsPanel({ keybinds, onChange, disabled }: KeybindsPanelProps) {
     const intl = useIntl();
     const [tab, setTab] = useState<KeybindCategory>('home');
@@ -131,32 +123,10 @@ export function KeybindsPanel({ keybinds, onChange, disabled }: KeybindsPanelPro
     useEffect(() => {
         if (!recording) return;
         const target = recording;
+        /** Modifier held alone while recording; commit on keyup if no other key arrives. */
+        let pendingModifierChord: string | null = null;
 
-        function onKeyDown(event: KeyboardEvent) {
-            event.preventDefault();
-            event.stopPropagation();
-
-            if (event.key === 'Escape') {
-                setRecording(null);
-                return;
-            }
-
-            if (event.key === 'Backspace' || event.key === 'Delete') {
-                const { category, action } = target;
-                onChange({
-                    ...keybinds,
-                    [category]: {
-                        ...keybinds[category],
-                        [action]: '',
-                    },
-                });
-                setRecording(null);
-                return;
-            }
-
-            const chord = chordFromKeyboardEvent(event);
-            if (!chord) return;
-
+        function applyChord(chord: string) {
             const { category, action } = target;
             onChange({
                 ...keybinds,
@@ -168,17 +138,61 @@ export function KeybindsPanel({ keybinds, onChange, disabled }: KeybindsPanelPro
             setRecording(null);
         }
 
-        window.addEventListener('keydown', onKeyDown, true);
-        return () => window.removeEventListener('keydown', onKeyDown, true);
-    }, [keybinds, onChange, recording]);
+        function onKeyDown(event: KeyboardEvent) {
+            event.preventDefault();
+            event.stopPropagation();
 
-    function resetCategory() {
-        onChange({
-            ...keybinds,
-            [tab]: { ...DEFAULT_KEYBINDS[tab] },
-        });
-        setRecording(null);
-    }
+            if (event.repeat) return;
+
+            if (event.key === 'Escape') {
+                setRecording(null);
+                return;
+            }
+
+            if (event.key === 'Backspace' || event.key === 'Delete') {
+                applyChord('');
+                return;
+            }
+
+            const chord = chordFromKeyboardEvent(event);
+            if (!chord) return;
+
+            const parsed = parseKeybind(chord);
+            // Wait for a non-modifier key (or release) before committing.
+            if (parsed && !parsed.key) {
+                pendingModifierChord = chord;
+                return;
+            }
+
+            pendingModifierChord = null;
+            applyChord(chord);
+        }
+
+        function onKeyUp(event: KeyboardEvent) {
+            if (!pendingModifierChord) return;
+
+            const lower = event.key.toLowerCase();
+            if (lower !== 'control' && lower !== 'meta' && lower !== 'alt' && lower !== 'shift') {
+                return;
+            }
+
+            // Still holding another modifier — keep waiting.
+            if (event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) {
+                return;
+            }
+
+            const chord = pendingModifierChord;
+            pendingModifierChord = null;
+            applyChord(chord);
+        }
+
+        window.addEventListener('keydown', onKeyDown, true);
+        window.addEventListener('keyup', onKeyUp, true);
+        return () => {
+            window.removeEventListener('keydown', onKeyDown, true);
+            window.removeEventListener('keyup', onKeyUp, true);
+        };
+    }, [keybinds, onChange, recording]);
 
     const tabLabel = (category: KeybindCategory) => {
         switch (category) {
@@ -245,12 +259,6 @@ export function KeybindsPanel({ keybinds, onChange, disabled }: KeybindsPanelPro
                     );
                 })}
             </div>
-
-            {categoryDiffersFromDefault(keybinds, tab) ? (
-                <button type='button' className={styles.keybindReset} disabled={disabled} onClick={resetCategory}>
-                    {intl.formatMessage(messages.keybindsResetCategory)}
-                </button>
-            ) : null}
         </div>
     );
 }
