@@ -1163,6 +1163,7 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
                             <button
                                 type='button'
                                 className={styles.backButton}
+                                title={intl.formatMessage(messages.backToFiles)}
                                 aria-label={intl.formatMessage(messages.backToFiles)}
                                 onClick={() => selectPath(null)}
                             >
@@ -1173,6 +1174,11 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
                                 <button
                                     type='button'
                                     className={styles.fileHeaderMode}
+                                    title={intl.formatMessage(
+                                        markdownViewMode === 'code'
+                                            ? messages.showMarkdownPreview
+                                            : messages.showCodeView,
+                                    )}
                                     aria-label={intl.formatMessage(
                                         markdownViewMode === 'code'
                                             ? messages.showMarkdownPreview

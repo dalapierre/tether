@@ -1006,6 +1006,8 @@ export function SessionView({ sessionId }: SessionViewProps) {
             : connection === 'disconnected'
               ? intl.formatMessage(messages.disconnected)
               : null;
+    const terminalToggleLabel = intl.formatMessage(shellPaneVisible ? messages.closeTerminal : messages.openTerminal);
+    const reviewToggleLabel = intl.formatMessage(desktopReviewOpen ? messages.closeReview : messages.openReview);
 
     return (
         <div ref={rootRef} className={styles.root}>
@@ -1101,32 +1103,6 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         })
                     )}
                 </p>
-                <div className={styles.metaEnd}>
-                    <button
-                        type='button'
-                        className={`${styles.paneToggle}${shellPaneVisible ? ` ${styles.paneToggleActive}` : ''}`}
-                        aria-label={intl.formatMessage(
-                            shellPaneVisible ? messages.closeTerminal : messages.openTerminal,
-                        )}
-                        aria-pressed={shellPaneVisible}
-                        onClick={toggleShell}
-                    >
-                        <TerminalIcon className={styles.paneToggleIcon} />
-                    </button>
-                    {session.type === 'coding' ? (
-                        <button
-                            type='button'
-                            className={`${styles.paneToggle}${desktopReviewOpen ? ` ${styles.paneToggleActive}` : ''}`}
-                            aria-label={intl.formatMessage(
-                                desktopReviewOpen ? messages.closeReview : messages.openReview,
-                            )}
-                            aria-pressed={desktopReviewOpen}
-                            onClick={toggleDesktopReview}
-                        >
-                            <ReviewIcon className={styles.paneToggleIcon} />
-                        </button>
-                    ) : null}
-                </div>
             </div>
             <div ref={mainRef} className={styles.main}>
                 <div
@@ -1142,6 +1118,30 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         className={isDesktop || tab === 'agent' ? styles.pane : styles.paneInactive}
                         aria-hidden={!isDesktop && tab !== 'agent'}
                     >
+                        <div className={styles.agentToolbar}>
+                            <button
+                                type='button'
+                                className={`${styles.paneToggle}${shellPaneVisible ? ` ${styles.paneToggleActive}` : ''}`}
+                                title={terminalToggleLabel}
+                                aria-label={terminalToggleLabel}
+                                aria-pressed={shellPaneVisible}
+                                onClick={toggleShell}
+                            >
+                                <TerminalIcon className={styles.paneToggleIcon} />
+                            </button>
+                            {session.type === 'coding' ? (
+                                <button
+                                    type='button'
+                                    className={`${styles.paneToggle}${desktopReviewOpen ? ` ${styles.paneToggleActive}` : ''}`}
+                                    title={reviewToggleLabel}
+                                    aria-label={reviewToggleLabel}
+                                    aria-pressed={desktopReviewOpen}
+                                    onClick={toggleDesktopReview}
+                                >
+                                    <ReviewIcon className={styles.paneToggleIcon} />
+                                </button>
+                            ) : null}
+                        </div>
                         <div className={styles.terminalWrap}>
                             <div ref={terminalRef} className={styles.terminal} />
                         </div>

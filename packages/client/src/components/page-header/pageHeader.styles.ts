@@ -1,6 +1,6 @@
 export const styles = {
-    header: 'flex shrink-0 items-center gap-1 px-2 pt-[max(0.25rem,env(safe-area-inset-top))] pb-1 md:px-3 md:pt-2',
-    start: 'flex min-h-11 min-w-0 flex-1 items-center gap-1',
+    header: 'flex shrink-0 items-center gap-1 px-2 pt-[max(0.25rem,env(safe-area-inset-top))] pb-0 md:px-3 md:pt-1',
+    start: 'flex min-h-10 min-w-0 flex-1 items-center gap-1',
     backIcon: 'h-5 w-5',
     crumbs: 'flex min-w-0 items-center gap-1.5 overflow-hidden pr-2 text-sm',
     crumbsInset: 'pl-2',

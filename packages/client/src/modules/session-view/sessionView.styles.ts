@@ -4,19 +4,20 @@ export const styles = {
     connectionDot: 'h-2 w-2 shrink-0 rounded-full',
     connectionDotConnecting: 'bg-amber-400',
     connectionDotDisconnected: 'bg-red-500',
-    // Desktop: match PageHeader inset (md:px-3) and back IconButton (w-11) + gap-1
-    // so repo/branch and the review control line up with the breadcrumb row.
-    meta: 'flex shrink-0 items-center justify-between gap-3 border-b border-zinc-800 px-4 py-2 text-xs text-zinc-400 md:px-[3.75rem]',
+    // Mobile: top meta strip under tabs. Desktop: VS Code–style status bar pinned
+    // below the main panes (flex order-last) with a top border instead of bottom.
+    meta: 'flex shrink-0 items-center gap-3 border-b border-zinc-800 px-4 py-2 text-xs text-zinc-400 md:order-last md:border-b-0 md:border-t md:bg-zinc-900 md:px-3 md:py-1',
     metaText: 'min-w-0 truncate',
     metaRepo: 'font-bold text-zinc-200',
     metaBehind: 'text-zinc-500',
-    metaEnd: 'flex shrink-0 items-center gap-1.5',
+    agentToolbar:
+        'hidden h-7 shrink-0 items-center justify-end gap-1 border-b border-zinc-800 bg-zinc-900 px-2 md:flex',
     paneToggle:
-        'hidden shrink-0 items-center justify-center rounded-md border border-zinc-700 p-1.5 text-zinc-300 transition-colors md:inline-flex md:hover:bg-zinc-800 md:hover:text-zinc-100',
+        'inline-flex shrink-0 items-center justify-center rounded-md border border-zinc-700 p-0.5 text-zinc-300 transition-colors md:hover:bg-zinc-800 md:hover:text-zinc-100',
     paneToggleActive: 'bg-zinc-800 text-zinc-100',
-    paneToggleIcon: 'h-4 w-4',
-    tabs: 'shrink-0 border-b border-zinc-800 px-4 py-2 md:hidden',
-    main: 'relative flex min-h-0 flex-1 flex-col',
+    paneToggleIcon: 'h-3.5 w-3.5',
+    tabs: 'shrink-0 border-t border-b border-zinc-800 px-4 py-2 md:hidden',
+    main: 'relative flex min-h-0 flex-1 flex-col md:border-t md:border-zinc-800',
     content: 'relative min-h-0 flex-1 md:grid md:grid-cols-[1fr_auto]',
     pane: 'absolute inset-0 z-10 flex flex-col md:relative md:inset-auto md:z-auto md:min-h-0 md:min-w-0',
     paneReview:
