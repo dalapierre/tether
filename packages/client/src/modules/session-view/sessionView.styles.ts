@@ -6,10 +6,15 @@ export const styles = {
     metaText: 'min-w-0 truncate',
     metaRepo: 'font-bold text-zinc-200',
     metaBehind: 'text-zinc-500',
-    metaEnd: 'flex shrink-0 items-center gap-3',
+    metaEnd: 'flex shrink-0 items-center gap-1.5',
+    terminalToggle:
+        'hidden shrink-0 items-center justify-center rounded-md border border-zinc-700 p-1.5 text-zinc-300 transition-colors md:inline-flex md:hover:bg-zinc-800 md:hover:text-zinc-100',
+    terminalToggleActive: 'bg-zinc-800 text-zinc-100',
+    terminalToggleIcon: 'h-4 w-4',
     reviewToggle:
         'hidden shrink-0 rounded-md border border-zinc-700 px-2.5 py-1 text-xs font-medium text-zinc-300 transition-colors md:inline md:hover:bg-zinc-800 md:hover:text-zinc-100',
     tabs: 'shrink-0 border-b border-zinc-800 px-4 py-2 md:hidden',
+    main: 'relative flex min-h-0 flex-1 flex-col',
     content: 'relative min-h-0 flex-1 md:grid md:grid-cols-[1fr_auto]',
     pane: 'absolute inset-0 z-10 flex flex-col md:relative md:inset-auto md:z-auto md:min-h-0 md:min-w-0',
     paneReview:
@@ -24,6 +29,12 @@ export const styles = {
     // viewport chasing the cursor into the soft keyboard.
     terminal:
         'absolute inset-0 touch-pan-y overflow-hidden px-2 py-2 [&_.xterm-screen]:mx-auto [&_.xterm-helper-textarea]:!left-0 [&_.xterm-helper-textarea]:!top-0',
+    shellPanelDesktop:
+        'relative hidden min-h-0 shrink-0 flex-col overflow-hidden border-t border-zinc-800 bg-zinc-950 md:flex',
+    shellPanelDesktopHidden: 'hidden',
+    shellPanelMobile: 'absolute inset-0 z-20 flex flex-col bg-zinc-950 md:hidden',
+    shellPanelMobileHidden: 'pointer-events-none absolute inset-0 z-0 flex flex-col invisible md:hidden',
+    shellTerminalWrap: 'relative min-h-0 flex-1 overflow-hidden pb-[env(safe-area-inset-bottom)]',
     centered: 'flex flex-1 items-center justify-center px-4 text-sm text-zinc-500',
     mobileActions: 'flex items-center md:hidden',
     actionIcon: 'h-5 w-5',

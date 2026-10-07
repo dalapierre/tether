@@ -12,7 +12,9 @@ import {
 } from '@client/libs/storage/sessionLocalStorage';
 
 const REVIEW_PANE_WIDTH_PCT_KEY = 'tether.layout.reviewPaneWidthPct';
+const SHELL_PANE_HEIGHT_PCT_KEY = 'tether.layout.shellPaneHeightPct';
 const FILE_TREE_WIDTH_PX_KEY = 'tether.layout.fileTreeWidthPx';
+const SHELL_PANEL_OPEN_SUFFIX = 'shellPanelOpen';
 /** @deprecated Migrated to reviewPaneWidthPct. */
 const LEGACY_REVIEW_PANE_WIDTH_PX_KEY = 'tether.layout.reviewPaneWidthPx';
 /** @deprecated Migrated back to fileTreeWidthPx. */
@@ -34,10 +36,13 @@ export type SelectedDiffFileState = {
 };
 
 export const DEFAULT_REVIEW_PANE_WIDTH_PCT = 40;
+export const DEFAULT_SHELL_PANE_HEIGHT_PCT = 30;
 export const DEFAULT_FILE_TREE_WIDTH_PX = 176;
 
 const MIN_REVIEW_PANE_WIDTH_PCT = 15;
 const MAX_REVIEW_PANE_WIDTH_PCT = 90;
+const MIN_SHELL_PANE_HEIGHT_PCT = 10;
+const MAX_SHELL_PANE_HEIGHT_PCT = 90;
 const MIN_FILE_TREE_WIDTH_PX = 120;
 const MAX_FILE_TREE_WIDTH_PX = 420;
 
@@ -54,6 +59,10 @@ function roundPct(value: number): number {
 
 export function clampReviewPaneWidthPct(pct: number): number {
     return Math.min(MAX_REVIEW_PANE_WIDTH_PCT, Math.max(MIN_REVIEW_PANE_WIDTH_PCT, roundPct(pct)));
+}
+
+export function clampShellPaneHeightPct(pct: number): number {
+    return Math.min(MAX_SHELL_PANE_HEIGHT_PCT, Math.max(MIN_SHELL_PANE_HEIGHT_PCT, roundPct(pct)));
 }
 
 export function clampFileTreeWidthPx(width: number): number {
@@ -108,6 +117,29 @@ export function getReviewPaneWidthPct(): number {
 
 export function setReviewPaneWidthPct(pct: number): void {
     setLocalStorageNumber(REVIEW_PANE_WIDTH_PCT_KEY, clampReviewPaneWidthPct(pct));
+}
+
+export function getShellPaneHeightPct(): number {
+    const stored = getLocalStorageNumber(SHELL_PANE_HEIGHT_PCT_KEY);
+    if (stored !== null) {
+        return clampShellPaneHeightPct(stored);
+    }
+    return DEFAULT_SHELL_PANE_HEIGHT_PCT;
+}
+
+export function setShellPaneHeightPct(pct: number): void {
+    setLocalStorageNumber(SHELL_PANE_HEIGHT_PCT_KEY, clampShellPaneHeightPct(pct));
+}
+
+export function getShellPanelOpen(sessionId: string): boolean | null {
+    const raw = getSessionLocalStorageItem(sessionId, SHELL_PANEL_OPEN_SUFFIX);
+    if (raw === '1') return true;
+    if (raw === '0') return false;
+    return null;
+}
+
+export function setShellPanelOpen(sessionId: string, open: boolean): void {
+    setSessionLocalStorageItem(sessionId, SHELL_PANEL_OPEN_SUFFIX, open ? '1' : '0');
 }
 
 export function getFileTreeWidthPx(): number {

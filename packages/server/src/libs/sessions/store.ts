@@ -23,12 +23,15 @@ import { createAgentSessionId, ensureWorkspaceTrusted, resolveHarnessLaunch } fr
 import { broadcastSessionStatus } from '@server/libs/sessions/statusHub.js';
 import {
     appendOutput,
+    appendShellOutput,
+    attachShellClient,
     attachTerminalClient,
     broadcastStatus,
     clearTerminal,
     parseClientMessage,
 } from '@server/libs/sessions/terminalHub.js';
 import type { Session, SessionStatus, SessionType, StoredSession } from '@server/libs/sessions/types.js';
+import { resolveUserShell } from '@server/libs/sessions/userShell.js';
 import { getProfile } from '@server/libs/settings/store.js';
 import { slugify, uniqueSlug } from '@server/libs/slug/slug.js';
 import { execFile } from 'node:child_process';
@@ -52,6 +55,8 @@ type RuntimeSession = Omit<Session, 'behindDefault'> & {
     hadLocalCommits: boolean;
     agentSessionId: string | null;
     pty: IPty | null;
+    /** Interactive user shell for the built-in terminal; lazy-spawned, killed with the session. */
+    shellPty: IPty | null;
     oscTitleState: OscTitleParseState;
 };
 
@@ -438,6 +443,7 @@ async function createConversationSession(input: {
         hadLocalCommits: false,
         agentSessionId,
         pty: null,
+        shellPty: null,
         oscTitleState: { pending: '' },
     };
 
@@ -536,6 +542,7 @@ async function createCodingSession(input: {
         hadLocalCommits: false,
         agentSessionId,
         pty: null,
+        shellPty: null,
         oscTitleState: { pending: '' },
     };
 
@@ -589,6 +596,7 @@ export async function restoreSessions(): Promise<void> {
             hadLocalCommits: item.hadLocalCommits,
             agentSessionId: item.agentSessionId,
             pty: null,
+            shellPty: null,
             oscTitleState: { pending: '' },
         };
 
@@ -658,6 +666,44 @@ export async function getSessionDiffFile(id: string, filePath: string): Promise<
     return getSessionFileDiff(session.worktreePath, baseSha, filePath);
 }
 
+function clampPtySize(cols: number, rows: number): { cols: number; rows: number } {
+    return {
+        cols: Math.max(20, Math.min(300, Math.floor(cols))),
+        rows: Math.max(5, Math.min(120, Math.floor(rows))),
+    };
+}
+
+function spawnUserShell(session: RuntimeSession): void {
+    if (session.shellPty) {
+        return;
+    }
+
+    const shell = resolveUserShell();
+    try {
+        const term = pty.spawn(shell.file, shell.args, {
+            name: 'xterm-256color',
+            cols: 80,
+            rows: 24,
+            cwd: session.worktreePath,
+            env: process.env as Record<string, string>,
+        });
+        session.shellPty = term;
+
+        term.onData((data) => {
+            appendShellOutput(session.id, data);
+        });
+
+        term.onExit(() => {
+            session.shellPty = null;
+            appendShellOutput(session.id, '\r\n[shell exited]\r\n');
+        });
+    } catch (err: unknown) {
+        session.shellPty = null;
+        const message = err instanceof Error ? err.message : 'Failed to start shell';
+        appendShellOutput(session.id, `\r\n[failed to start shell: ${message}]\r\n`);
+    }
+}
+
 export function attachSessionTerminal(sessionId: string, socket: WebSocket): boolean {
     const session = sessions.get(sessionId);
     if (!session) {
@@ -684,10 +730,55 @@ export function attachSessionTerminal(sessionId: string, socket: WebSocket): boo
         }
 
         if (message.type === 'resize') {
-            const cols = Math.max(20, Math.min(300, Math.floor(message.cols)));
-            const rows = Math.max(5, Math.min(120, Math.floor(message.rows)));
+            const { cols, rows } = clampPtySize(message.cols, message.rows);
             try {
                 session.pty.resize(cols, rows);
+            } catch {
+                // ignore resize errors on exited pty
+            }
+        }
+    });
+
+    return true;
+}
+
+/** Attach a client to the session's user shell. Spawns the shell on first connect. */
+export function attachSessionShell(sessionId: string, socket: WebSocket): boolean {
+    const session = sessions.get(sessionId);
+    if (!session) {
+        return false;
+    }
+
+    spawnUserShell(session);
+    attachShellClient(sessionId, socket);
+
+    socket.on('message', (raw) => {
+        const text = typeof raw === 'string' ? raw : raw.toString();
+        const message = parseClientMessage(text);
+        if (!message) return;
+
+        if (!session.shellPty) {
+            // Shell may have exited; respawn on next input/resize so reopen works.
+            spawnUserShell(session);
+        }
+        if (!session.shellPty) return;
+
+        if (message.type === 'message') {
+            const trimmed = message.text.trim();
+            if (!trimmed) return;
+            session.shellPty.write(`${trimmed}\r`);
+            return;
+        }
+
+        if (message.type === 'input') {
+            session.shellPty.write(message.data);
+            return;
+        }
+
+        if (message.type === 'resize') {
+            const { cols, rows } = clampPtySize(message.cols, message.rows);
+            try {
+                session.shellPty.resize(cols, rows);
             } catch {
                 // ignore resize errors on exited pty
             }
@@ -749,6 +840,12 @@ export function deleteSession(id: string): boolean {
 
     try {
         session.pty?.kill();
+    } catch {
+        // ignore
+    }
+
+    try {
+        session.shellPty?.kill();
     } catch {
         // ignore
     }

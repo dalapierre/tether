@@ -7,9 +7,9 @@ type UseKeybindOptions = {
     enabled?: boolean;
     /** Allow firing while focus is in an input/textarea (default: only for mod/alt chords). */
     allowInEditable?: boolean;
-    /** Allow firing while the agent terminal is in insert mode. */
+    /** Allow firing while a terminal (agent or shell) is in insert mode. */
     allowInTerminalInsert?: boolean;
-    /** Only fire while the agent terminal is in insert mode. */
+    /** Only fire while a terminal (agent or shell) is in insert mode. */
     requireTerminalInsert?: boolean;
     /** Fire on OS key-repeat while the key is held. */
     allowRepeat?: boolean;

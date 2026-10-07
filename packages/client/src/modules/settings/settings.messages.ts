@@ -45,7 +45,9 @@ type Messages = {
     keybindNextSession: NoMessageValues;
     keybindGoBack: NoMessageValues;
     keybindToggleReview: NoMessageValues;
+    keybindToggleTerminal: NoMessageValues;
     keybindToggleAgentInsert: NoMessageValues;
+    keybindEnterShellInsert: NoMessageValues;
     keybindNextFile: NoMessageValues;
     keybindPreviousFile: NoMessageValues;
     keybindScrollFileUp: NoMessageValues;
@@ -276,9 +278,17 @@ export const messages = defineMessages<Messages>(
             id: 'settings.keybindToggleReview',
             defaultMessage: 'Toggle review panel',
         },
+        keybindToggleTerminal: {
+            id: 'settings.keybindToggleTerminal',
+            defaultMessage: 'Toggle terminal panel',
+        },
         keybindToggleAgentInsert: {
             id: 'settings.keybindToggleAgentInsert',
-            defaultMessage: 'Enter terminal insert',
+            defaultMessage: 'Enter agent insert',
+        },
+        keybindEnterShellInsert: {
+            id: 'settings.keybindEnterShellInsert',
+            defaultMessage: 'Enter shell insert',
         },
         keybindNextFile: {
             id: 'settings.keybindNextFile',

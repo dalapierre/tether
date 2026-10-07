@@ -2,9 +2,17 @@ import { useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { styles } from './panelResizeHandle.styles';
 import type { PanelResizeHandleProps } from './panelResizeHandle.types';
 
-export function PanelResizeHandle({ ariaLabel, edge, onResize, onResizeEnd, className }: PanelResizeHandleProps) {
+export function PanelResizeHandle({
+    ariaLabel,
+    orientation = 'horizontal',
+    edge,
+    onResize,
+    onResizeEnd,
+    className,
+}: PanelResizeHandleProps) {
     const [dragging, setDragging] = useState(false);
-    const lastXRef = useRef(0);
+    const lastPosRef = useRef(0);
+    const vertical = orientation === 'vertical';
 
     function onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
         if (event.button !== 0) {
@@ -12,7 +20,7 @@ export function PanelResizeHandle({ ariaLabel, edge, onResize, onResizeEnd, clas
         }
 
         event.preventDefault();
-        lastXRef.current = event.clientX;
+        lastPosRef.current = vertical ? event.clientY : event.clientX;
         setDragging(true);
         event.currentTarget.setPointerCapture(event.pointerId);
     }
@@ -22,8 +30,9 @@ export function PanelResizeHandle({ ariaLabel, edge, onResize, onResizeEnd, clas
             return;
         }
 
-        const delta = event.clientX - lastXRef.current;
-        lastXRef.current = event.clientX;
+        const pos = vertical ? event.clientY : event.clientX;
+        const delta = pos - lastPosRef.current;
+        lastPosRef.current = pos;
         if (delta !== 0) {
             onResize(delta);
         }
@@ -44,14 +53,21 @@ export function PanelResizeHandle({ ariaLabel, edge, onResize, onResizeEnd, clas
         onResizeEnd?.();
     }
 
-    const edgeClass = edge === 'leading' ? styles.leading : styles.trailing;
+    const rootClass = vertical ? styles.rootVertical : styles.rootHorizontal;
+    const edgeClass = vertical
+        ? edge === 'leading'
+            ? styles.leadingVertical
+            : styles.trailingVertical
+        : edge === 'leading'
+          ? styles.leadingHorizontal
+          : styles.trailingHorizontal;
 
     return (
         <div
             role='separator'
-            aria-orientation='vertical'
+            aria-orientation={vertical ? 'horizontal' : 'vertical'}
             aria-label={ariaLabel}
-            className={`${styles.root} ${edgeClass}${dragging ? ' bg-zinc-600' : ''}${className ? ` ${className}` : ''}`}
+            className={`${rootClass} ${edgeClass}${dragging ? ' bg-zinc-600' : ''}${className ? ` ${className}` : ''}`}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={endDrag}

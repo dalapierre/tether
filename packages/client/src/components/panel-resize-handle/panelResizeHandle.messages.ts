@@ -3,6 +3,7 @@ import { defineMessages, type NoMessageValues } from 'react-intl';
 type Messages = {
     resizeReviewPanel: NoMessageValues;
     resizeFileTree: NoMessageValues;
+    resizeShellPanel: NoMessageValues;
 };
 
 export const messages = defineMessages<Messages>({
@@ -13,5 +14,9 @@ export const messages = defineMessages<Messages>({
     resizeFileTree: {
         id: 'panelResizeHandle.resizeFileTree',
         defaultMessage: 'Resize file list',
+    },
+    resizeShellPanel: {
+        id: 'panelResizeHandle.resizeShellPanel',
+        defaultMessage: 'Resize terminal panel',
     },
 });

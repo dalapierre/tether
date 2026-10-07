@@ -311,7 +311,7 @@ export function isEditableTarget(target: EventTarget | null): boolean {
     return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 }
 
-/** xterm's hidden textarea — focused means agent "insert mode". */
+/** xterm's hidden textarea — focused means terminal "insert mode" (agent or shell). */
 export function isTerminalInsertTarget(target: EventTarget | null): boolean {
     return target instanceof HTMLTextAreaElement && target.classList.contains('xterm-helper-textarea');
 }

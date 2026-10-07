@@ -6,7 +6,9 @@ export type HomeKeybindAction = 'newSession' | 'openSettings' | 'focusSearch' | 
 export type SessionKeybindAction =
     | 'goBack'
     | 'toggleReview'
+    | 'toggleTerminal'
     | 'toggleAgentInsert'
+    | 'enterShellInsert'
     | 'nextFile'
     | 'previousFile'
     | 'scrollFileUp'
@@ -38,7 +40,9 @@ export const HOME_KEYBIND_ACTIONS: readonly HomeKeybindAction[] = [
 export const SESSION_KEYBIND_ACTIONS: readonly SessionKeybindAction[] = [
     'goBack',
     'toggleReview',
+    'toggleTerminal',
     'toggleAgentInsert',
+    'enterShellInsert',
     'nextFile',
     'previousFile',
     'scrollFileUp',
@@ -63,7 +67,9 @@ export const DEFAULT_KEYBINDS: Keybinds = {
     session: {
         goBack: 'escape',
         toggleReview: '.',
+        toggleTerminal: 'alt+q',
         toggleAgentInsert: 'i',
+        enterShellInsert: 't',
         nextFile: 'x',
         previousFile: 'z',
         scrollFileUp: 'arrowup',

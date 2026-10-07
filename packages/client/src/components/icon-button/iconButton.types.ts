@@ -6,4 +6,7 @@ export type IconButtonProps = {
     onClick?: ButtonHTMLAttributes<HTMLButtonElement>['onClick'];
     disabled?: boolean;
     type?: ButtonHTMLAttributes<HTMLButtonElement>['type'];
+    /** When set, exposes `aria-pressed` for toggle buttons. */
+    pressed?: boolean;
+    className?: string;
 };

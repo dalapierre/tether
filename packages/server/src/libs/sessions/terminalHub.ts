@@ -6,6 +6,8 @@ const MAX_BUFFER_CHARS = 200_000;
 export type ServerTerminalMessage =
     { type: 'history'; data: string } | { type: 'output'; data: string } | { type: 'status'; status: SessionStatus };
 
+export type ServerShellMessage = { type: 'history'; data: string } | { type: 'output'; data: string };
+
 export type ClientTerminalMessage =
     | { type: 'message'; text: string }
     | { type: 'input'; data: string }
@@ -17,26 +19,36 @@ type SessionTerminalState = {
 };
 
 const terminals = new Map<string, SessionTerminalState>();
+const shells = new Map<string, SessionTerminalState>();
 
-function getOrCreate(sessionId: string): SessionTerminalState {
-    let state = terminals.get(sessionId);
+function getOrCreate(map: Map<string, SessionTerminalState>, sessionId: string): SessionTerminalState {
+    let state = map.get(sessionId);
     if (!state) {
         state = { buffer: '', clients: new Set() };
-        terminals.set(sessionId, state);
+        map.set(sessionId, state);
     }
     return state;
 }
 
-function send(socket: WebSocket, message: ServerTerminalMessage): void {
+function send(socket: WebSocket, message: ServerTerminalMessage | ServerShellMessage): void {
     if (socket.readyState === socket.OPEN) {
         socket.send(JSON.stringify(message));
     }
 }
 
 export function appendOutput(sessionId: string, data: string): void {
-    const state = getOrCreate(sessionId);
+    const state = getOrCreate(terminals, sessionId);
     state.buffer = (state.buffer + data).slice(-MAX_BUFFER_CHARS);
     const message: ServerTerminalMessage = { type: 'output', data };
+    for (const client of state.clients) {
+        send(client, message);
+    }
+}
+
+export function appendShellOutput(sessionId: string, data: string): void {
+    const state = getOrCreate(shells, sessionId);
+    state.buffer = (state.buffer + data).slice(-MAX_BUFFER_CHARS);
+    const message: ServerShellMessage = { type: 'output', data };
     for (const client of state.clients) {
         send(client, message);
     }
@@ -52,7 +64,7 @@ export function broadcastStatus(sessionId: string, status: SessionStatus): void 
 }
 
 export function attachTerminalClient(sessionId: string, socket: WebSocket, status: SessionStatus): void {
-    const state = getOrCreate(sessionId);
+    const state = getOrCreate(terminals, sessionId);
     state.clients.add(socket);
     send(socket, { type: 'history', data: state.buffer });
     send(socket, { type: 'status', status });
@@ -62,8 +74,19 @@ export function attachTerminalClient(sessionId: string, socket: WebSocket, statu
     });
 }
 
+export function attachShellClient(sessionId: string, socket: WebSocket): void {
+    const state = getOrCreate(shells, sessionId);
+    state.clients.add(socket);
+    send(socket, { type: 'history', data: state.buffer });
+
+    socket.on('close', () => {
+        state.clients.delete(socket);
+    });
+}
+
 export function clearTerminal(sessionId: string): void {
     terminals.delete(sessionId);
+    shells.delete(sessionId);
 }
 
 export function parseClientMessage(raw: string): ClientTerminalMessage | null {

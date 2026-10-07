@@ -52,8 +52,12 @@ function actionLabel(
                     return formatMessage(messages.keybindGoBack);
                 case 'toggleReview':
                     return formatMessage(messages.keybindToggleReview);
+                case 'toggleTerminal':
+                    return formatMessage(messages.keybindToggleTerminal);
                 case 'toggleAgentInsert':
                     return formatMessage(messages.keybindToggleAgentInsert);
+                case 'enterShellInsert':
+                    return formatMessage(messages.keybindEnterShellInsert);
                 case 'nextFile':
                     return formatMessage(messages.keybindNextFile);
                 case 'previousFile':

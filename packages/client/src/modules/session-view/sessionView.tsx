@@ -6,6 +6,7 @@ import { SegmentedControl } from '@client/components/segmented-control';
 import { agentLabelMessage, type AgentId } from '@client/libs/agents/agents';
 import { getRepository } from '@client/libs/api/repositories';
 import {
+    connectSessionShell,
     connectSessionTerminal,
     getSession,
     getSessionDiff,
@@ -18,12 +19,17 @@ import { useIsDesktop } from '@client/libs/dom/useMediaQuery';
 import { useKeybind, useKeybindChord, useKeybinds, withSuperModifier } from '@client/libs/keybinds';
 import {
     clampReviewPaneWidthPct,
+    clampShellPaneHeightPct,
     deltaPxToPct,
     getReviewPaneWidthPct,
     getReviewPanelOpen,
     getSelectedDiffPath,
+    getShellPaneHeightPct,
+    getShellPanelOpen,
     setReviewPanelOpen,
     setReviewPaneWidthPct,
+    setShellPaneHeightPct,
+    setShellPanelOpen,
 } from '@client/libs/layout/reviewLayoutPreferences';
 import { attachTouchScroll } from '@client/libs/terminal/touchScroll';
 import { AURA_TERMINAL_THEME } from '@client/libs/theme/aura';
@@ -44,7 +50,7 @@ const SessionCodeView = lazy(() =>
 );
 
 type ConnectionState = 'connecting' | 'connected' | 'disconnected';
-type SessionTab = 'agent' | 'review';
+type SessionTab = 'agent' | 'terminal' | 'review';
 
 const ARROW_UP = '\x1b[A';
 const ARROW_DOWN = '\x1b[B';
@@ -111,6 +117,25 @@ function ClearInputIcon() {
             aria-hidden='true'
         >
             <path strokeLinecap='round' strokeLinejoin='round' d='M6 18 18 6M6 6l12 12' />
+        </svg>
+    );
+}
+
+function TerminalIcon({ className }: { className?: string }) {
+    return (
+        <svg
+            className={className ?? styles.actionIcon}
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='1.75'
+            aria-hidden='true'
+        >
+            <path
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                d='M6.75 7.5 3 12l3.75 4.5M12.75 16.5h4.5M5.25 4.5h13.5A1.5 1.5 0 0 1 20.25 6v12a1.5 1.5 0 0 1-1.5 1.5H5.25A1.5 1.5 0 0 1 3.75 18V6A1.5 1.5 0 0 1 5.25 4.5Z'
+            />
         </svg>
     );
 }
@@ -206,18 +231,27 @@ export function SessionView({ sessionId }: SessionViewProps) {
     const [connection, setConnection] = useState<ConnectionState>('connecting');
     const [tab, setTab] = useState<SessionTab>('agent');
     const [reviewVisited, setReviewVisited] = useState(false);
+    const [shellVisited, setShellVisited] = useState(false);
     const [hasReviewFiles, setHasReviewFiles] = useState(false);
     const [desktopReviewOpen, setDesktopReviewOpen] = useState(false);
+    const [desktopShellOpen, setDesktopShellOpen] = useState(false);
     const [reviewPaneWidthPct, setReviewPaneWidthPctState] = useState(getReviewPaneWidthPct);
+    const [shellPaneHeightPct, setShellPaneHeightPctState] = useState(getShellPaneHeightPct);
     const [repositoryName, setRepositoryName] = useState<string | null>(null);
     const [pasteOpen, setPasteOpen] = useState(false);
     const reviewPaneWidthPctRef = useRef(reviewPaneWidthPct);
+    const shellPaneHeightPctRef = useRef(shellPaneHeightPct);
     const rootRef = useRef<HTMLDivElement | null>(null);
     const contentRef = useRef<HTMLDivElement | null>(null);
+    const mainRef = useRef<HTMLDivElement | null>(null);
     const terminalRef = useRef<HTMLDivElement | null>(null);
+    const shellTerminalRef = useRef<HTMLDivElement | null>(null);
     const socketRef = useRef<WebSocket | null>(null);
+    const shellSocketRef = useRef<WebSocket | null>(null);
     const termRef = useRef<Terminal | null>(null);
+    const shellTermRef = useRef<Terminal | null>(null);
     const fitAddonRef = useRef<FitAddon | null>(null);
+    const shellFitAddonRef = useRef<FitAddon | null>(null);
     const sendInputRef = useRef<(data: string) => void>(() => {});
     const pasteInputRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -226,13 +260,20 @@ export function SessionView({ sessionId }: SessionViewProps) {
     }, []);
 
     const showDesktopReview = isDesktop && desktopReviewOpen;
+    const showDesktopShell = isDesktop && desktopShellOpen;
     const reviewPaneVisible = isDesktop ? showDesktopReview : tab === 'review';
+    const shellPaneVisible = isDesktop ? showDesktopShell : tab === 'terminal';
     const sessionReady = Boolean(session && !loading && !failed);
 
     reviewPaneWidthPctRef.current = reviewPaneWidthPct;
+    shellPaneHeightPctRef.current = shellPaneHeightPct;
 
     const persistReviewPaneWidth = useCallback(() => {
         setReviewPaneWidthPct(reviewPaneWidthPctRef.current);
+    }, []);
+
+    const persistShellPaneHeight = useCallback(() => {
+        setShellPaneHeightPct(shellPaneHeightPctRef.current);
     }, []);
 
     function toggleDesktopReview() {
@@ -243,6 +284,28 @@ export function SessionView({ sessionId }: SessionViewProps) {
                 setReviewVisited(true);
             }
             return next;
+        });
+    }
+
+    function toggleShell() {
+        if (isDesktop) {
+            setDesktopShellOpen((open) => {
+                const next = !open;
+                setShellPanelOpen(sessionId, next);
+                if (next) {
+                    setShellVisited(true);
+                }
+                return next;
+            });
+            return;
+        }
+
+        setTab((current) => {
+            if (current === 'terminal') {
+                return 'agent';
+            }
+            setShellVisited(true);
+            return 'terminal';
         });
     }
 
@@ -264,6 +327,10 @@ export function SessionView({ sessionId }: SessionViewProps) {
         },
         { enabled: sessionReady },
     );
+    useKeybind('session', 'toggleTerminal', () => toggleShell(), {
+        enabled: sessionReady,
+        allowInTerminalInsert: true,
+    });
     const { keybinds } = useKeybinds();
     const enterInsertChord = keybinds.session.toggleAgentInsert;
     const exitInsertChord = withSuperModifier(enterInsertChord);
@@ -297,8 +364,20 @@ export function SessionView({ sessionId }: SessionViewProps) {
         exitInsertChord,
         () => {
             termRef.current?.blur();
+            shellTermRef.current?.blur();
         },
         { enabled: sessionReady && !insertUsesSameChord, requireTerminalInsert: true },
+    );
+    useKeybind(
+        'session',
+        'enterShellInsert',
+        () => {
+            if (!shellPaneVisible) return;
+            requestAnimationFrame(() => {
+                focusShellTerminal();
+            });
+        },
+        { enabled: sessionReady },
     );
 
     useEffect(() => {
@@ -306,6 +385,11 @@ export function SessionView({ sessionId }: SessionViewProps) {
         setDesktopReviewOpen(storedOpen === true);
         setReviewVisited(storedOpen === true);
         setHasReviewFiles(false);
+
+        const storedShellOpen = getShellPanelOpen(sessionId);
+        setDesktopShellOpen(storedShellOpen === true);
+        setShellVisited(storedShellOpen === true);
+        setTab('agent');
     }, [sessionId]);
 
     useEffect(() => {
@@ -513,8 +597,139 @@ export function SessionView({ sessionId }: SessionViewProps) {
         };
     }, [loading, failed, session, intl]);
 
+    useEffect(() => {
+        if (loading || failed || !session || !shellVisited || !shellTerminalRef.current) {
+            return;
+        }
+
+        const term = new Terminal({
+            convertEol: true,
+            disableStdin: false,
+            cursorBlink: true,
+            fontSize: 13,
+            scrollback: 10000,
+            theme: AURA_TERMINAL_THEME,
+        });
+        const fitAddon = new FitAddon();
+        term.loadAddon(fitAddon);
+        term.open(shellTerminalRef.current);
+        fitAddon.fit();
+        prepareMobileTextarea(term);
+        shellTermRef.current = term;
+        shellFitAddonRef.current = fitAddon;
+
+        let socket: WebSocket;
+        try {
+            socket = connectSessionShell(session.id);
+        } catch (err: unknown) {
+            showToast('generic-error', err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed));
+            term.dispose();
+            shellTermRef.current = null;
+            return;
+        }
+
+        shellSocketRef.current = socket;
+
+        let followOutput = isScrolledToBottom(term);
+
+        const scrollToBottomAndFollow = () => {
+            followOutput = true;
+            term.scrollToBottom();
+        };
+
+        const sendInput = (data: string) => {
+            scrollToBottomAndFollow();
+            if (socket.readyState !== WebSocket.OPEN) return;
+            sendTerminalMessage(socket, { type: 'input', data });
+        };
+
+        const dataDisposable = term.onData(sendInput);
+        const scrollDisposable = term.onScroll(() => {
+            followOutput = isScrolledToBottom(term);
+        });
+
+        const onResize = () => {
+            requestAnimationFrame(() => {
+                syncTerminalLayout({
+                    host: shellTerminalRef.current,
+                    term,
+                    fitAddon,
+                    socket,
+                    followOutput,
+                });
+            });
+        };
+
+        const onVisibilityOrFocus = () => {
+            if (document.visibilityState === 'hidden') return;
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    syncTerminalLayout({
+                        host: shellTerminalRef.current,
+                        term,
+                        fitAddon,
+                        socket,
+                        refresh: true,
+                        followOutput,
+                    });
+                });
+            });
+        };
+
+        socket.addEventListener('open', () => {
+            onResize();
+        });
+
+        socket.addEventListener('message', (event) => {
+            let parsed: ServerTerminalMessage;
+            try {
+                parsed = JSON.parse(String(event.data)) as ServerTerminalMessage;
+            } catch {
+                return;
+            }
+
+            if (parsed.type === 'history' || parsed.type === 'output') {
+                const stickToBottom = parsed.type === 'history' || followOutput;
+                term.write(parsed.data, () => {
+                    if (stickToBottom || followOutput) {
+                        term.scrollToBottom();
+                    }
+                });
+            }
+        });
+
+        window.addEventListener('resize', onResize);
+        window.addEventListener('focus', onVisibilityOrFocus);
+        document.addEventListener('visibilitychange', onVisibilityOrFocus);
+        const visualViewport = window.visualViewport;
+        visualViewport?.addEventListener('resize', onResize);
+        const observer = new ResizeObserver(onResize);
+        observer.observe(shellTerminalRef.current);
+        const detachTouchScroll = attachTouchScroll(shellTerminalRef.current, term);
+
+        return () => {
+            window.removeEventListener('resize', onResize);
+            window.removeEventListener('focus', onVisibilityOrFocus);
+            document.removeEventListener('visibilitychange', onVisibilityOrFocus);
+            visualViewport?.removeEventListener('resize', onResize);
+            observer.disconnect();
+            detachTouchScroll();
+            dataDisposable.dispose();
+            scrollDisposable.dispose();
+            socket.close();
+            shellSocketRef.current = null;
+            term.dispose();
+            shellTermRef.current = null;
+            shellFitAddonRef.current = null;
+        };
+    }, [loading, failed, session, intl, shellVisited]);
+
     function focusTerminal() {
         termRef.current?.focus();
+    }
+
+    function focusShellTerminal() {
+        shellTermRef.current?.focus();
     }
 
     function applyPaste(text: string) {
@@ -669,7 +884,30 @@ export function SessionView({ sessionId }: SessionViewProps) {
                 refresh: true,
             });
         });
-    }, [tab, isDesktop, showDesktopReview, reviewPaneWidthPct]);
+    }, [tab, isDesktop, showDesktopReview, showDesktopShell, reviewPaneWidthPct, shellPaneHeightPct]);
+
+    useEffect(() => {
+        if (!shellVisited) return;
+        if (!isDesktop && tab !== 'terminal') return;
+        if (isDesktop && !desktopShellOpen) return;
+
+        const fitAddon = shellFitAddonRef.current;
+        const term = shellTermRef.current;
+        if (!fitAddon || !term) return;
+
+        requestAnimationFrame(() => {
+            syncTerminalLayout({
+                host: shellTerminalRef.current,
+                term,
+                fitAddon,
+                socket: shellSocketRef.current,
+                refresh: true,
+            });
+            if (shellPaneVisible) {
+                term.focus();
+            }
+        });
+    }, [tab, isDesktop, desktopShellOpen, shellVisited, shellPaneVisible, shellPaneHeightPct, showDesktopReview]);
 
     if (loading) {
         return (
@@ -736,23 +974,31 @@ export function SessionView({ sessionId }: SessionViewProps) {
                     </div>
                 }
             />
-            {session.type === 'coding' && !isDesktop ? (
+            {!isDesktop ? (
                 <div className={styles.tabs}>
                     <SegmentedControl
                         ariaLabel={intl.formatMessage(messages.viewTabs)}
                         value={tab}
                         onChange={(next) => {
                             setTab(next);
+                            if (next === 'terminal') {
+                                setShellVisited(true);
+                            }
                             if (next === 'review') {
                                 setReviewVisited(true);
                             }
                         }}
                         options={[
                             { value: 'agent', label: intl.formatMessage(messages.agentView) },
-                            {
-                                value: 'review',
-                                label: intl.formatMessage(messages.reviewView),
-                            },
+                            { value: 'terminal', label: intl.formatMessage(messages.terminalView) },
+                            ...(session.type === 'coding'
+                                ? [
+                                      {
+                                          value: 'review' as const,
+                                          label: intl.formatMessage(messages.reviewView),
+                                      },
+                                  ]
+                                : []),
                         ]}
                     />
                 </div>
@@ -782,66 +1028,113 @@ export function SessionView({ sessionId }: SessionViewProps) {
                     )}
                     {connectionLabel ? ` · ${connectionLabel}` : ''}
                 </p>
-                {session.type === 'coding' ? (
-                    <div className={styles.metaEnd}>
+                <div className={styles.metaEnd}>
+                    <button
+                        type='button'
+                        className={`${styles.terminalToggle}${shellPaneVisible ? ` ${styles.terminalToggleActive}` : ''}`}
+                        aria-label={intl.formatMessage(
+                            shellPaneVisible ? messages.closeTerminal : messages.openTerminal,
+                        )}
+                        aria-pressed={shellPaneVisible}
+                        onClick={toggleShell}
+                    >
+                        <TerminalIcon className={styles.terminalToggleIcon} />
+                    </button>
+                    {session.type === 'coding' ? (
                         <button type='button' className={styles.reviewToggle} onClick={toggleDesktopReview}>
                             {intl.formatMessage(desktopReviewOpen ? messages.closeReview : messages.openReview)}
                         </button>
-                    </div>
-                ) : null}
-            </div>
-            <div
-                ref={contentRef}
-                className={styles.content}
-                style={
-                    isDesktop && showDesktopReview
-                        ? { gridTemplateColumns: `minmax(0, 1fr) ${reviewPaneWidthPct}%` }
-                        : undefined
-                }
-            >
-                <div
-                    className={
-                        session.type === 'conversation' || isDesktop || tab === 'agent'
-                            ? styles.pane
-                            : styles.paneInactive
-                    }
-                    aria-hidden={session.type === 'coding' && !isDesktop && tab !== 'agent'}
-                >
-                    <div className={styles.terminalWrap}>
-                        <div ref={terminalRef} className={styles.terminal} />
-                    </div>
+                    ) : null}
                 </div>
-                {session.type === 'coding' && reviewVisited ? (
+            </div>
+            <div ref={mainRef} className={styles.main}>
+                <div
+                    ref={contentRef}
+                    className={styles.content}
+                    style={
+                        isDesktop && showDesktopReview
+                            ? { gridTemplateColumns: `minmax(0, 1fr) ${reviewPaneWidthPct}%` }
+                            : undefined
+                    }
+                >
                     <div
-                        className={reviewPaneVisible ? styles.paneReview : styles.paneInactive}
-                        aria-hidden={!reviewPaneVisible}
+                        className={isDesktop || tab === 'agent' ? styles.pane : styles.paneInactive}
+                        aria-hidden={!isDesktop && tab !== 'agent'}
                     >
-                        {isDesktop && showDesktopReview ? (
+                        <div className={styles.terminalWrap}>
+                            <div ref={terminalRef} className={styles.terminal} />
+                        </div>
+                    </div>
+                    {session.type === 'coding' && reviewVisited ? (
+                        <div
+                            className={reviewPaneVisible ? styles.paneReview : styles.paneInactive}
+                            aria-hidden={!reviewPaneVisible}
+                        >
+                            {isDesktop && showDesktopReview ? (
+                                <PanelResizeHandle
+                                    edge='leading'
+                                    ariaLabel={intl.formatMessage(panelResizeHandleMessages.resizeReviewPanel)}
+                                    onResize={(delta) =>
+                                        setReviewPaneWidthPctState((pct) =>
+                                            clampReviewPaneWidthPct(
+                                                pct -
+                                                    deltaPxToPct(
+                                                        delta,
+                                                        contentRef.current?.clientWidth ?? window.innerWidth,
+                                                    ),
+                                            ),
+                                        )
+                                    }
+                                    onResizeEnd={persistReviewPaneWidth}
+                                />
+                            ) : null}
+                            <div className={styles.reviewBody}>
+                                <Suspense fallback={<Spinner size='lg' label='Loading review' />}>
+                                    <SessionCodeView
+                                        sessionId={session.id}
+                                        onHasFilesChange={onHasFilesChange}
+                                        keybindsEnabled={reviewPaneVisible}
+                                    />
+                                </Suspense>
+                            </div>
+                        </div>
+                    ) : null}
+                </div>
+                {shellVisited ? (
+                    <div
+                        className={
+                            isDesktop
+                                ? showDesktopShell
+                                    ? styles.shellPanelDesktop
+                                    : styles.shellPanelDesktopHidden
+                                : tab === 'terminal'
+                                  ? styles.shellPanelMobile
+                                  : styles.shellPanelMobileHidden
+                        }
+                        style={isDesktop && showDesktopShell ? { height: `${shellPaneHeightPct}%` } : undefined}
+                        aria-hidden={!shellPaneVisible}
+                    >
+                        {isDesktop && showDesktopShell ? (
                             <PanelResizeHandle
+                                orientation='vertical'
                                 edge='leading'
-                                ariaLabel={intl.formatMessage(panelResizeHandleMessages.resizeReviewPanel)}
+                                ariaLabel={intl.formatMessage(panelResizeHandleMessages.resizeShellPanel)}
                                 onResize={(delta) =>
-                                    setReviewPaneWidthPctState((pct) =>
-                                        clampReviewPaneWidthPct(
+                                    setShellPaneHeightPctState((pct) =>
+                                        clampShellPaneHeightPct(
                                             pct -
                                                 deltaPxToPct(
                                                     delta,
-                                                    contentRef.current?.clientWidth ?? window.innerWidth,
+                                                    mainRef.current?.clientHeight ?? window.innerHeight,
                                                 ),
                                         ),
                                     )
                                 }
-                                onResizeEnd={persistReviewPaneWidth}
+                                onResizeEnd={persistShellPaneHeight}
                             />
                         ) : null}
-                        <div className={styles.reviewBody}>
-                            <Suspense fallback={<Spinner size='lg' label='Loading review' />}>
-                                <SessionCodeView
-                                    sessionId={session.id}
-                                    onHasFilesChange={onHasFilesChange}
-                                    keybindsEnabled={reviewPaneVisible}
-                                />
-                            </Suspense>
+                        <div className={styles.shellTerminalWrap}>
+                            <div ref={shellTerminalRef} className={styles.terminal} />
                         </div>
                     </div>
                 ) : null}

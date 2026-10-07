@@ -12,7 +12,10 @@ type Messages = {
     branchBehindDefault: { count: number };
     viewTabs: NoMessageValues;
     agentView: NoMessageValues;
+    terminalView: NoMessageValues;
     reviewView: NoMessageValues;
+    openTerminal: NoMessageValues;
+    closeTerminal: NoMessageValues;
     openReview: NoMessageValues;
     closeReview: NoMessageValues;
     arrowUp: NoMessageValues;
@@ -71,9 +74,21 @@ export const messages = defineMessages<Messages>(
             id: 'sessionView.agentView',
             defaultMessage: 'Agent',
         },
+        terminalView: {
+            id: 'sessionView.terminalView',
+            defaultMessage: 'Terminal',
+        },
         reviewView: {
             id: 'sessionView.reviewView',
             defaultMessage: 'Review',
+        },
+        openTerminal: {
+            id: 'sessionView.openTerminal',
+            defaultMessage: 'Open terminal',
+        },
+        closeTerminal: {
+            id: 'sessionView.closeTerminal',
+            defaultMessage: 'Close terminal',
         },
         openReview: {
             id: 'sessionView.openReview',

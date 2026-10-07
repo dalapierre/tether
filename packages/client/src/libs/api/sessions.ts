@@ -179,6 +179,18 @@ export function connectSessionTerminal(sessionId: string): WebSocket {
     return new WebSocket(url);
 }
 
+/** Connect to the session's built-in user shell (cwd = session workspace). */
+export function connectSessionShell(sessionId: string): WebSocket {
+    const token = getAccessToken();
+    if (!token) {
+        throw new Error('Not authenticated');
+    }
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const url = `${protocol}//${window.location.host}/api/sessions/${encodeURIComponent(sessionId)}/shell?token=${encodeURIComponent(token)}`;
+    return new WebSocket(url);
+}
+
 export function connectSessionEvents(): WebSocket {
     const token = getAccessToken();
     if (!token) {
