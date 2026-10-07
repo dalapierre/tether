@@ -219,25 +219,40 @@ function shortRemoteBranchName(remoteRef: string): string {
     return remoteRef.startsWith(prefix) ? remoteRef.slice(prefix.length) : remoteRef;
 }
 
+/** Tip SHA of origin's default branch (e.g. origin/main), or null when unavailable. */
+export async function getRemoteDefaultHead(repoPath: string): Promise<{ sha: string; defaultBranch: string } | null> {
+    const defaultRef = await resolveRemoteDefaultRef(repoPath);
+    if (!defaultRef) {
+        return null;
+    }
+
+    try {
+        const { stdout } = await execFileAsync('git', ['rev-parse', defaultRef], { cwd: repoPath });
+        const sha = stdout.trim();
+        if (!sha) return null;
+        return { sha, defaultBranch: shortRemoteBranchName(defaultRef) };
+    } catch {
+        return null;
+    }
+}
+
 /** How many commits `ref` is behind the remote default, plus that branch's short name. */
 export async function getBehindRemoteDefault(
     repoPath: string,
     ref = 'HEAD',
 ): Promise<{ behind: number; defaultBranch: string | null }> {
-    const defaultRef = await resolveRemoteDefaultRef(repoPath);
-    if (!defaultRef) {
+    const defaultHead = await getRemoteDefaultHead(repoPath);
+    if (!defaultHead) {
         return { behind: 0, defaultBranch: null };
     }
 
-    const defaultBranch = shortRemoteBranchName(defaultRef);
-
     try {
-        const { stdout } = await execFileAsync('git', ['rev-list', '--count', `${ref}..${defaultRef}`], {
+        const { stdout } = await execFileAsync('git', ['rev-list', '--count', `${ref}..${defaultHead.sha}`], {
             cwd: repoPath,
         });
-        return { behind: Number.parseInt(stdout.trim(), 10) || 0, defaultBranch };
+        return { behind: Number.parseInt(stdout.trim(), 10) || 0, defaultBranch: defaultHead.defaultBranch };
     } catch {
-        return { behind: 0, defaultBranch };
+        return { behind: 0, defaultBranch: defaultHead.defaultBranch };
     }
 }
 

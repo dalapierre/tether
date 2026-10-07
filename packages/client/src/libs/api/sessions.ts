@@ -24,12 +24,20 @@ export type Session = {
 export type ServerTerminalMessage =
     { type: 'history'; data: string } | { type: 'output'; data: string } | { type: 'status'; status: SessionStatus };
 
-export type ServerSessionEventMessage = {
-    type: 'status';
-    sessionId: string;
-    name: string;
-    status: SessionStatus;
-};
+export type ServerSessionEventMessage =
+    | {
+          type: 'status';
+          sessionId: string;
+          name: string;
+          status: SessionStatus;
+      }
+    | {
+          type: 'branch';
+          sessionId: string;
+          branch: string | null;
+          behindDefault: number | null;
+          defaultBranch: string | null;
+      };
 
 export type ClientTerminalMessage =
     | { type: 'message'; text: string }

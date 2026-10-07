@@ -1,5 +1,6 @@
 export { SessionEventsProvider } from './sessionEventsProvider';
 export {
+    applySessionBranch,
     getSessionStatus,
     getSnapshot,
     removeSessionStatus,

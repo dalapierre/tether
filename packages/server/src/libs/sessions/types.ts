@@ -34,9 +34,18 @@ export type StoredSession = {
     createdAt: number;
     yoloMode: boolean;
     useWorktrees: boolean;
+    /** True when this session created a branch at checkout; only then is that branch deleted on cleanup. */
     createdBranch: boolean;
+    /**
+     * Branch name created for this session (cleanup target). Distinct from `branch`, which tracks
+     * the live checkout after the initial worktree/repo setup. Optional when reading older
+     * sessions.json files that predate this field.
+     */
+    ownedBranch?: string | null;
     worktreePath: string;
+    /** Tip of origin's default branch used as the review diff base (cached). */
     baseSha: string;
+    /** Retained for sessions.json back-compat; unused for review basing. */
     hadLocalCommits: boolean;
     /** Agent-native chat/conversation id for resume (Cursor/Claude/etc.). */
     agentSessionId: string | null;

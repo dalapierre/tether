@@ -40,11 +40,23 @@ import {
 import { attachTouchScroll } from '@client/libs/terminal/touchScroll';
 import { AURA_TERMINAL_THEME } from '@client/libs/theme/aura';
 import { Spinner } from '@client/components/spinner';
+import { getSnapshot, subscribe } from '@client/modules/session-events';
 import { showToast } from '@client/modules/toast';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
-import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useRef, useState, type ClipboardEvent } from 'react';
+import {
+    Suspense,
+    lazy,
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+    useSyncExternalStore,
+    type ClipboardEvent,
+} from 'react';
 import { useIntl } from 'react-intl';
 import { useNavigate } from 'react-router-dom';
 import { messages } from './sessionView.messages';
@@ -251,6 +263,25 @@ export function SessionView({ sessionId }: SessionViewProps) {
     const navigate = useNavigate();
     const isDesktop = useIsDesktop();
     const [session, setSession] = useState<Session | null>(null);
+    const liveStatuses = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+    const displaySession = useMemo(() => {
+        if (!session) return null;
+        const live = liveStatuses.get(session.id);
+        if (!live || live.branch === undefined) return session;
+        if (
+            live.branch === session.branch &&
+            live.behindDefault === session.behindDefault &&
+            live.defaultBranch === session.defaultBranch
+        ) {
+            return session;
+        }
+        return {
+            ...session,
+            branch: live.branch,
+            behindDefault: live.behindDefault ?? session.behindDefault,
+            defaultBranch: live.defaultBranch ?? session.defaultBranch,
+        };
+    }, [session, liveStatuses]);
     const [loading, setLoading] = useState(true);
     const [failed, setFailed] = useState(false);
     const [connection, setConnection] = useState<ConnectionState>('connecting');
@@ -991,7 +1022,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
         );
     }
 
-    if (failed || !session) {
+    if (failed || !session || !displaySession) {
         return (
             <div ref={rootRef} className={styles.root}>
                 <PageHeader
@@ -1086,18 +1117,20 @@ export function SessionView({ sessionId }: SessionViewProps) {
             ) : null}
             <div className={styles.meta}>
                 <p className={styles.metaText}>
-                    {session.type === 'coding' ? (
+                    {displaySession.type === 'coding' ? (
                         <>
-                            <span className={styles.metaRepo}>{repositoryName ?? session.repositoryId}</span>
+                            <span className={styles.metaRepo}>{repositoryName ?? displaySession.repositoryId}</span>
                             {' > '}
-                            {session.branch}
-                            {session.behindDefault != null && session.behindDefault > 0 && session.defaultBranch ? (
+                            {displaySession.branch}
+                            {displaySession.behindDefault != null &&
+                            displaySession.behindDefault > 0 &&
+                            displaySession.defaultBranch ? (
                                 <>
                                     {' · '}
                                     <span className={styles.metaBehind}>
                                         {intl.formatMessage(messages.branchBehindDefault, {
-                                            count: session.behindDefault,
-                                            defaultBranch: session.defaultBranch,
+                                            count: displaySession.behindDefault,
+                                            defaultBranch: displaySession.defaultBranch,
                                         })}
                                     </span>
                                 </>
@@ -1105,7 +1138,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         </>
                     ) : (
                         intl.formatMessage(messages.metaConversation, {
-                            harness: harnessLabel(session.agent, intl.formatMessage),
+                            harness: harnessLabel(displaySession.agent, intl.formatMessage),
                         })
                     )}
                 </p>

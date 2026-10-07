@@ -1,6 +1,11 @@
 import { isAgentId, type AgentId } from '@server/libs/agents/agents.js';
 import { getRepositoryWorktreesDir, getSessionsFilePath, getTetherHomeDir } from '@server/libs/paths.js';
-import { getBehindRemoteDefault, getRepository, listLocalBranches } from '@server/libs/repositories/store.js';
+import {
+    getBehindRemoteDefault,
+    getRemoteDefaultHead,
+    getRepository,
+    listLocalBranches,
+} from '@server/libs/repositories/store.js';
 import {
     ensureCursorStatusIndicatorsEnabled,
     extractStatusFromOutput,
@@ -10,12 +15,11 @@ import {
     discardSessionDiffFile,
     getSessionDiffSummary,
     getSessionFileDiff,
-    resolveReviewBaseSha,
     type SessionDiffSummary,
     type SessionFileDiff,
 } from '@server/libs/sessions/diff.js';
 import { createAgentSessionId, ensureWorkspaceTrusted, resolveHarnessLaunch } from '@server/libs/sessions/harness.js';
-import { broadcastSessionStatus } from '@server/libs/sessions/statusHub.js';
+import { broadcastSessionBranch, broadcastSessionStatus } from '@server/libs/sessions/statusHub.js';
 import {
     appendOutput,
     appendShellOutput,
@@ -30,7 +34,8 @@ import { resolveUserShell } from '@server/libs/sessions/userShell.js';
 import { getProfile } from '@server/libs/settings/store.js';
 import { slugify, uniqueSlug } from '@server/libs/slug/slug.js';
 import { execFile } from 'node:child_process';
-import { access, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { watch, type FSWatcher } from 'node:fs';
+import { access, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import type { IPty } from 'node-pty';
@@ -42,11 +47,14 @@ const execFileAsync = promisify(execFile);
 type RuntimeSession = Omit<Session, 'behindDefault' | 'defaultBranch'> & {
     yoloMode: boolean;
     useWorktrees: boolean;
-    /** True when this session created the branch; only then is the branch deleted on cleanup. */
+    /** True when this session created a branch at checkout; only then is ownedBranch deleted on cleanup. */
     createdBranch: boolean;
+    /** Branch created for this session (cleanup target); null when reusing an existing branch. */
+    ownedBranch: string | null;
     worktreePath: string;
+    /** Cached tip of origin's default branch used as the review diff base. */
     baseSha: string;
-    /** Sticky: once true, review baseSha no longer auto-advances on upstream sync. */
+    /** Retained for sessions.json back-compat; no longer used for review basing. */
     hadLocalCommits: boolean;
     agentSessionId: string | null;
     pty: IPty | null;
@@ -58,6 +66,16 @@ type RuntimeSession = Omit<Session, 'behindDefault' | 'defaultBranch'> & {
 const sessions = new Map<string, RuntimeSession>();
 const sessionsFile = getSessionsFilePath();
 let persistChain: Promise<void> = Promise.resolve();
+
+type HeadWatcher = {
+    watcher: FSWatcher;
+    headPath: string;
+    lastHead: string | null;
+    debounce: ReturnType<typeof setTimeout> | null;
+};
+
+const headWatchers = new Map<string, HeadWatcher>();
+const HEAD_DEBOUNCE_MS = 75;
 
 function isSessionStatus(value: unknown): value is SessionStatus {
     return value === 'ready' || value === 'busy' || value === 'error';
@@ -84,11 +102,25 @@ function isStoredSession(value: unknown): value is StoredSession {
         typeof session.yoloMode === 'boolean' &&
         typeof session.useWorktrees === 'boolean' &&
         typeof session.createdBranch === 'boolean' &&
+        (session.ownedBranch === undefined ||
+            session.ownedBranch === null ||
+            typeof session.ownedBranch === 'string') &&
         typeof session.worktreePath === 'string' &&
         typeof session.baseSha === 'string' &&
         typeof session.hadLocalCommits === 'boolean' &&
         (session.agentSessionId === null || typeof session.agentSessionId === 'string')
     );
+}
+
+function resolveOwnedBranch(session: Pick<StoredSession, 'branch' | 'createdBranch' | 'ownedBranch'>): string | null {
+    if (typeof session.ownedBranch === 'string' && session.ownedBranch.length > 0) {
+        return session.ownedBranch;
+    }
+    if (session.ownedBranch === null) {
+        return null;
+    }
+    // Pre-ownedBranch sessions: fall back to the persisted branch when we created it.
+    return session.createdBranch && session.branch ? session.branch : null;
 }
 
 function toStored(session: RuntimeSession): StoredSession {
@@ -105,6 +137,7 @@ function toStored(session: RuntimeSession): StoredSession {
         yoloMode: session.yoloMode,
         useWorktrees: session.useWorktrees,
         createdBranch: session.createdBranch,
+        ownedBranch: session.ownedBranch,
         worktreePath: session.worktreePath,
         baseSha: session.baseSha,
         hadLocalCommits: session.hadLocalCommits,
@@ -159,14 +192,145 @@ async function pathExists(target: string): Promise<boolean> {
     }
 }
 
-async function toPublic(session: RuntimeSession): Promise<Session> {
-    let behindDefault: number | null = null;
-    let defaultBranch: string | null = null;
-    if (session.type === 'coding' && session.branch) {
-        const behind = await getBehindRemoteDefault(session.worktreePath, session.branch);
-        behindDefault = behind.behind;
-        defaultBranch = behind.defaultBranch;
+/** Resolve the HEAD file for a worktree or normal repo checkout. */
+async function resolveGitHeadPath(worktreePath: string): Promise<string | null> {
+    const gitPath = path.join(worktreePath, '.git');
+    try {
+        const gitStat = await stat(gitPath);
+        if (gitStat.isDirectory()) {
+            return path.join(gitPath, 'HEAD');
+        }
+        if (gitStat.isFile()) {
+            const content = await readFile(gitPath, 'utf8');
+            const match = /^gitdir:\s*(.+)\s*$/m.exec(content);
+            if (!match) return null;
+            return path.join(match[1].trim(), 'HEAD');
+        }
+    } catch {
+        return null;
     }
+    return null;
+}
+
+async function readCurrentBranch(worktreePath: string): Promise<string | null> {
+    try {
+        const { stdout } = await execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+            cwd: worktreePath,
+        });
+        const branch = stdout.trim();
+        return branch || 'HEAD';
+    } catch {
+        return null;
+    }
+}
+
+async function behindForSession(
+    session: RuntimeSession,
+): Promise<{ behindDefault: number | null; defaultBranch: string | null }> {
+    if (session.type !== 'coding' || !session.branch) {
+        return { behindDefault: null, defaultBranch: null };
+    }
+    const behind = await getBehindRemoteDefault(session.worktreePath, session.branch);
+    return { behindDefault: behind.behind, defaultBranch: behind.defaultBranch };
+}
+
+/**
+ * Align session.branch with the worktree checkout. Branch config at create time is only the
+ * initial checkout; afterwards the session reflects whatever is checked out in git.
+ */
+async function syncSessionBranch(session: RuntimeSession, options: { broadcast?: boolean } = {}): Promise<boolean> {
+    if (session.type !== 'coding') return false;
+    const branch = await readCurrentBranch(session.worktreePath);
+    if (!branch || branch === session.branch) return false;
+
+    session.branch = branch;
+    void persistSessions().catch((err: unknown) => {
+        console.error(`Failed to persist branch for session ${session.id}`, err);
+    });
+
+    if (options.broadcast !== false) {
+        const { behindDefault, defaultBranch } = await behindForSession(session);
+        broadcastSessionBranch({
+            sessionId: session.id,
+            branch: session.branch,
+            behindDefault,
+            defaultBranch,
+        });
+    }
+
+    return true;
+}
+
+function stopWatchingHead(sessionId: string): void {
+    const existing = headWatchers.get(sessionId);
+    if (!existing) return;
+    if (existing.debounce) {
+        clearTimeout(existing.debounce);
+    }
+    existing.watcher.close();
+    headWatchers.delete(sessionId);
+}
+
+async function startWatchingHead(session: RuntimeSession): Promise<void> {
+    stopWatchingHead(session.id);
+    if (session.type !== 'coding') return;
+
+    const headPath = await resolveGitHeadPath(session.worktreePath);
+    if (!headPath) return;
+
+    // Watch the gitdir (not HEAD itself): atomic renames replace the inode and miss file watches.
+    const watchDir = path.dirname(headPath);
+    let initialHead: string | null = null;
+    try {
+        initialHead = await readFile(headPath, 'utf8');
+    } catch {
+        initialHead = null;
+    }
+
+    try {
+        const watcher = watch(watchDir, (_eventType, filename) => {
+            if (filename && filename !== 'HEAD') return;
+            const current = headWatchers.get(session.id);
+            if (!current) return;
+            if (current.debounce) {
+                clearTimeout(current.debounce);
+            }
+            current.debounce = setTimeout(() => {
+                current.debounce = null;
+                const live = sessions.get(session.id);
+                if (!live) return;
+                void (async () => {
+                    try {
+                        const nextHead = await readFile(current.headPath, 'utf8');
+                        if (current.lastHead !== null && nextHead === current.lastHead) {
+                            return;
+                        }
+                        current.lastHead = nextHead;
+                        await syncSessionBranch(live);
+                    } catch (err: unknown) {
+                        console.error(`Failed to sync branch for session ${session.id}`, err);
+                    }
+                })();
+            }, HEAD_DEBOUNCE_MS);
+        });
+        watcher.on('error', () => {
+            stopWatchingHead(session.id);
+        });
+        headWatchers.set(session.id, {
+            watcher,
+            headPath,
+            lastHead: initialHead,
+            debounce: null,
+        });
+    } catch (err: unknown) {
+        console.error(`Failed to watch HEAD for session ${session.id}`, err);
+    }
+}
+
+async function toPublic(session: RuntimeSession): Promise<Session> {
+    await syncSessionBranch(session, { broadcast: true });
+
+    const { behindDefault, defaultBranch } = await behindForSession(session);
 
     return {
         id: session.id,
@@ -288,10 +452,14 @@ async function createWorktree(
     const branch = requestedBranch;
     const reuseExisting = localBranches.has(branch);
 
-    const { stdout: headStdout } = await execFileAsync('git', ['rev-parse', reuseExisting ? branch : 'HEAD'], {
-        cwd: repoPath,
-    });
-    const baseSha = headStdout.trim();
+    const remoteDefault = await getRemoteDefaultHead(repoPath);
+    let baseSha = remoteDefault?.sha ?? '';
+    if (!baseSha) {
+        const { stdout: headStdout } = await execFileAsync('git', ['rev-parse', reuseExisting ? branch : 'HEAD'], {
+            cwd: repoPath,
+        });
+        baseSha = headStdout.trim();
+    }
 
     const worktreesRoot = getRepositoryWorktreesDir(projectName);
     const worktreePath = path.join(worktreesRoot, leaf);
@@ -446,6 +614,7 @@ async function createCodingSession(input: {
             );
         }
     } else {
+        const remoteDefault = await getRemoteDefaultHead(repository.path);
         const [{ stdout: headStdout }, { stdout: branchStdout }] = await Promise.all([
             execFileAsync('git', ['rev-parse', 'HEAD'], { cwd: repository.path }),
             execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: repository.path }),
@@ -453,7 +622,7 @@ async function createCodingSession(input: {
         workspace = {
             branch: branchStdout.trim() || 'HEAD',
             worktreePath: repository.path,
-            baseSha: headStdout.trim(),
+            baseSha: remoteDefault?.sha ?? headStdout.trim(),
             createdBranch: false,
         };
     }
@@ -473,6 +642,7 @@ async function createCodingSession(input: {
         yoloMode: input.yoloMode,
         useWorktrees: input.useWorktrees,
         createdBranch: workspace.createdBranch,
+        ownedBranch: workspace.createdBranch ? workspace.branch : null,
         worktreePath: workspace.worktreePath,
         baseSha: workspace.baseSha,
         hadLocalCommits: false,
@@ -484,6 +654,7 @@ async function createCodingSession(input: {
 
     sessions.set(id, session);
     await persistSessions();
+    await startWatchingHead(session);
 
     try {
         if (input.agent === 'cursor') {
@@ -514,6 +685,7 @@ export async function restoreSessions(): Promise<void> {
             continue;
         }
 
+        const ownedBranch = resolveOwnedBranch(item);
         const session: RuntimeSession = {
             id: item.id,
             name: item.name,
@@ -526,7 +698,8 @@ export async function restoreSessions(): Promise<void> {
             createdAt: item.createdAt,
             yoloMode: item.yoloMode,
             useWorktrees: item.useWorktrees,
-            createdBranch: item.createdBranch,
+            createdBranch: ownedBranch !== null,
+            ownedBranch,
             worktreePath: item.worktreePath,
             baseSha: item.baseSha,
             hadLocalCommits: item.hadLocalCommits,
@@ -542,6 +715,9 @@ export async function restoreSessions(): Promise<void> {
             appendOutput(session.id, '\r\n[session restore failed: workspace missing]\r\n');
             continue;
         }
+
+        await syncSessionBranch(session, { broadcast: false });
+        await startWatchingHead(session);
 
         try {
             if (session.agent === 'cursor') {
@@ -595,16 +771,15 @@ export async function restartSession(id: string): Promise<Session | null> {
     return toPublic(session);
 }
 
+/** Review diffs are working tree / HEAD vs origin's default-branch tip. */
 async function syncReviewBase(session: RuntimeSession): Promise<string> {
-    const next = await resolveReviewBaseSha(session.worktreePath, session.branch, {
-        baseSha: session.baseSha,
-        hadLocalCommits: session.hadLocalCommits,
-    });
-    const changed = session.baseSha !== next.baseSha || session.hadLocalCommits !== next.hadLocalCommits;
-    session.baseSha = next.baseSha;
-    session.hadLocalCommits = next.hadLocalCommits;
-    if (changed) {
-        await persistSessions().catch((err: unknown) => {
+    const remote = await getRemoteDefaultHead(session.worktreePath);
+    if (!remote) {
+        return session.baseSha;
+    }
+    if (session.baseSha !== remote.sha) {
+        session.baseSha = remote.sha;
+        void persistSessions().catch((err: unknown) => {
             console.error(`Failed to persist review base for session ${session.id}`, err);
         });
     }
@@ -809,9 +984,9 @@ async function cleanupWorktree(session: RuntimeSession): Promise<void> {
         }
     }
 
-    if (repository && session.branch && session.createdBranch) {
+    if (repository && session.ownedBranch) {
         try {
-            await execFileAsync('git', ['branch', '-D', session.branch], { cwd: repository.path });
+            await execFileAsync('git', ['branch', '-D', session.ownedBranch], { cwd: repository.path });
         } catch {
             // Branch may already be gone or checked out elsewhere.
         }
@@ -824,6 +999,8 @@ export function deleteSession(id: string): boolean {
     if (!session) {
         return false;
     }
+
+    stopWatchingHead(session.id);
 
     try {
         session.pty?.kill();

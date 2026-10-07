@@ -71,8 +71,20 @@ export function SessionList() {
         () =>
             sessions.map((session) => {
                 const live = liveStatuses.get(session.id);
-                if (!live || live.status === session.status) return session;
-                return { ...session, status: live.status };
+                if (!live) return session;
+                const status = live.status !== session.status ? live.status : session.status;
+                const branch = live.branch !== undefined ? live.branch : session.branch;
+                const behindDefault = live.behindDefault !== undefined ? live.behindDefault : session.behindDefault;
+                const defaultBranch = live.defaultBranch !== undefined ? live.defaultBranch : session.defaultBranch;
+                if (
+                    status === session.status &&
+                    branch === session.branch &&
+                    behindDefault === session.behindDefault &&
+                    defaultBranch === session.defaultBranch
+                ) {
+                    return session;
+                }
+                return { ...session, status, branch, behindDefault, defaultBranch };
             }),
         [sessions, liveStatuses],
     );

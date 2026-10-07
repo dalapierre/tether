@@ -3,6 +3,9 @@ import type { SessionStatus } from '@client/libs/api/sessions';
 export type SessionStatusEntry = {
     name: string;
     status: SessionStatus;
+    branch?: string | null;
+    behindDefault?: number | null;
+    defaultBranch?: string | null;
 };
 
 type Listener = () => void;
@@ -18,11 +21,26 @@ function emit() {
     }
 }
 
-export function seedSessionStatuses(entries: Iterable<{ id: string; name: string; status: SessionStatus }>): void {
+export function seedSessionStatuses(
+    entries: Iterable<{
+        id: string;
+        name: string;
+        status: SessionStatus;
+        branch?: string | null;
+        behindDefault?: number | null;
+        defaultBranch?: string | null;
+    }>,
+): void {
     const next = new Map<string, SessionStatusEntry>();
     const nextReady = new Set<string>();
     for (const entry of entries) {
-        next.set(entry.id, { name: entry.name, status: entry.status });
+        next.set(entry.id, {
+            name: entry.name,
+            status: entry.status,
+            branch: entry.branch,
+            behindDefault: entry.behindDefault,
+            defaultBranch: entry.defaultBranch,
+        });
         if (entry.status === 'ready') {
             nextReady.add(entry.id);
         }
@@ -36,7 +54,13 @@ export function upsertSessionStatus(input: { sessionId: string; name: string; st
     const current = statuses.get(input.sessionId);
     if (current && current.name === input.name && current.status === input.status) return;
     const next = new Map(statuses);
-    next.set(input.sessionId, { name: input.name, status: input.status });
+    next.set(input.sessionId, {
+        name: input.name,
+        status: input.status,
+        branch: current?.branch,
+        behindDefault: current?.behindDefault,
+        defaultBranch: current?.defaultBranch,
+    });
     statuses = next;
     if (input.status === 'ready') {
         hasBeenReady.add(input.sessionId);
@@ -50,11 +74,45 @@ export function applySessionStatus(input: {
     status: SessionStatus;
 }): SessionStatus | null {
     const previous = statuses.get(input.sessionId)?.status ?? null;
+    const current = statuses.get(input.sessionId);
     const next = new Map(statuses);
-    next.set(input.sessionId, { name: input.name, status: input.status });
+    next.set(input.sessionId, {
+        name: input.name,
+        status: input.status,
+        branch: current?.branch,
+        behindDefault: current?.behindDefault,
+        defaultBranch: current?.defaultBranch,
+    });
     statuses = next;
     emit();
     return previous;
+}
+
+export function applySessionBranch(input: {
+    sessionId: string;
+    branch: string | null;
+    behindDefault: number | null;
+    defaultBranch: string | null;
+}): void {
+    const current = statuses.get(input.sessionId);
+    if (
+        current &&
+        current.branch === input.branch &&
+        current.behindDefault === input.behindDefault &&
+        current.defaultBranch === input.defaultBranch
+    ) {
+        return;
+    }
+    const next = new Map(statuses);
+    next.set(input.sessionId, {
+        name: current?.name ?? '',
+        status: current?.status ?? 'ready',
+        branch: input.branch,
+        behindDefault: input.behindDefault,
+        defaultBranch: input.defaultBranch,
+    });
+    statuses = next;
+    emit();
 }
 
 export function markSessionReadySeen(sessionId: string): void {

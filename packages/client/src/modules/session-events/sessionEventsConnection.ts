@@ -6,6 +6,7 @@ import {
 } from '@client/libs/api/sessions';
 import { showToast } from '@client/modules/toast';
 import {
+    applySessionBranch,
     applySessionStatus,
     markSessionReadySeen,
     seedSessionStatuses,
@@ -22,16 +23,34 @@ let intentionalClose = false;
 function parseEventMessage(raw: string): ServerSessionEventMessage | null {
     try {
         const parsed = JSON.parse(raw) as ServerSessionEventMessage;
-        if (!parsed || typeof parsed !== 'object' || parsed.type !== 'status') {
+        if (!parsed || typeof parsed !== 'object') {
             return null;
         }
-        if (typeof parsed.sessionId !== 'string' || typeof parsed.name !== 'string') {
-            return null;
+        if (parsed.type === 'status') {
+            if (typeof parsed.sessionId !== 'string' || typeof parsed.name !== 'string') {
+                return null;
+            }
+            if (parsed.status !== 'ready' && parsed.status !== 'busy' && parsed.status !== 'error') {
+                return null;
+            }
+            return parsed;
         }
-        if (parsed.status !== 'ready' && parsed.status !== 'busy' && parsed.status !== 'error') {
-            return null;
+        if (parsed.type === 'branch') {
+            if (typeof parsed.sessionId !== 'string') {
+                return null;
+            }
+            if (parsed.branch !== null && typeof parsed.branch !== 'string') {
+                return null;
+            }
+            if (parsed.behindDefault !== null && typeof parsed.behindDefault !== 'number') {
+                return null;
+            }
+            if (parsed.defaultBranch !== null && typeof parsed.defaultBranch !== 'string') {
+                return null;
+            }
+            return parsed;
         }
-        return parsed;
+        return null;
     } catch {
         return null;
     }
@@ -96,12 +115,22 @@ function connect() {
         const parsed = parseEventMessage(String(event.data));
         if (!parsed) return;
 
-        const previous = applySessionStatus({
+        if (parsed.type === 'status') {
+            const previous = applySessionStatus({
+                sessionId: parsed.sessionId,
+                name: parsed.name,
+                status: parsed.status,
+            });
+            maybeToastStatusChange(parsed.sessionId, previous, parsed.status, parsed.name);
+            return;
+        }
+
+        applySessionBranch({
             sessionId: parsed.sessionId,
-            name: parsed.name,
-            status: parsed.status,
+            branch: parsed.branch,
+            behindDefault: parsed.behindDefault,
+            defaultBranch: parsed.defaultBranch,
         });
-        maybeToastStatusChange(parsed.sessionId, previous, parsed.status, parsed.name);
     });
 
     nextSocket.addEventListener('close', () => {
