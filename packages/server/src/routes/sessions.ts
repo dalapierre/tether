@@ -1,6 +1,7 @@
 import {
     createSession,
     deleteSession,
+    discardSessionFileChange,
     getSession,
     getSessionDiff,
     getSessionDiffFile,
@@ -58,6 +59,31 @@ sessionsRouter.get('/:id/diff/file', async (req, res) => {
         }
         console.error('Failed to load session file diff', err);
         res.status(500).json({ error: 'Failed to load file diff' });
+    }
+});
+
+sessionsRouter.post('/:id/diff/discard', async (req, res) => {
+    const filePath = typeof req.body?.path === 'string' ? req.body.path.trim() : '';
+    if (!filePath) {
+        res.status(400).json({ error: 'Path is required' });
+        return;
+    }
+
+    try {
+        const ok = await discardSessionFileChange(req.params.id, filePath);
+        if (!ok) {
+            res.status(404).json({ error: 'Session not found' });
+            return;
+        }
+        res.status(204).send();
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Failed to discard file change';
+        if (message === 'Invalid path' || message === 'File not found in diff') {
+            res.status(400).json({ error: message });
+            return;
+        }
+        console.error('Failed to discard session file change', err);
+        res.status(500).json({ error: 'Failed to discard file change' });
     }
 });
 

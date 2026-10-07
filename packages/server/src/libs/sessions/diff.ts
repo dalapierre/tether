@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
+import { readFile, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
@@ -399,4 +399,45 @@ export async function getSessionFileDiff(
         modified,
         binary: false,
     };
+}
+
+async function removeWorktreePath(worktreePath: string, filePath: string): Promise<void> {
+    const abs = resolveInWorktree(worktreePath, filePath);
+    await unlink(abs).catch(() => undefined);
+    try {
+        await git(worktreePath, ['rm', '-f', '--ignore-unmatch', '--', filePath]);
+    } catch {
+        // Untracked-only paths are already gone after unlink.
+    }
+}
+
+async function restoreFromBase(worktreePath: string, baseSha: string, filePath: string): Promise<void> {
+    await git(worktreePath, ['checkout', baseSha, '--', filePath]);
+}
+
+/** Restore a single review-diff path to the session base (VS Code–style discard). */
+export async function discardSessionDiffFile(worktreePath: string, baseSha: string, filePath: string): Promise<void> {
+    const safePath = assertSafeRelativePath(filePath);
+    const summary = await getSessionDiffSummary(worktreePath, baseSha);
+    const meta = summary.files.find((file) => file.path === safePath);
+    if (!meta) {
+        throw new Error('File not found in diff');
+    }
+
+    switch (meta.status) {
+        case 'added':
+            await removeWorktreePath(worktreePath, meta.path);
+            return;
+        case 'deleted':
+        case 'modified':
+            await restoreFromBase(worktreePath, baseSha, meta.path);
+            return;
+        case 'renamed': {
+            await removeWorktreePath(worktreePath, meta.path);
+            if (meta.oldPath) {
+                await restoreFromBase(worktreePath, baseSha, assertSafeRelativePath(meta.oldPath));
+            }
+            return;
+        }
+    }
 }

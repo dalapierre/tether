@@ -7,6 +7,7 @@ import {
     type OscTitleParseState,
 } from '@server/libs/sessions/agentStatus.js';
 import {
+    discardSessionDiffFile,
     getSessionDiffSummary,
     getSessionFileDiff,
     resolveReviewBaseSha,
@@ -618,6 +619,14 @@ export async function getSessionDiffFile(id: string, filePath: string): Promise<
     if (!session || session.type !== 'coding') return null;
     const baseSha = await syncReviewBase(session);
     return getSessionFileDiff(session.worktreePath, baseSha, filePath);
+}
+
+export async function discardSessionFileChange(id: string, filePath: string): Promise<boolean> {
+    const session = sessions.get(id);
+    if (!session || session.type !== 'coding') return false;
+    const baseSha = await syncReviewBase(session);
+    await discardSessionDiffFile(session.worktreePath, baseSha, filePath);
+    return true;
 }
 
 function clampPtySize(cols: number, rows: number): { cols: number; rows: number } {

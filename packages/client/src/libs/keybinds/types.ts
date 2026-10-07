@@ -18,6 +18,7 @@ export type SessionKeybindAction =
     | 'enterShellInsert'
     | 'nextFile'
     | 'previousFile'
+    | 'discardFile'
     | 'scrollFileUp'
     | 'scrollFileDown'
     | 'scrollSpeedModifier'
@@ -54,6 +55,7 @@ export const SESSION_KEYBIND_ACTIONS: readonly SessionKeybindAction[] = [
     'enterShellInsert',
     'nextFile',
     'previousFile',
+    'discardFile',
     'scrollFileUp',
     'scrollFileDown',
     'scrollSpeedModifier',
@@ -83,6 +85,7 @@ export const DEFAULT_KEYBINDS: Keybinds = {
         enterShellInsert: 't',
         nextFile: 'x',
         previousFile: 'z',
+        discardFile: 'd',
         scrollFileUp: 'arrowup',
         scrollFileDown: 'arrowdown',
         scrollSpeedModifier: 'shift',
@@ -90,11 +93,23 @@ export const DEFAULT_KEYBINDS: Keybinds = {
     },
 };
 
+/** Clone and fill any missing actions from defaults (e.g. after new keybinds ship). */
 export function cloneKeybinds(keybinds: Keybinds): Keybinds {
-    return {
-        home: { ...keybinds.home },
-        session: { ...keybinds.session },
-    };
+    const home = { ...DEFAULT_KEYBINDS.home };
+    const session = { ...DEFAULT_KEYBINDS.session };
+    for (const action of HOME_KEYBIND_ACTIONS) {
+        const chord = keybinds.home?.[action];
+        if (typeof chord === 'string') {
+            home[action] = chord;
+        }
+    }
+    for (const action of SESSION_KEYBIND_ACTIONS) {
+        const chord = keybinds.session?.[action];
+        if (typeof chord === 'string') {
+            session[action] = chord;
+        }
+    }
+    return { home, session };
 }
 
 export function keybindsEqual(a: Keybinds, b: Keybinds): boolean {

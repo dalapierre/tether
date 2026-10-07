@@ -20,6 +20,7 @@ export type SessionKeybinds = {
     enterShellInsert: string;
     nextFile: string;
     previousFile: string;
+    discardFile: string;
     scrollFileUp: string;
     scrollFileDown: string;
     scrollSpeedModifier: string;
@@ -48,6 +49,7 @@ const SESSION_ACTIONS = [
     'enterShellInsert',
     'nextFile',
     'previousFile',
+    'discardFile',
     'scrollFileUp',
     'scrollFileDown',
     'scrollSpeedModifier',
@@ -72,6 +74,7 @@ export const DEFAULT_KEYBINDS: Keybinds = {
         enterShellInsert: 't',
         nextFile: 'x',
         previousFile: 'z',
+        discardFile: 'd',
         scrollFileUp: 'arrowup',
         scrollFileDown: 'arrowdown',
         scrollSpeedModifier: 'shift',

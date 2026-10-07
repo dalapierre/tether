@@ -182,6 +182,18 @@ export async function getSessionDiffFile(sessionId: string, filePath: string): P
     return data.file;
 }
 
+export async function discardSessionDiffFile(sessionId: string, filePath: string): Promise<void> {
+    const res = await apiFetch(`/api/sessions/${encodeURIComponent(sessionId)}/diff/discard`, {
+        method: 'POST',
+        body: JSON.stringify({ path: filePath }),
+    });
+
+    if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new ApiError(res.status, body?.error ?? `HTTP ${res.status}`);
+    }
+}
+
 export function connectSessionTerminal(sessionId: string): WebSocket {
     const token = getAccessToken();
     if (!token) {

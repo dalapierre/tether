@@ -1,10 +1,12 @@
 import {
+    discardSessionDiffFile,
     getSessionDiff,
     getSessionDiffFile,
     type DiffFileStatus,
     type SessionDiffFile,
     type SessionFileDiff,
 } from '@client/libs/api/sessions';
+import { ConfirmDialog } from '@client/components/confirm-dialog';
 import { PanelResizeHandle, panelResizeHandleMessages } from '@client/components/panel-resize-handle';
 import { Spinner } from '@client/components/spinner';
 import { useIsDesktop } from '@client/libs/dom/useMediaQuery';
@@ -353,6 +355,21 @@ function FolderIcon() {
     );
 }
 
+function DiscardIcon() {
+    return (
+        <svg
+            className={styles.discardIcon}
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='1.5'
+            aria-hidden='true'
+        >
+            <path strokeLinecap='round' strokeLinejoin='round' d='M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3' />
+        </svg>
+    );
+}
+
 function DirRow({
     node,
     depth,
@@ -390,51 +407,72 @@ function FileRow({
     depth,
     selected,
     onSelect,
+    onDiscard,
 }: {
     file: SessionDiffFile;
     name: string;
     depth: number;
     selected: boolean;
     onSelect: (path: string) => void;
+    onDiscard: (path: string) => void;
 }) {
     const intl = useIntl();
+    const discardLabel = intl.formatMessage(messages.discardChange);
 
     return (
-        <button
-            type='button'
-            className={`${styles.treeRow} ${styles.fileButton}${selected ? ` ${styles.treeRowSelected}` : ''}`}
+        <div
+            className={`${styles.treeRow} ${styles.fileRow}${selected ? ` ${styles.treeRowSelected}` : ''}`}
             style={{ paddingLeft: TREE_BASE_PAD_PX + depth * TREE_INDENT_PX }}
-            onClick={() => onSelect(file.path)}
-            aria-current={selected ? 'true' : undefined}
         >
-            <span className={styles.chevronSpacer} />
-            <span className={`${styles.statusBadge} ${statusClass(file.status)}`}>
-                {statusLabel(file.status, intl.formatMessage)}
-            </span>
-            <span className={styles.fileMeta}>
-                <span className={styles.fileLabel}>{name}</span>
-                {file.oldPath ? (
-                    <span className={styles.renameHint}>
-                        {file.oldPath} → {file.path}
+            <button
+                type='button'
+                className={styles.fileSelect}
+                onClick={() => onSelect(file.path)}
+                aria-current={selected ? 'true' : undefined}
+            >
+                <span className={styles.chevronSpacer} />
+                <span className={`${styles.statusBadge} ${statusClass(file.status)}`}>
+                    {statusLabel(file.status, intl.formatMessage)}
+                </span>
+                <span className={styles.fileMeta}>
+                    <span className={styles.fileLabel}>{name}</span>
+                    {file.oldPath ? (
+                        <span className={styles.renameHint}>
+                            {file.oldPath} → {file.path}
+                        </span>
+                    ) : null}
+                </span>
+            </button>
+            <span className={styles.fileActions}>
+                <button
+                    type='button'
+                    className={styles.discardButton}
+                    title={discardLabel}
+                    aria-label={discardLabel}
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        onDiscard(file.path);
+                    }}
+                >
+                    <DiscardIcon />
+                </button>
+                {!file.binary && file.additions !== null && file.deletions !== null ? (
+                    <span className={styles.fileStats}>
+                        <span className={styles.additions}>
+                            {intl.formatMessage(messages.additions, { count: file.additions })}
+                        </span>
+                        {file.deletions > 0 ? (
+                            <>
+                                {' '}
+                                <span className={styles.deletions}>
+                                    {intl.formatMessage(messages.deletions, { count: file.deletions })}
+                                </span>
+                            </>
+                        ) : null}
                     </span>
                 ) : null}
             </span>
-            {!file.binary && file.additions !== null && file.deletions !== null ? (
-                <span className={styles.fileStats}>
-                    <span className={styles.additions}>
-                        {intl.formatMessage(messages.additions, { count: file.additions })}
-                    </span>
-                    {file.deletions > 0 ? (
-                        <>
-                            {' '}
-                            <span className={styles.deletions}>
-                                {intl.formatMessage(messages.deletions, { count: file.deletions })}
-                            </span>
-                        </>
-                    ) : null}
-                </span>
-            ) : null}
-        </button>
+        </div>
     );
 }
 
@@ -445,6 +483,7 @@ function FileTree({
     collapsedPaths,
     onToggle,
     onSelect,
+    onDiscard,
 }: {
     nodes: FileTreeNode[];
     depth: number;
@@ -452,6 +491,7 @@ function FileTree({
     collapsedPaths: Set<string>;
     onToggle: (path: string) => void;
     onSelect: (path: string) => void;
+    onDiscard: (path: string) => void;
 }) {
     return (
         <>
@@ -465,6 +505,7 @@ function FileTree({
                             depth={depth}
                             selected={selectedPath === node.file.path}
                             onSelect={onSelect}
+                            onDiscard={onDiscard}
                         />
                     );
                 }
@@ -481,6 +522,7 @@ function FileTree({
                                 collapsedPaths={collapsedPaths}
                                 onToggle={onToggle}
                                 onSelect={onSelect}
+                                onDiscard={onDiscard}
                             />
                         )}
                     </div>
@@ -501,6 +543,8 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
     const [fileLoading, setFileLoading] = useState(false);
     const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(() => new Set());
     const [fileTreeWidth, setFileTreeWidth] = useState(getFileTreeWidthPx);
+    const [pendingDiscardPath, setPendingDiscardPath] = useState<string | null>(null);
+    const [discarding, setDiscarding] = useState(false);
     const [markdownViewMode, setMarkdownViewMode] = useState<MarkdownViewMode>('code');
     const diffEditorRef = useRef<MonacoEditor.IStandaloneDiffEditor | null>(null);
     const previewScrollRef = useRef<HTMLDivElement | null>(null);
@@ -855,12 +899,24 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
         [fileDiff, markdownViewMode, selectedPath],
     );
 
+    const requestDiscard = useCallback((path: string) => {
+        setPendingDiscardPath(path);
+    }, []);
+
     useKeybind('session', 'nextFile', () => selectAdjacentFile(1), {
         enabled: keybindsEnabled && files.length > 0,
     });
     useKeybind('session', 'previousFile', () => selectAdjacentFile(-1), {
         enabled: keybindsEnabled && files.length > 0,
     });
+    useKeybind(
+        'session',
+        'discardFile',
+        () => {
+            if (selectedPath) requestDiscard(selectedPath);
+        },
+        { enabled: keybindsEnabled && Boolean(selectedPath) },
+    );
     useKeybind(
         'session',
         'toggleMarkdownPreview',
@@ -1114,6 +1170,25 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
         });
     }
 
+    async function confirmDiscard() {
+        const path = pendingDiscardPath;
+        if (!path || discarding) return;
+
+        setDiscarding(true);
+        try {
+            await discardSessionDiffFile(sessionId, path);
+            const diff = await getSessionDiff(sessionId);
+            // Force the next poll comparison to accept this list even if timing races.
+            filesSignatureRef.current = '';
+            applyDiffFiles(diff.files);
+            setPendingDiscardPath(null);
+        } catch (err: unknown) {
+            showToast('generic-error', err instanceof Error ? err.message : intl.formatMessage(messages.discardFailed));
+        } finally {
+            setDiscarding(false);
+        }
+    }
+
     const listLoading = loading && files.length === 0;
     const editorEmptyMessage = !hasFiles ? intl.formatMessage(messages.empty) : intl.formatMessage(messages.selectFile);
 
@@ -1150,6 +1225,7 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
                                 collapsedPaths={collapsedPaths}
                                 onToggle={toggleFolder}
                                 onSelect={selectPath}
+                                onDiscard={requestDiscard}
                             />
                         </div>
                     )}
@@ -1254,6 +1330,20 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
                     <p className={styles.centered}>{editorEmptyMessage}</p>
                 )}
             </div>
+            {pendingDiscardPath ? (
+                <ConfirmDialog
+                    message={intl.formatMessage(messages.discardConfirm, { path: pendingDiscardPath })}
+                    cancelLabel={intl.formatMessage(messages.discardConfirmCancel)}
+                    confirmLabel={intl.formatMessage(messages.discardConfirmContinue)}
+                    busy={discarding}
+                    onCancel={() => {
+                        if (!discarding) setPendingDiscardPath(null);
+                    }}
+                    onConfirm={() => {
+                        void confirmDiscard();
+                    }}
+                />
+            ) : null}
         </div>
     );
 }

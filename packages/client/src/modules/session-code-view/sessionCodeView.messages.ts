@@ -19,6 +19,11 @@ type Messages = {
     filesChanged: { count: number };
     expandFolder: { name: string };
     collapseFolder: { name: string };
+    discardChange: NoMessageValues;
+    discardConfirm: { path: string };
+    discardConfirmCancel: NoMessageValues;
+    discardConfirmContinue: NoMessageValues;
+    discardFailed: NoMessageValues;
 };
 
 export const messages = defineMessages<Messages>(
@@ -94,6 +99,26 @@ export const messages = defineMessages<Messages>(
         collapseFolder: {
             id: 'sessionCodeView.collapseFolder',
             defaultMessage: 'Collapse {name}',
+        },
+        discardChange: {
+            id: 'sessionCodeView.discardChange',
+            defaultMessage: 'Discard changes',
+        },
+        discardConfirm: {
+            id: 'sessionCodeView.discardConfirm',
+            defaultMessage: 'Are you sure you want to discard changes in {path}?',
+        },
+        discardConfirmCancel: {
+            id: 'sessionCodeView.discardConfirmCancel',
+            defaultMessage: 'Cancel',
+        },
+        discardConfirmContinue: {
+            id: 'sessionCodeView.discardConfirmContinue',
+            defaultMessage: 'Discard',
+        },
+        discardFailed: {
+            id: 'sessionCodeView.discardFailed',
+            defaultMessage: 'Failed to discard changes',
         },
     },
     { typed: true },

@@ -86,6 +86,7 @@ export const AURA_DARK_THEME: editor.IStandaloneThemeData = {
         'diffEditor.removedTextBackground': AURA.redSoft,
         'diffEditor.insertedLineBackground': AURA.greenSoftLine,
         'diffEditor.removedLineBackground': AURA.redSoftLine,
+        'diffEditor.border': AURA.borderStrong,
         'diffEditorOverview.insertedForeground': AURA.green,
         'diffEditorOverview.removedForeground': AURA.red,
     },

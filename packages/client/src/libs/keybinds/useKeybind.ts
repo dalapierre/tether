@@ -30,7 +30,7 @@ export function useKeybindChord(
     handlerRef.current = handler;
 
     useEffect(() => {
-        if (!enabled || !chord.trim()) return;
+        if (!enabled || !chord?.trim()) return;
 
         function onKeyDown(event: KeyboardEvent) {
             if (event.defaultPrevented || (event.repeat && !allowRepeat)) return;

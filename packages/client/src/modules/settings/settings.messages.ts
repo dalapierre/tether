@@ -52,6 +52,7 @@ type Messages = {
     keybindEnterShellInsert: NoMessageValues;
     keybindNextFile: NoMessageValues;
     keybindPreviousFile: NoMessageValues;
+    keybindDiscardFile: NoMessageValues;
     keybindScrollFileUp: NoMessageValues;
     keybindScrollFileDown: NoMessageValues;
     keybindScrollSpeedModifier: NoMessageValues;
@@ -304,6 +305,10 @@ export const messages = defineMessages<Messages>(
         keybindPreviousFile: {
             id: 'settings.keybindPreviousFile',
             defaultMessage: 'Previous file',
+        },
+        keybindDiscardFile: {
+            id: 'settings.keybindDiscardFile',
+            defaultMessage: 'Discard file changes',
         },
         keybindScrollFileUp: {
             id: 'settings.keybindScrollFileUp',
