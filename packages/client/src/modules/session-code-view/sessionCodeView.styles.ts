@@ -15,6 +15,7 @@ export const styles = {
         'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors active:bg-zinc-800 active:text-zinc-100 md:hover:bg-zinc-800/80 md:hover:text-zinc-100',
     collapseAllIcon: 'h-3.5 w-3.5',
     resetReviewsIcon: 'h-3.5 w-3.5',
+    fullscreenIcon: 'h-4 w-4',
     centered: 'flex flex-1 items-center justify-center px-4 text-sm text-zinc-500',
     fileList: 'code-review-scroll min-h-0 flex-1 overflow-y-auto',
     treeRow:

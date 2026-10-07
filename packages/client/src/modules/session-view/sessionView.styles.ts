@@ -22,6 +22,7 @@ export const styles = {
     pane: 'absolute inset-0 z-10 flex flex-col md:relative md:inset-auto md:z-auto md:min-h-0 md:min-w-0',
     paneReview:
         'absolute inset-0 z-10 flex min-h-0 min-w-0 flex-col md:relative md:inset-auto md:z-auto md:border-l md:border-zinc-800',
+    paneReviewFullscreen: 'absolute inset-0 z-10 flex min-h-0 min-w-0 flex-col md:relative md:inset-auto md:z-auto',
     // Mobile: stay laid out but invisible so terminal/review keep their state.
     // Desktop: fully unmount from layout (`hidden`) — Monaco sets visibility:visible
     // on internals which would otherwise punch through `invisible`.

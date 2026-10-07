@@ -42,6 +42,7 @@ const LEGACY_FILE_TREE_WIDTH_PCT_KEY = 'tether.layout.fileTreeWidthPct';
 /** @deprecated Prefer per-session keys via sessionLocalStorage; kept for one-time migration. */
 const LEGACY_REVIEW_PANEL_OPEN_BY_SESSION_KEY = 'tether.layout.reviewPanelOpenBySession';
 const REVIEW_PANEL_OPEN_SUFFIX = 'reviewPanelOpen';
+const REVIEW_PANEL_FULLSCREEN_SUFFIX = 'reviewPanelFullscreen';
 /** Stores path + scroll; value may be a legacy plain path string. */
 const SELECTED_DIFF_FILE_SUFFIX = 'selectedDiffPath';
 /** path → fingerprint at the time the file was marked reviewed. */
@@ -217,6 +218,14 @@ export function getReviewPanelOpen(sessionId: string): boolean | null {
 
 export function setReviewPanelOpen(sessionId: string, open: boolean): void {
     setSessionLocalStorageItem(sessionId, REVIEW_PANEL_OPEN_SUFFIX, open ? '1' : '0');
+}
+
+export function getReviewPanelFullscreen(sessionId: string): boolean {
+    return getSessionLocalStorageItem(sessionId, REVIEW_PANEL_FULLSCREEN_SUFFIX) === '1';
+}
+
+export function setReviewPanelFullscreen(sessionId: string, fullscreen: boolean): void {
+    setSessionLocalStorageItem(sessionId, REVIEW_PANEL_FULLSCREEN_SUFFIX, fullscreen ? '1' : '0');
 }
 
 function clampScrollRatio(value: number): number {

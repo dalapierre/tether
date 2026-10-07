@@ -22,10 +22,12 @@ import {
     clampShellPaneHeightPct,
     deltaPxToPct,
     getReviewPaneWidthPct,
+    getReviewPanelFullscreen,
     getReviewPanelOpen,
     getSelectedDiffPath,
     getShellPaneHeightPct,
     getShellPanelOpen,
+    setReviewPanelFullscreen,
     setReviewPanelOpen,
     setReviewPaneWidthPct,
     setShellPaneHeightPct,
@@ -296,6 +298,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
     const [shellVisited, setShellVisited] = useState(false);
     const [hasReviewFiles, setHasReviewFiles] = useState(false);
     const [desktopReviewOpen, setDesktopReviewOpen] = useState(false);
+    const [desktopReviewFullscreen, setDesktopReviewFullscreen] = useState(false);
     const [desktopShellOpen, setDesktopShellOpen] = useState(false);
     const [reviewPaneWidthPct, setReviewPaneWidthPctState] = useState(getReviewPaneWidthPct);
     const [shellPaneHeightPct, setShellPaneHeightPctState] = useState(getShellPaneHeightPct);
@@ -325,6 +328,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
     }, []);
 
     const showDesktopReview = isDesktop && desktopReviewOpen;
+    const showDesktopReviewFullscreen = showDesktopReview && desktopReviewFullscreen;
     const showDesktopShell = isDesktop && desktopShellOpen;
     const reviewPaneVisible = isDesktop ? showDesktopReview : tab === 'review';
     const shellPaneVisible = isDesktop ? showDesktopShell : tab === 'terminal';
@@ -362,6 +366,26 @@ export function SessionView({ sessionId }: SessionViewProps) {
             }
             return next;
         });
+    }
+
+    function enterDesktopReviewFullscreen() {
+        setDesktopReviewFullscreen(true);
+        setReviewPanelFullscreen(sessionId, true);
+        setDesktopReviewOpen(true);
+        setReviewPanelOpen(sessionId, true);
+        setReviewVisited(true);
+    }
+
+    function toggleDesktopReviewFullscreen() {
+        // Only exit when review is already open and fullscreen; otherwise set
+        // fullscreen (and open the panel if needed). Closing via `.` leaves the
+        // fullscreen preference sticky for the next open.
+        if (desktopReviewOpen && desktopReviewFullscreen) {
+            setDesktopReviewFullscreen(false);
+            setReviewPanelFullscreen(sessionId, false);
+            return;
+        }
+        enterDesktopReviewFullscreen();
     }
 
     function toggleShell() {
@@ -404,6 +428,20 @@ export function SessionView({ sessionId }: SessionViewProps) {
                 setReviewVisited(true);
                 return 'review';
             });
+        },
+        { enabled: sessionReady },
+    );
+    useKeybind(
+        'session',
+        'reviewFullscreen',
+        () => {
+            if (session?.type !== 'coding') return;
+            if (!isDesktop) {
+                setReviewVisited(true);
+                setTab('review');
+                return;
+            }
+            toggleDesktopReviewFullscreen();
         },
         { enabled: sessionReady },
     );
@@ -463,6 +501,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
     useEffect(() => {
         const storedOpen = getReviewPanelOpen(sessionId);
         setDesktopReviewOpen(storedOpen === true);
+        setDesktopReviewFullscreen(getReviewPanelFullscreen(sessionId));
         setReviewVisited(storedOpen === true);
         setHasReviewFiles(false);
 
@@ -1053,7 +1092,15 @@ export function SessionView({ sessionId }: SessionViewProps) {
                 followOutput,
             });
         });
-    }, [tab, isDesktop, showDesktopReview, showDesktopShell, reviewPaneWidthPct, shellPaneHeightPct]);
+    }, [
+        tab,
+        isDesktop,
+        showDesktopReview,
+        showDesktopReviewFullscreen,
+        showDesktopShell,
+        reviewPaneWidthPct,
+        shellPaneHeightPct,
+    ]);
 
     useEffect(() => {
         // Focus only when the shell pane becomes visible — not on every layout
@@ -1237,14 +1284,22 @@ export function SessionView({ sessionId }: SessionViewProps) {
                     ref={contentRef}
                     className={styles.content}
                     style={
-                        isDesktop && showDesktopReview
+                        isDesktop && showDesktopReview && !showDesktopReviewFullscreen
                             ? { gridTemplateColumns: `minmax(0, 1fr) ${reviewPaneWidthPct}%` }
-                            : undefined
+                            : isDesktop && showDesktopReviewFullscreen
+                              ? { gridTemplateColumns: 'minmax(0, 1fr)' }
+                              : undefined
                     }
                 >
                     <div
-                        className={isDesktop || tab === 'agent' ? styles.pane : styles.paneInactive}
-                        aria-hidden={!isDesktop && tab !== 'agent'}
+                        className={
+                            showDesktopReviewFullscreen
+                                ? styles.paneInactive
+                                : isDesktop || tab === 'agent'
+                                  ? styles.pane
+                                  : styles.paneInactive
+                        }
+                        aria-hidden={showDesktopReviewFullscreen || (!isDesktop && tab !== 'agent')}
                     >
                         <div className={styles.agentToolbar}>
                             <button
@@ -1277,10 +1332,16 @@ export function SessionView({ sessionId }: SessionViewProps) {
                     {session.type === 'coding' && reviewVisited ? (
                         <div
                             ref={reviewPaneRef}
-                            className={reviewPaneVisible ? styles.paneReview : styles.paneInactive}
+                            className={
+                                reviewPaneVisible
+                                    ? showDesktopReviewFullscreen
+                                        ? styles.paneReviewFullscreen
+                                        : styles.paneReview
+                                    : styles.paneInactive
+                            }
                             aria-hidden={!reviewPaneVisible}
                         >
-                            {isDesktop && showDesktopReview ? (
+                            {isDesktop && showDesktopReview && !showDesktopReviewFullscreen ? (
                                 <PanelResizeHandle
                                     edge='leading'
                                     ariaLabel={intl.formatMessage(panelResizeHandleMessages.resizeReviewPanel)}
@@ -1305,6 +1366,8 @@ export function SessionView({ sessionId }: SessionViewProps) {
                                         onHasFilesChange={onHasFilesChange}
                                         keybindsEnabled={reviewPaneVisible}
                                         onSubmitAgentPrompt={submitAgentPrompt}
+                                        fullscreen={showDesktopReviewFullscreen}
+                                        onToggleFullscreen={isDesktop ? toggleDesktopReviewFullscreen : undefined}
                                     />
                                 </Suspense>
                             </div>

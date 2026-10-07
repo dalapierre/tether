@@ -15,6 +15,7 @@ export type HomeKeybinds = {
 export type SessionKeybinds = {
     goBack: string;
     toggleReview: string;
+    reviewFullscreen: string;
     toggleTerminal: string;
     enterAgentInsert: string;
     exitAgentInsert: string;
@@ -50,6 +51,7 @@ const HOME_ACTIONS = [
 const SESSION_ACTIONS = [
     'goBack',
     'toggleReview',
+    'reviewFullscreen',
     'toggleTerminal',
     'enterAgentInsert',
     'exitAgentInsert',
@@ -81,6 +83,7 @@ export const DEFAULT_KEYBINDS: Keybinds = {
     session: {
         goBack: 'escape',
         toggleReview: '.',
+        reviewFullscreen: 'super+.',
         toggleTerminal: 'alt+q',
         enterAgentInsert: 'i',
         exitAgentInsert: 'alt+i',

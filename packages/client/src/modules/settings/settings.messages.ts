@@ -46,6 +46,7 @@ type Messages = {
     keybindRestartSession: NoMessageValues;
     keybindGoBack: NoMessageValues;
     keybindToggleReview: NoMessageValues;
+    keybindReviewFullscreen: NoMessageValues;
     keybindToggleTerminal: NoMessageValues;
     keybindEnterAgentInsert: NoMessageValues;
     keybindExitAgentInsert: NoMessageValues;
@@ -289,6 +290,10 @@ export const messages = defineMessages<Messages>(
         keybindToggleReview: {
             id: 'settings.keybindToggleReview',
             defaultMessage: 'Toggle review panel',
+        },
+        keybindReviewFullscreen: {
+            id: 'settings.keybindReviewFullscreen',
+            defaultMessage: 'Fullscreen review',
         },
         keybindToggleTerminal: {
             id: 'settings.keybindToggleTerminal',
