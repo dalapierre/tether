@@ -472,7 +472,9 @@ function DirRow({
         >
             <ChevronIcon collapsed={collapsed} />
             <FolderIcon />
-            <span className={`${styles.nodeLabel} ${styles.dirLabel}`}>{node.name}</span>
+            <span className={`${styles.nodeLabel} ${styles.dirLabel}`} title={node.name}>
+                {node.name}
+            </span>
         </button>
     );
 }
@@ -511,9 +513,11 @@ function FileRow({
                     {statusLabel(file.status, intl.formatMessage)}
                 </span>
                 <span className={styles.fileMeta}>
-                    <span className={styles.fileLabel}>{name}</span>
+                    <span className={styles.fileLabel} title={name}>
+                        {name}
+                    </span>
                     {file.oldPath ? (
-                        <span className={styles.renameHint}>
+                        <span className={styles.renameHint} title={`${file.oldPath} → ${file.path}`}>
                             {file.oldPath} → {file.path}
                         </span>
                     ) : null}
