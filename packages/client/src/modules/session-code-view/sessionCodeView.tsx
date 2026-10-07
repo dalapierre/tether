@@ -65,7 +65,8 @@ type PendingCommentState = {
 
 function formatCodeReviewPrompt(fileName: string, content: string, comment: string): string {
     return [
-        '[Code review] - A software engineer reviewed the code and applied the following comments to some of the changes',
+        '[Code review] - A software engineer reviewed the code and applied the following comments to some of the changes.',
+        'Do not modify the code unless the comment explicitly asks you to make a change.',
         `file: ${fileName}`,
         `content: ${content}`,
         `comment: ${comment}`,
