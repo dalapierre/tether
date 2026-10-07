@@ -667,6 +667,30 @@ function spawnUserShell(session: RuntimeSession): void {
     }
 }
 
+/**
+ * Insert a full prompt into the agent PTY and submit it.
+ * Bulk writes are often treated as a paste; a trailing CR in the same write
+ * can land inside that paste and never submit. Bracket the text, then send
+ * Enter on a short delay so it is a real keypress.
+ */
+function writePtyPromptAndSubmit(term: IPty, text: string): void {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+
+    const BRACKETED_PASTE_START = '\x1b[200~';
+    const BRACKETED_PASTE_END = '\x1b[201~';
+    term.write(`${BRACKETED_PASTE_START}${trimmed}${BRACKETED_PASTE_END}`);
+
+    const gapMs = Math.min(1000, Math.max(50, Math.ceil(trimmed.length / 40)));
+    setTimeout(() => {
+        try {
+            term.write('\r');
+        } catch {
+            // pty may have exited before submit
+        }
+    }, gapMs);
+}
+
 export function attachSessionTerminal(sessionId: string, socket: WebSocket): boolean {
     const session = sessions.get(sessionId);
     if (!session) {
@@ -681,9 +705,7 @@ export function attachSessionTerminal(sessionId: string, socket: WebSocket): boo
         if (!message || !session.pty) return;
 
         if (message.type === 'message') {
-            const trimmed = message.text.trim();
-            if (!trimmed) return;
-            session.pty.write(`${trimmed}\r`);
+            writePtyPromptAndSubmit(session.pty, message.text);
             return;
         }
 
@@ -727,9 +749,7 @@ export function attachSessionShell(sessionId: string, socket: WebSocket): boolea
         if (!session.shellPty) return;
 
         if (message.type === 'message') {
-            const trimmed = message.text.trim();
-            if (!trimmed) return;
-            session.shellPty.write(`${trimmed}\r`);
+            writePtyPromptAndSubmit(session.shellPty, message.text);
             return;
         }
 

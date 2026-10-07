@@ -24,6 +24,7 @@ type Messages = {
     discardConfirmCancel: NoMessageValues;
     discardConfirmContinue: NoMessageValues;
     discardFailed: NoMessageValues;
+    commentSelection: NoMessageValues;
 };
 
 export const messages = defineMessages<Messages>(
@@ -119,6 +120,10 @@ export const messages = defineMessages<Messages>(
         discardFailed: {
             id: 'sessionCodeView.discardFailed',
             defaultMessage: 'Failed to discard changes',
+        },
+        commentSelection: {
+            id: 'sessionCodeView.commentSelection',
+            defaultMessage: 'Add comment',
         },
     },
     { typed: true },

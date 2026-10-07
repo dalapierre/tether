@@ -53,6 +53,7 @@ type Messages = {
     keybindNextFile: NoMessageValues;
     keybindPreviousFile: NoMessageValues;
     keybindDiscardFile: NoMessageValues;
+    keybindCommentSelection: NoMessageValues;
     keybindScrollFileUp: NoMessageValues;
     keybindScrollFileDown: NoMessageValues;
     keybindScrollSpeedModifier: NoMessageValues;
@@ -309,6 +310,10 @@ export const messages = defineMessages<Messages>(
         keybindDiscardFile: {
             id: 'settings.keybindDiscardFile',
             defaultMessage: 'Discard file changes',
+        },
+        keybindCommentSelection: {
+            id: 'settings.keybindCommentSelection',
+            defaultMessage: 'Comment on selection',
         },
         keybindScrollFileUp: {
             id: 'settings.keybindScrollFileUp',

@@ -32,6 +32,7 @@ import type { editor as MonacoEditor } from 'monaco-editor';
 import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { buildFileTree, type FileTreeDirNode, type FileTreeNode } from './buildFileTree';
+import { CommentDialog } from './comment-dialog';
 import { messages } from './sessionCodeView.messages';
 import { styles } from './sessionCodeView.styles';
 import type { SessionCodeViewProps } from './sessionCodeView.types';
@@ -44,6 +45,81 @@ const DIFF_POLL_MS = 3000;
 const FILE_SCROLL_PX_PER_SEC = 640;
 /** Coalesce scroll position writes while the user is scrolling. */
 const SCROLL_PERSIST_MS = 150;
+type SelectionCommentState = {
+    content: string;
+    fileName: string;
+    startLine: number;
+    endLine: number;
+    top: number;
+    left: number;
+};
+
+type PendingCommentState = {
+    content: string;
+    fileName: string;
+    startLine: number;
+    endLine: number;
+};
+
+function formatCodeReviewPrompt(fileName: string, content: string, comment: string): string {
+    return [
+        '[Code review] - A software engineer reviewed the code and applied the following comments to some of the changes',
+        `file: ${fileName}`,
+        `content: ${content}`,
+        `comment: ${comment}`,
+    ].join('\n');
+}
+
+/** Whole-line drags often end at column 1 of the next line — treat that as the prior line. */
+function selectionLineRange(selection: {
+    getStartPosition: () => { lineNumber: number; column: number };
+    getEndPosition: () => { lineNumber: number; column: number };
+}): { startLine: number; endLine: number } {
+    const start = selection.getStartPosition();
+    const end = selection.getEndPosition();
+    let endLine = end.lineNumber;
+    if (end.column === 1 && endLine > start.lineNumber) {
+        endLine -= 1;
+    }
+    return { startLine: start.lineNumber, endLine };
+}
+
+function readSelectionComment(
+    editor: MonacoEditor.IStandaloneCodeEditor,
+    fileName: string | null,
+): SelectionCommentState | null {
+    if (!fileName) return null;
+    const model = editor.getModel();
+    const selection = editor.getSelection();
+    if (!model || !selection || selection.isEmpty()) return null;
+
+    const content = model.getValueInRange(selection);
+    if (!content.trim()) return null;
+
+    const startPos = selection.getStartPosition();
+    const endPos = selection.getEndPosition();
+    const startVisible = editor.getScrolledVisiblePosition(startPos);
+    if (!startVisible) return null;
+
+    const endColumnOnStartLine =
+        startPos.lineNumber === endPos.lineNumber ? endPos.column : model.getLineMaxColumn(startPos.lineNumber);
+    const endVisible = editor.getScrolledVisiblePosition({
+        lineNumber: startPos.lineNumber,
+        column: endColumnOnStartLine,
+    });
+    const right = endVisible?.left ?? startVisible.left;
+    const { startLine, endLine } = selectionLineRange(selection);
+
+    return {
+        content,
+        fileName,
+        startLine,
+        endLine,
+        // Anchor at the top of the selection; CSS -translate-y-full keeps the button above it.
+        top: Math.max(0, startVisible.top - 4),
+        left: (startVisible.left + right) / 2,
+    };
+}
 
 type SessionDiffEditorProps = {
     original: string;
@@ -532,7 +608,12 @@ function FileTree({
     );
 }
 
-export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled = true }: SessionCodeViewProps) {
+export function SessionCodeView({
+    sessionId,
+    onHasFilesChange,
+    keybindsEnabled = true,
+    onSubmitAgentPrompt,
+}: SessionCodeViewProps) {
     const intl = useIntl();
     const isDesktop = useIsDesktop();
     const { keybinds } = useKeybinds();
@@ -546,7 +627,10 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
     const [pendingDiscardPath, setPendingDiscardPath] = useState<string | null>(null);
     const [discarding, setDiscarding] = useState(false);
     const [markdownViewMode, setMarkdownViewMode] = useState<MarkdownViewMode>('code');
+    const [selectionComment, setSelectionComment] = useState<SelectionCommentState | null>(null);
+    const [pendingComment, setPendingComment] = useState<PendingCommentState | null>(null);
     const diffEditorRef = useRef<MonacoEditor.IStandaloneDiffEditor | null>(null);
+    const selectionDisposablesRef = useRef<{ dispose: () => void }[]>([]);
     const previewScrollRef = useRef<HTMLDivElement | null>(null);
     const pendingScrollRatioRef = useRef<number | null>(null);
     /** Scroll position for the open file; survives desktop pane `display:none`. */
@@ -831,23 +915,78 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
         requestAnimationFrame(apply);
     }, [showingMarkdownPreview]);
 
+    const syncSelectionComment = useCallback((editor: MonacoEditor.IStandaloneDiffEditor | null) => {
+        if (!editor || !paneActiveRef.current) {
+            setSelectionComment(null);
+            return;
+        }
+        setSelectionComment(readSelectionComment(editor.getModifiedEditor(), selectedPathRef.current));
+    }, []);
+
     const handleDiffEditorMount = useCallback(
         (editor: MonacoEditor.IStandaloneDiffEditor) => {
+            for (const disposable of selectionDisposablesRef.current) {
+                disposable.dispose();
+            }
+            selectionDisposablesRef.current = [];
+
             diffEditorRef.current = editor;
-            editor.getModifiedEditor().onDidScrollChange(() => {
-                rememberScrollAnchorLine(getDiffEditorAnchorLine(editor));
-                rememberScrollRatio(getDiffEditorScrollRatio(editor));
-            });
+            const modified = editor.getModifiedEditor();
+            selectionDisposablesRef.current = [
+                modified.onDidScrollChange(() => {
+                    rememberScrollAnchorLine(getDiffEditorAnchorLine(editor));
+                    rememberScrollRatio(getDiffEditorScrollRatio(editor));
+                    syncSelectionComment(editor);
+                }),
+                modified.onDidChangeCursorSelection(() => {
+                    syncSelectionComment(editor);
+                }),
+            ];
+            syncSelectionComment(editor);
             if (paneActiveRef.current) {
                 restoreScrollPosition();
             }
         },
-        [rememberScrollAnchorLine, rememberScrollRatio, restoreScrollPosition],
+        [rememberScrollAnchorLine, rememberScrollRatio, restoreScrollPosition, syncSelectionComment],
     );
 
     const handleDiffEditorUnmount = useCallback(() => {
+        for (const disposable of selectionDisposablesRef.current) {
+            disposable.dispose();
+        }
+        selectionDisposablesRef.current = [];
         diffEditorRef.current = null;
+        setSelectionComment(null);
     }, []);
+
+    const openCommentDialog = useCallback(() => {
+        if (!selectionComment) return;
+        setPendingComment({
+            content: selectionComment.content,
+            fileName: selectionComment.fileName,
+            startLine: selectionComment.startLine,
+            endLine: selectionComment.endLine,
+        });
+    }, [selectionComment]);
+
+    const closeCommentDialog = useCallback(() => {
+        setPendingComment(null);
+    }, []);
+
+    const submitComment = useCallback(
+        (comment: string) => {
+            if (!pendingComment) return;
+            onSubmitAgentPrompt?.(formatCodeReviewPrompt(pendingComment.fileName, pendingComment.content, comment));
+            setPendingComment(null);
+            setSelectionComment(null);
+            const modified = diffEditorRef.current?.getModifiedEditor();
+            const selection = modified?.getSelection();
+            if (modified && selection) {
+                modified.setPosition(selection.getEndPosition());
+            }
+        },
+        [onSubmitAgentPrompt, pendingComment],
+    );
 
     const handleMarkdownViewModeChange = useCallback(
         (next: MarkdownViewMode) => {
@@ -859,6 +998,7 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
                 if (ratio !== null) {
                     pendingScrollRatioRef.current = ratio;
                 }
+                setSelectionComment(null);
             } else {
                 const ratio = getElementScrollRatio(previewScrollRef.current);
                 if (ratio !== null) {
@@ -869,6 +1009,17 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
         },
         [markdownViewMode],
     );
+
+    useEffect(() => {
+        setSelectionComment(null);
+        setPendingComment(null);
+    }, [selectedPath]);
+
+    useEffect(() => {
+        if (!keybindsEnabled) {
+            setSelectionComment(null);
+        }
+    }, [keybindsEnabled]);
 
     const selectAdjacentFile = useCallback(
         (direction: 1 | -1) => {
@@ -926,6 +1077,9 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
         },
         { enabled: keybindsEnabled && Boolean(selectedPath) && isMarkdownPath(selectedPath) },
     );
+    useKeybind('session', 'commentSelection', openCommentDialog, {
+        enabled: keybindsEnabled && Boolean(selectionComment) && !pendingComment,
+    });
 
     useEffect(() => {
         if (!keybindsEnabled || !selectedPath) return;
@@ -1198,6 +1352,21 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
     const editorPanelClass = showEditor ? styles.editorPanel : styles.editorPanelMobileHidden;
     const showMarkdownToggle = isMarkdownPath(selectedPath);
     const showMarkdownPreview = showingMarkdownPreview;
+    const commentButton =
+        selectionComment && !pendingComment && !showMarkdownPreview ? (
+            <button
+                type='button'
+                className={styles.commentButton}
+                style={{ top: selectionComment.top, left: selectionComment.left }}
+                onMouseDown={(event) => {
+                    // Keep the Monaco selection when clicking the overlay button.
+                    event.preventDefault();
+                }}
+                onClick={openCommentDialog}
+            >
+                {intl.formatMessage(messages.commentSelection)}
+            </button>
+        ) : null;
 
     const listPanelWrapStyle = isDesktop ? { width: fileTreeWidth } : undefined;
 
@@ -1300,6 +1469,7 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
                                             onUnmount={handleDiffEditorUnmount}
                                         />
                                     </div>
+                                    {commentButton}
                                 </div>
                                 <Suspense fallback={null}>
                                     <MarkdownPreview
@@ -1321,6 +1491,7 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
                                         onUnmount={handleDiffEditorUnmount}
                                     />
                                 </div>
+                                {commentButton}
                             </div>
                         )}
                     </>
@@ -1342,6 +1513,15 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
                     onConfirm={() => {
                         void confirmDiscard();
                     }}
+                />
+            ) : null}
+            {pendingComment ? (
+                <CommentDialog
+                    fileName={pendingComment.fileName}
+                    startLine={pendingComment.startLine}
+                    endLine={pendingComment.endLine}
+                    onCancel={closeCommentDialog}
+                    onConfirm={submitComment}
                 />
             ) : null}
         </div>

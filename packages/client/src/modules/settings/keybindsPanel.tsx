@@ -68,6 +68,8 @@ function actionLabel(
                     return formatMessage(messages.keybindPreviousFile);
                 case 'discardFile':
                     return formatMessage(messages.keybindDiscardFile);
+                case 'commentSelection':
+                    return formatMessage(messages.keybindCommentSelection);
                 case 'scrollFileUp':
                     return formatMessage(messages.keybindScrollFileUp);
                 case 'scrollFileDown':

@@ -786,6 +786,14 @@ export function SessionView({ sessionId }: SessionViewProps) {
         }
     }
 
+    function submitAgentPrompt(text: string) {
+        const trimmed = text.trim();
+        if (!trimmed) return;
+        const socket = socketRef.current;
+        if (!socket || socket.readyState !== WebSocket.OPEN) return;
+        sendTerminalMessage(socket, { type: 'message', text: trimmed });
+    }
+
     function sendArrowUp() {
         sendInputRef.current(ARROW_UP);
         focusTerminal();
@@ -1173,6 +1181,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                                         sessionId={session.id}
                                         onHasFilesChange={onHasFilesChange}
                                         keybindsEnabled={reviewPaneVisible}
+                                        onSubmitAgentPrompt={submitAgentPrompt}
                                     />
                                 </Suspense>
                             </div>

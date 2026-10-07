@@ -21,6 +21,7 @@ export type SessionKeybinds = {
     nextFile: string;
     previousFile: string;
     discardFile: string;
+    commentSelection: string;
     scrollFileUp: string;
     scrollFileDown: string;
     scrollSpeedModifier: string;
@@ -50,6 +51,7 @@ const SESSION_ACTIONS = [
     'nextFile',
     'previousFile',
     'discardFile',
+    'commentSelection',
     'scrollFileUp',
     'scrollFileDown',
     'scrollSpeedModifier',
@@ -75,6 +77,7 @@ export const DEFAULT_KEYBINDS: Keybinds = {
         nextFile: 'x',
         previousFile: 'z',
         discardFile: 'd',
+        commentSelection: 'c',
         scrollFileUp: 'arrowup',
         scrollFileDown: 'arrowdown',
         scrollSpeedModifier: 'shift',
