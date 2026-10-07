@@ -18,6 +18,12 @@ export const styles = {
     input: 'mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-base text-zinc-100 outline-none focus:border-aura-green',
     select: 'mt-1 w-full appearance-none rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-base text-zinc-100 outline-none focus:border-aura-green',
     hint: 'text-xs text-zinc-500',
+    inlineField: 'flex w-full items-center justify-between gap-3',
+    inlineFieldText: 'min-w-0 flex flex-1 flex-col gap-0.5',
+    inlineFieldLabel: 'text-sm text-zinc-400',
+    inlineFieldHint: 'text-xs text-zinc-500',
+    inlineFieldInput:
+        'w-20 shrink-0 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-center text-base text-zinc-100 outline-none focus:border-aura-green',
     repositories: 'mt-1 flex flex-col gap-2',
     repositoryRow:
         'flex items-center justify-between gap-1 rounded-md border border-zinc-800 bg-zinc-900 py-0.5 pl-3 pr-0.5',

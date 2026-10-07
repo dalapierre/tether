@@ -66,6 +66,8 @@ type Messages = {
     devDirLabel: NoMessageValues;
     devDirPlaceholder: NoMessageValues;
     devDirHint: NoMessageValues;
+    toastDurationLabel: NoMessageValues;
+    toastDurationHint: NoMessageValues;
     repositoriesLabel: NoMessageValues;
     repositoriesEmpty: NoMessageValues;
     repositoriesLoadFailed: NoMessageValues;
@@ -370,6 +372,14 @@ export const messages = defineMessages<Messages>(
         devDirHint: {
             id: 'settings.devDirHint',
             defaultMessage: 'Absolute path to the folder that contains your git repositories.',
+        },
+        toastDurationLabel: {
+            id: 'settings.toastDurationLabel',
+            defaultMessage: 'Toast duration',
+        },
+        toastDurationHint: {
+            id: 'settings.toastDurationHint',
+            defaultMessage: 'Seconds notifications stay on screen before dismissing (1–120).',
         },
         repositoriesLabel: {
             id: 'settings.repositoriesLabel',

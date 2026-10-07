@@ -1,6 +1,13 @@
 import { isAgentId } from '@server/libs/agents/agents.js';
 import { isKeybinds, normalizeKeybinds } from '@server/libs/settings/keybinds.js';
-import { getSettings, normalizeIncomingProfiles, updateSettings } from '@server/libs/settings/store.js';
+import {
+    getSettings,
+    MAX_TOAST_DURATION_SECONDS,
+    MIN_TOAST_DURATION_SECONDS,
+    normalizeIncomingProfiles,
+    normalizeToastDurationSeconds,
+    updateSettings,
+} from '@server/libs/settings/store.js';
 import { Router } from 'express';
 
 export const settingsRouter = Router();
@@ -17,6 +24,7 @@ settingsRouter.get('/', async (_req, res) => {
 
 settingsRouter.put('/', async (req, res) => {
     const devDir = typeof req.body?.devDir === 'string' ? req.body.devDir.trim() : undefined;
+    const toastDurationRaw = req.body?.toastDurationSeconds;
     const defaultAgentRaw = typeof req.body?.defaultAgent === 'string' ? req.body.defaultAgent.trim() : undefined;
     const defaultProfileId =
         typeof req.body?.defaultProfileId === 'string' ? req.body.defaultProfileId.trim() : undefined;
@@ -25,6 +33,19 @@ settingsRouter.put('/', async (req, res) => {
 
     if (devDir === undefined) {
         res.status(400).json({ error: 'devDir is required' });
+        return;
+    }
+
+    if (typeof toastDurationRaw !== 'number' || !Number.isFinite(toastDurationRaw)) {
+        res.status(400).json({ error: 'toastDurationSeconds is required' });
+        return;
+    }
+
+    const toastDurationSeconds = Math.round(toastDurationRaw);
+    if (toastDurationSeconds < MIN_TOAST_DURATION_SECONDS || toastDurationSeconds > MAX_TOAST_DURATION_SECONDS) {
+        res.status(400).json({
+            error: `toastDurationSeconds must be between ${MIN_TOAST_DURATION_SECONDS} and ${MAX_TOAST_DURATION_SECONDS}`,
+        });
         return;
     }
 
@@ -61,6 +82,7 @@ settingsRouter.put('/', async (req, res) => {
     try {
         const settings = await updateSettings({
             devDir,
+            toastDurationSeconds: normalizeToastDurationSeconds(toastDurationSeconds),
             defaultAgent: defaultAgentRaw,
             defaultProfileId,
             profiles,

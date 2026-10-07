@@ -24,6 +24,7 @@ export type AgentProfile = {
 /** Public settings exposed through the settings API/UI. */
 export type Settings = {
     devDir: string;
+    toastDurationSeconds: number;
     defaultAgent: AgentId;
     defaultProfileId: string;
     profiles: AgentProfile[];
@@ -33,9 +34,14 @@ export type Settings = {
 /** Current settings.json schema version. Bump when the on-disk shape changes. */
 const SETTINGS_FILE_VERSION = 1;
 
+export const DEFAULT_TOAST_DURATION_SECONDS = 10;
+export const MIN_TOAST_DURATION_SECONDS = 1;
+export const MAX_TOAST_DURATION_SECONDS = 120;
+
 type SettingsFile = {
     version: number;
     devDir: string;
+    toastDurationSeconds: number;
     defaultAgent: AgentId;
     defaultProfileId: string;
     profiles: AgentProfile[];
@@ -65,6 +71,7 @@ const DEFAULT_AGENT: AgentId = 'cursor';
 const defaultSettingsFile: SettingsFile = {
     version: SETTINGS_FILE_VERSION,
     devDir: '',
+    toastDurationSeconds: DEFAULT_TOAST_DURATION_SECONDS,
     defaultAgent: DEFAULT_AGENT,
     defaultProfileId: DEFAULT_PROFILE_ID,
     profiles: [createDefaultProfile()],
@@ -134,9 +141,20 @@ function resolveDefaultAgent(value: unknown): AgentId {
     return isAgentId(value) ? value : DEFAULT_AGENT;
 }
 
+export function normalizeToastDurationSeconds(value: unknown): number {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        const seconds = Math.round(value);
+        if (seconds >= MIN_TOAST_DURATION_SECONDS && seconds <= MAX_TOAST_DURATION_SECONDS) {
+            return seconds;
+        }
+    }
+    return DEFAULT_TOAST_DURATION_SECONDS;
+}
+
 function toPublicSettings(file: SettingsFile): Settings {
     return {
         devDir: file.devDir,
+        toastDurationSeconds: file.toastDurationSeconds,
         defaultAgent: file.defaultAgent,
         defaultProfileId: file.defaultProfileId,
         profiles: file.profiles.map((profile) => ({ ...profile })),
@@ -161,13 +179,14 @@ function normalizeSettingsFile(value: unknown): SettingsFile {
     const version =
         typeof record.version === 'number' && Number.isInteger(record.version) ? record.version : SETTINGS_FILE_VERSION;
     const devDir = typeof record.devDir === 'string' ? record.devDir : '';
+    const toastDurationSeconds = normalizeToastDurationSeconds(record.toastDurationSeconds);
     const profiles = normalizeProfiles(record.profiles, record.agent, record.yoloMode);
     const defaultAgent = resolveDefaultAgent(record.defaultAgent ?? record.agent);
     const defaultProfileId = resolveDefaultProfileId(record.defaultProfileId, profiles);
     const keybinds = normalizeKeybinds(record.keybinds);
     const repositories = Array.isArray(record.repositories) ? record.repositories.filter(isStoredRepository) : [];
 
-    return { version, devDir, defaultAgent, defaultProfileId, profiles, keybinds, repositories };
+    return { version, devDir, toastDurationSeconds, defaultAgent, defaultProfileId, profiles, keybinds, repositories };
 }
 
 /** One-time: move settings from packages/server/data into ~/.tether. */
@@ -274,6 +293,7 @@ export function normalizeIncomingProfiles(value: unknown): AgentProfile[] | null
 
 export async function updateSettings(patch: {
     devDir?: string;
+    toastDurationSeconds?: number;
     defaultAgent?: AgentId;
     defaultProfileId?: string;
     profiles?: AgentProfile[];
@@ -284,10 +304,15 @@ export async function updateSettings(patch: {
     const defaultAgent = resolveDefaultAgent(patch.defaultAgent ?? current.defaultAgent);
     const defaultProfileId = resolveDefaultProfileId(patch.defaultProfileId ?? current.defaultProfileId, profiles);
     const keybinds = patch.keybinds ? normalizeKeybinds(patch.keybinds) : current.keybinds;
+    const toastDurationSeconds =
+        patch.toastDurationSeconds !== undefined
+            ? normalizeToastDurationSeconds(patch.toastDurationSeconds)
+            : current.toastDurationSeconds;
 
     const next: SettingsFile = {
         ...current,
         devDir: typeof patch.devDir === 'string' ? patch.devDir : current.devDir,
+        toastDurationSeconds,
         defaultAgent,
         defaultProfileId,
         profiles,

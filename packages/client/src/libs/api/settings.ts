@@ -2,6 +2,8 @@ import { ApiError, apiFetch } from '@client/libs/api/client';
 import type { AgentId } from '@client/libs/agents/agents';
 import { DEFAULT_KEYBINDS, cloneKeybinds, type Keybinds } from '@client/libs/keybinds';
 
+const DEFAULT_TOAST_DURATION_SECONDS = 10;
+
 export type AgentProfile = {
     id: string;
     name: string;
@@ -12,6 +14,7 @@ export type AgentProfile = {
 
 export type Settings = {
     devDir: string;
+    toastDurationSeconds: number;
     defaultAgent: AgentId;
     defaultProfileId: string;
     profiles: AgentProfile[];
@@ -22,9 +25,17 @@ type SettingsResponse = {
     settings: Settings;
 };
 
+function normalizeToastDurationSeconds(value: unknown): number {
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+        return Math.round(value);
+    }
+    return DEFAULT_TOAST_DURATION_SECONDS;
+}
+
 function normalizeSettings(settings: Settings): Settings {
     return {
         ...settings,
+        toastDurationSeconds: normalizeToastDurationSeconds(settings.toastDurationSeconds),
         keybinds: settings.keybinds ? cloneKeybinds(settings.keybinds) : cloneKeybinds(DEFAULT_KEYBINDS),
     };
 }

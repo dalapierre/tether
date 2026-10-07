@@ -3,12 +3,18 @@ import { TOASTS, type ToastArgs, type ToastId } from './toasts';
 
 type Listener = () => void;
 
-const TOAST_DURATION_MS = 20_000;
+export const DEFAULT_TOAST_DURATION_SECONDS = 10;
 
+let toastDurationMs = DEFAULT_TOAST_DURATION_SECONDS * 1000;
 let toasts: ActiveToast[] = [];
 const listeners = new Set<Listener>();
 const dismissTimers = new Map<string, ReturnType<typeof setTimeout>>();
 let nextInstanceId = 0;
+
+export function setToastDurationSeconds(seconds: number) {
+    if (!Number.isFinite(seconds) || seconds <= 0) return;
+    toastDurationMs = Math.round(seconds) * 1000;
+}
 
 function emit() {
     for (const listener of listeners) {
@@ -46,7 +52,7 @@ export function showToast<Id extends ToastId>(id: Id, ...args: ToastArgs<Id>): s
         instanceId,
         setTimeout(() => {
             dismissToast(instanceId);
-        }, TOAST_DURATION_MS),
+        }, toastDurationMs),
     );
 
     return instanceId;
