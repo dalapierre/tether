@@ -60,6 +60,9 @@ type Messages = {
     keybindScrollSpeedModifier: NoMessageValues;
     keybindToggleMarkdownPreview: NoMessageValues;
     keybindMarkFileReviewed: NoMessageValues;
+    keybindDiffViewSplit: NoMessageValues;
+    keybindDiffViewNegative: NoMessageValues;
+    keybindDiffViewPositive: NoMessageValues;
     devDirLabel: NoMessageValues;
     devDirPlaceholder: NoMessageValues;
     devDirHint: NoMessageValues;
@@ -340,6 +343,18 @@ export const messages = defineMessages<Messages>(
         keybindMarkFileReviewed: {
             id: 'settings.keybindMarkFileReviewed',
             defaultMessage: 'Mark file as reviewed',
+        },
+        keybindDiffViewSplit: {
+            id: 'settings.keybindDiffViewSplit',
+            defaultMessage: 'Split diff view',
+        },
+        keybindDiffViewNegative: {
+            id: 'settings.keybindDiffViewNegative',
+            defaultMessage: 'Negative-only diff view',
+        },
+        keybindDiffViewPositive: {
+            id: 'settings.keybindDiffViewPositive',
+            defaultMessage: 'Positive-only diff view',
         },
         devDirLabel: {
             id: 'settings.devDirLabel',

@@ -19,22 +19,36 @@ import {
 } from '@client/libs/keybinds';
 import {
     clampFileTreeWidthPx,
+    getDiffViewMode,
     getFileTreeWidthPx,
     getReviewedDiffFiles,
     getSelectedDiffFileState,
     getSelectedDiffPath,
+    setDiffViewMode,
     setFileTreeWidthPx,
     setReviewedDiffFiles,
     setSelectedDiffFileState,
+    type DiffViewMode,
 } from '@client/libs/layout/reviewLayoutPreferences';
 import { setupMonaco, TETHER_DIFF_THEME } from '@client/libs/monaco/setup';
 import { showToast } from '@client/modules/toast';
 import { DiffEditor } from '@monaco-editor/react';
 import type { editor as MonacoEditor } from 'monaco-editor';
-import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+    Suspense,
+    lazy,
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+    type ReactNode,
+} from 'react';
 import { useIntl } from 'react-intl';
 import { buildFileTree, type FileTreeDirNode, type FileTreeNode } from './buildFileTree';
 import { CommentDialog } from './comment-dialog';
+import { applyDiffViewMode } from './filterDiffByMode';
 import { messages } from './sessionCodeView.messages';
 import { styles } from './sessionCodeView.styles';
 import type { SessionCodeViewProps } from './sessionCodeView.types';
@@ -476,6 +490,93 @@ function ResetReviewsIcon() {
     );
 }
 
+function DiffViewSplitIcon() {
+    return (
+        <svg
+            className={styles.diffViewModeIcon}
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='1.75'
+            aria-hidden='true'
+        >
+            <path strokeLinecap='round' strokeLinejoin='round' d='M3.75 4.5h6.75v15H3.75zM13.5 4.5h6.75v15H13.5z' />
+        </svg>
+    );
+}
+
+function DiffViewNegativeIcon() {
+    return (
+        <svg
+            className={styles.diffViewModeIcon}
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='1.75'
+            aria-hidden='true'
+        >
+            <path strokeLinecap='round' strokeLinejoin='round' d='M5 12h14' />
+        </svg>
+    );
+}
+
+function DiffViewPositiveIcon() {
+    return (
+        <svg
+            className={styles.diffViewModeIcon}
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='1.75'
+            aria-hidden='true'
+        >
+            <path strokeLinecap='round' strokeLinejoin='round' d='M12 5v14M5 12h14' />
+        </svg>
+    );
+}
+
+function DiffViewModeControls({ mode, onChange }: { mode: DiffViewMode; onChange: (mode: DiffViewMode) => void }) {
+    const intl = useIntl();
+    const options: { value: DiffViewMode; label: string; icon: ReactNode }[] = [
+        {
+            value: 'positive',
+            label: intl.formatMessage(messages.diffViewPositive),
+            icon: <DiffViewPositiveIcon />,
+        },
+        {
+            value: 'negative',
+            label: intl.formatMessage(messages.diffViewNegative),
+            icon: <DiffViewNegativeIcon />,
+        },
+        {
+            value: 'split',
+            label: intl.formatMessage(messages.diffViewSplit),
+            icon: <DiffViewSplitIcon />,
+        },
+    ];
+
+    return (
+        <div className={styles.diffViewModes} role='group' aria-label={intl.formatMessage(messages.diffViewModes)}>
+            {options.map((option) => {
+                const active = option.value === mode;
+                return (
+                    <button
+                        key={option.value}
+                        type='button'
+                        className={`${styles.diffViewModeButton}${active ? ` ${styles.diffViewModeButtonActive}` : ''}`}
+                        title={option.label}
+                        aria-label={option.label}
+                        aria-pressed={active}
+                        onClick={() => onChange(option.value)}
+                    >
+                        {option.icon}
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
+
 function collectDirPaths(nodes: FileTreeNode[]): string[] {
     const paths: string[] = [];
     for (const node of nodes) {
@@ -703,6 +804,7 @@ export function SessionCodeView({
     const [pendingDiscardPath, setPendingDiscardPath] = useState<string | null>(null);
     const [discarding, setDiscarding] = useState(false);
     const [markdownViewMode, setMarkdownViewMode] = useState<MarkdownViewMode>('code');
+    const [diffViewMode, setDiffViewModeState] = useState<DiffViewMode>(getDiffViewMode);
     const [selectionComment, setSelectionComment] = useState<SelectionCommentState | null>(null);
     const [pendingComment, setPendingComment] = useState<PendingCommentState | null>(null);
     const diffEditorRef = useRef<MonacoEditor.IStandaloneDiffEditor | null>(null);
@@ -1118,6 +1220,11 @@ export function SessionCodeView({
         [markdownViewMode],
     );
 
+    const handleDiffViewModeChange = useCallback((next: DiffViewMode) => {
+        setDiffViewModeState(next);
+        setDiffViewMode(next);
+    }, []);
+
     useEffect(() => {
         setSelectionComment(null);
         setPendingComment(null);
@@ -1212,6 +1319,15 @@ export function SessionCodeView({
     );
     useKeybind('session', 'commentSelection', openCommentDialog, {
         enabled: keybindsEnabled && Boolean(selectionComment) && !pendingComment,
+    });
+    useKeybind('session', 'diffViewSplit', () => handleDiffViewModeChange('split'), {
+        enabled: keybindsEnabled,
+    });
+    useKeybind('session', 'diffViewNegative', () => handleDiffViewModeChange('negative'), {
+        enabled: keybindsEnabled,
+    });
+    useKeybind('session', 'diffViewPositive', () => handleDiffViewModeChange('positive'), {
+        enabled: keybindsEnabled,
     });
 
     useEffect(() => {
@@ -1376,13 +1492,21 @@ export function SessionCodeView({
     }, [keybindsEnabled, showingMarkdownPreview, fileDiff, rememberScrollRatio]);
 
     const isAddedFile = fileDiff?.status === 'added';
+    const editorContents = useMemo(() => {
+        if (!fileDiff || fileDiff.binary) {
+            return { original: '', modified: '' };
+        }
+        return applyDiffViewMode(fileDiff.original, fileDiff.modified, diffViewMode);
+    }, [fileDiff, diffViewMode]);
     const diffEditorOptions = useMemo(
         () => ({
             readOnly: true,
-            renderSideBySide: isDesktop,
+            // Split shows both sides; filtered modes stay unified so only +/- hunks read clearly.
+            renderSideBySide: isDesktop && diffViewMode === 'split',
+            useInlineViewWhenSpaceIsLimited: false,
             // Monaco clamps splitViewDefaultRatio to [0.1, 0.9]; use the floor so added
             // files devote almost all width to the new content (original pane is empty).
-            splitViewDefaultRatio: isDesktop && isAddedFile ? 0.1 : 0.5,
+            splitViewDefaultRatio: isDesktop && diffViewMode === 'split' && isAddedFile ? 0.1 : 0.5,
             wordWrap: 'on' as const,
             wrappingIndent: 'same' as const,
             fontSize: isDesktop ? 13 : 11,
@@ -1409,7 +1533,7 @@ export function SessionCodeView({
             automaticLayout: true,
             originalEditable: false,
         }),
-        [isDesktop, isAddedFile],
+        [isDesktop, isAddedFile, diffViewMode],
     );
 
     // Reset content fingerprint when the selected path changes so a stale fileDiff
@@ -1638,6 +1762,7 @@ export function SessionCodeView({
                                     )}
                                 </button>
                             ) : null}
+                            <DiffViewModeControls mode={diffViewMode} onChange={handleDiffViewModeChange} />
                             <label className={styles.reviewedToggle}>
                                 <input
                                     type='checkbox'
@@ -1659,8 +1784,8 @@ export function SessionCodeView({
                                 >
                                     <div className={styles.editorFill}>
                                         <SessionDiffEditor
-                                            original={fileDiff.original}
-                                            modified={fileDiff.modified}
+                                            original={editorContents.original}
+                                            modified={editorContents.modified}
                                             language={fileDiff.language}
                                             options={diffEditorOptions}
                                             onMount={handleDiffEditorMount}
@@ -1681,8 +1806,8 @@ export function SessionCodeView({
                             <div className={styles.editorWrap}>
                                 <div className={styles.editorFill}>
                                     <SessionDiffEditor
-                                        original={fileDiff.original}
-                                        modified={fileDiff.modified}
+                                        original={editorContents.original}
+                                        modified={editorContents.modified}
                                         language={fileDiff.language}
                                         options={diffEditorOptions}
                                         onMount={handleDiffEditorMount}

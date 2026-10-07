@@ -54,6 +54,11 @@ export const styles = {
     fileHeaderMode:
         'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors active:bg-zinc-800 active:text-zinc-100 md:hover:bg-zinc-800/80 md:hover:text-zinc-100',
     fileHeaderModeIcon: 'h-4 w-4',
+    diffViewModes: 'flex shrink-0 items-center gap-0.5',
+    diffViewModeButton:
+        'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors active:bg-zinc-800 active:text-zinc-100 md:hover:bg-zinc-800/80 md:hover:text-zinc-100',
+    diffViewModeButtonActive: 'bg-zinc-800 text-zinc-100',
+    diffViewModeIcon: 'h-3.5 w-3.5',
     reviewedToggle:
         'inline-flex shrink-0 cursor-pointer items-center gap-1.5 select-none text-xs text-zinc-400 transition-colors md:hover:text-zinc-200',
     reviewedCheckbox: 'h-3.5 w-3.5 accent-emerald-500',

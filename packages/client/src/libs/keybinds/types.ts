@@ -25,7 +25,10 @@ export type SessionKeybindAction =
     | 'scrollFileDown'
     | 'scrollSpeedModifier'
     | 'toggleMarkdownPreview'
-    | 'markFileReviewed';
+    | 'markFileReviewed'
+    | 'diffViewSplit'
+    | 'diffViewNegative'
+    | 'diffViewPositive';
 
 export type KeybindActionForCategory = {
     home: HomeKeybindAction;
@@ -66,6 +69,9 @@ export const SESSION_KEYBIND_ACTIONS: readonly SessionKeybindAction[] = [
     'scrollSpeedModifier',
     'toggleMarkdownPreview',
     'markFileReviewed',
+    'diffViewSplit',
+    'diffViewNegative',
+    'diffViewPositive',
 ];
 
 export const KEYBIND_ACTIONS_BY_CATEGORY = {
@@ -99,6 +105,9 @@ export const DEFAULT_KEYBINDS: Keybinds = {
         scrollSpeedModifier: 'shift',
         toggleMarkdownPreview: 'm',
         markFileReviewed: 'r',
+        diffViewSplit: ']',
+        diffViewNegative: '[',
+        diffViewPositive: 'p',
     },
 };
 

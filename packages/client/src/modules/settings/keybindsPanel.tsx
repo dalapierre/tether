@@ -81,6 +81,12 @@ function actionLabel(
                     return formatMessage(messages.keybindToggleMarkdownPreview);
                 case 'markFileReviewed':
                     return formatMessage(messages.keybindMarkFileReviewed);
+                case 'diffViewSplit':
+                    return formatMessage(messages.keybindDiffViewSplit);
+                case 'diffViewNegative':
+                    return formatMessage(messages.keybindDiffViewNegative);
+                case 'diffViewPositive':
+                    return formatMessage(messages.keybindDiffViewPositive);
             }
             break;
     }

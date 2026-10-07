@@ -1,9 +1,11 @@
 import {
     getLocalStorageNumber,
     getLocalStorageJson,
+    getLocalStorageItem,
     removeLocalStorageItem,
     setLocalStorageJson,
     setLocalStorageNumber,
+    setLocalStorageItem,
 } from '@client/libs/storage/localStorage';
 import {
     getSessionLocalStorageItem,
@@ -14,6 +16,24 @@ import {
 const REVIEW_PANE_WIDTH_PCT_KEY = 'tether.layout.reviewPaneWidthPct';
 const SHELL_PANE_HEIGHT_PCT_KEY = 'tether.layout.shellPaneHeightPct';
 const FILE_TREE_WIDTH_PX_KEY = 'tether.layout.fileTreeWidthPx';
+const DIFF_VIEW_MODE_KEY = 'tether.layout.diffViewMode';
+
+export type DiffViewMode = 'split' | 'negative' | 'positive';
+
+export const DEFAULT_DIFF_VIEW_MODE: DiffViewMode = 'split';
+
+function isDiffViewMode(value: unknown): value is DiffViewMode {
+    return value === 'split' || value === 'negative' || value === 'positive';
+}
+
+export function getDiffViewMode(): DiffViewMode {
+    const stored = getLocalStorageItem(DIFF_VIEW_MODE_KEY);
+    return isDiffViewMode(stored) ? stored : DEFAULT_DIFF_VIEW_MODE;
+}
+
+export function setDiffViewMode(mode: DiffViewMode): void {
+    setLocalStorageItem(DIFF_VIEW_MODE_KEY, mode);
+}
 const SHELL_PANEL_OPEN_SUFFIX = 'shellPanelOpen';
 /** @deprecated Migrated to reviewPaneWidthPct. */
 const LEGACY_REVIEW_PANE_WIDTH_PX_KEY = 'tether.layout.reviewPaneWidthPx';

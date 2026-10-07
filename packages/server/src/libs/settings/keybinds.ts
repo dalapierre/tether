@@ -28,6 +28,9 @@ export type SessionKeybinds = {
     scrollSpeedModifier: string;
     toggleMarkdownPreview: string;
     markFileReviewed: string;
+    diffViewSplit: string;
+    diffViewNegative: string;
+    diffViewPositive: string;
 };
 
 export type Keybinds = {
@@ -60,6 +63,9 @@ const SESSION_ACTIONS = [
     'scrollSpeedModifier',
     'toggleMarkdownPreview',
     'markFileReviewed',
+    'diffViewSplit',
+    'diffViewNegative',
+    'diffViewPositive',
 ] as const;
 
 export const DEFAULT_KEYBINDS: Keybinds = {
@@ -88,6 +94,9 @@ export const DEFAULT_KEYBINDS: Keybinds = {
         scrollSpeedModifier: 'shift',
         toggleMarkdownPreview: 'm',
         markFileReviewed: 'r',
+        diffViewSplit: ']',
+        diffViewNegative: '[',
+        diffViewPositive: 'p',
     },
 };
 

@@ -28,6 +28,10 @@ type Messages = {
     discardFailed: NoMessageValues;
     commentSelection: NoMessageValues;
     reviewed: NoMessageValues;
+    diffViewModes: NoMessageValues;
+    diffViewSplit: NoMessageValues;
+    diffViewNegative: NoMessageValues;
+    diffViewPositive: NoMessageValues;
 };
 
 export const messages = defineMessages<Messages>(
@@ -139,6 +143,22 @@ export const messages = defineMessages<Messages>(
         reviewed: {
             id: 'sessionCodeView.reviewed',
             defaultMessage: 'Reviewed',
+        },
+        diffViewModes: {
+            id: 'sessionCodeView.diffViewModes',
+            defaultMessage: 'Diff view mode',
+        },
+        diffViewSplit: {
+            id: 'sessionCodeView.diffViewSplit',
+            defaultMessage: 'Split view',
+        },
+        diffViewNegative: {
+            id: 'sessionCodeView.diffViewNegative',
+            defaultMessage: 'Negative diffs only',
+        },
+        diffViewPositive: {
+            id: 'sessionCodeView.diffViewPositive',
+            defaultMessage: 'Positive diffs only',
         },
     },
     { typed: true },
