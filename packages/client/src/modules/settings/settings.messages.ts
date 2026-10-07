@@ -259,7 +259,7 @@ export const messages = defineMessages<Messages>(
         },
         keybindFocusSearch: {
             id: 'settings.keybindFocusSearch',
-            defaultMessage: 'Focus search',
+            defaultMessage: 'Search session',
         },
         keybindPreviousSession: {
             id: 'settings.keybindPreviousSession',
