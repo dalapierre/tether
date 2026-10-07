@@ -30,7 +30,7 @@ A session is a durable agent workspace you can return to at any time.
 
 ## Agents and profiles
 
-Tether drives the coding agents you already have installed on the host. Supported harnesses include **Cursor**, **Claude Code**, **Codex**, **OpenCode**, and **Rovo Dev** — whichever are available on your machine show up as options.
+Tether drives the coding agents you already have installed on the host. Supported harnesses include **Cursor**, **Claude Code**, **Codex**, **OpenCode**, and **Rovo** — whichever are available on your machine show up as options.
 
 **Profiles** capture how you like to start work: coding vs conversation, which agent to use, whether to auto-approve agent commands (Yolo mode), and whether to isolate the session in a git worktree. Set a default profile once, then spin up new sessions without re-deciding every time.
 

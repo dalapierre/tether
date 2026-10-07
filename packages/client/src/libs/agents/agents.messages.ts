@@ -19,6 +19,6 @@ export const messages = defineMessages({
     },
     rovo: {
         id: 'agents.rovo',
-        defaultMessage: 'Rovo Dev',
+        defaultMessage: 'Rovo',
     },
 });

@@ -18,7 +18,7 @@ export const SUPPORTED_AGENTS: AgentDefinition[] = [
     { id: 'codex', label: 'Codex', commands: ['codex'] },
     { id: 'opencode', label: 'OpenCode', commands: ['opencode'] },
     // Prefer the standalone `rovo` binary; fall back to legacy `acli rovodev`.
-    { id: 'rovo', label: 'Rovo Dev', commands: ['rovo', 'acli'] },
+    { id: 'rovo', label: 'Rovo', commands: ['rovo', 'acli'] },
 ];
 
 const AGENT_IDS = new Set<string>(SUPPORTED_AGENTS.map((agent) => agent.id));
