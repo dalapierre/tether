@@ -92,7 +92,7 @@ export const messages = defineMessages<Messages>(
         },
         openReview: {
             id: 'sessionView.openReview',
-            defaultMessage: 'Review',
+            defaultMessage: 'Open review',
         },
         closeReview: {
             id: 'sessionView.closeReview',
