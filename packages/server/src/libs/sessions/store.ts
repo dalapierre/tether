@@ -1,11 +1,5 @@
 import { isAgentId, type AgentId } from '@server/libs/agents/agents.js';
-import {
-    getConversationSessionDir,
-    getConversationsDir,
-    getRepositoryWorktreesDir,
-    getSessionsFilePath,
-    getTetherHomeDir,
-} from '@server/libs/paths.js';
+import { getRepositoryWorktreesDir, getSessionsFilePath, getTetherHomeDir } from '@server/libs/paths.js';
 import { countBehindRemoteDefault, getRepository, listLocalBranches } from '@server/libs/repositories/store.js';
 import {
     ensureCursorStatusIndicatorsEnabled,
@@ -375,14 +369,9 @@ export async function createSession(input: {
     }
 
     const agent: AgentId = profile.agent;
-    const type: SessionType = profile.type;
     const yoloMode = profile.yoloMode;
-    const useWorktrees = profile.type === 'coding' ? profile.useWorktrees : false;
+    const useWorktrees = profile.useWorktrees;
     const profileId = profile.id;
-
-    if (type === 'conversation') {
-        return createConversationSession({ name, profileId, agent, yoloMode });
-    }
 
     const repositoryId = input.repositoryId?.trim() ?? '';
     if (!repositoryId) {
@@ -402,64 +391,6 @@ export async function createSession(input: {
 
 async function allocateSessionId(takenIds: Set<string>, name: string): Promise<string> {
     return uniqueSlug(slugify(name) || 'session', takenIds);
-}
-
-async function createConversationSession(input: {
-    name: string;
-    profileId: string;
-    agent: AgentId;
-    yoloMode: boolean;
-}): Promise<Session> {
-    const takenIds = new Set(sessions.keys());
-    try {
-        for (const leaf of await listWorktreeLeaves(getConversationsDir())) {
-            takenIds.add(leaf);
-        }
-    } catch {
-        // conversations dir may not exist yet
-    }
-
-    const id = await allocateSessionId(takenIds, input.name);
-    const worktreePath = getConversationSessionDir(id);
-    await mkdir(worktreePath, { recursive: true });
-
-    const agentSessionId = await createAgentSessionId(input.agent);
-
-    const session: RuntimeSession = {
-        id,
-        name: input.name,
-        profileId: input.profileId,
-        agent: input.agent,
-        type: 'conversation',
-        repositoryId: null,
-        branch: null,
-        status: 'busy',
-        createdAt: Date.now(),
-        yoloMode: input.yoloMode,
-        useWorktrees: false,
-        createdBranch: false,
-        worktreePath,
-        baseSha: '',
-        hadLocalCommits: false,
-        agentSessionId,
-        pty: null,
-        shellPty: null,
-        oscTitleState: { pending: '' },
-    };
-
-    sessions.set(id, session);
-    await persistSessions();
-
-    try {
-        if (input.agent === 'cursor') {
-            await ensureCursorStatusIndicatorsEnabled();
-        }
-        await spawnHarness(session);
-    } catch {
-        // Session remains in error state with buffered failure output.
-    }
-
-    return await toPublic(session);
 }
 
 async function createCodingSession(input: {

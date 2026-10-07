@@ -977,7 +977,6 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         { label: intl.formatMessage(messages.loadingCrumb) },
                     ]}
                     showSettings={false}
-                    onBack={() => navigate('/', { replace: true })}
                 />
                 <p className={styles.centered}>{intl.formatMessage(messages.loading)}</p>
             </div>
@@ -993,7 +992,6 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         { label: intl.formatMessage(messages.notFound) },
                     ]}
                     showSettings={false}
-                    onBack={() => navigate('/', { replace: true })}
                 />
                 <p className={styles.centered}>{intl.formatMessage(messages.notFound)}</p>
             </div>
@@ -1014,7 +1012,6 @@ export function SessionView({ sessionId }: SessionViewProps) {
             <PageHeader
                 crumbs={[{ label: intl.formatMessage(messages.sessionsCrumb), to: '/' }, { label: session.name }]}
                 showSettings={false}
-                onBack={() => navigate('/', { replace: true })}
                 actions={
                     <>
                         {connectionLabel ? (

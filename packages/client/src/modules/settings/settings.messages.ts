@@ -88,9 +88,6 @@ type Messages = {
     profileNameLabel: NoMessageValues;
     profileNamePlaceholder: NoMessageValues;
     profileNameRequired: NoMessageValues;
-    profileTypeLabel: NoMessageValues;
-    profileTypeCoding: NoMessageValues;
-    profileTypeConversation: NoMessageValues;
     profileHarnessLabel: NoMessageValues;
     profileYoloModeLabel: NoMessageValues;
     profileYoloModeHint: NoMessageValues;
@@ -450,18 +447,6 @@ export const messages = defineMessages<Messages>(
         profileNameRequired: {
             id: 'settings.profileNameRequired',
             defaultMessage: 'Profile name is required.',
-        },
-        profileTypeLabel: {
-            id: 'settings.profileTypeLabel',
-            defaultMessage: 'Type',
-        },
-        profileTypeCoding: {
-            id: 'settings.profileTypeCoding',
-            defaultMessage: 'Coding',
-        },
-        profileTypeConversation: {
-            id: 'settings.profileTypeConversation',
-            defaultMessage: 'Conversation',
         },
         profileHarnessLabel: {
             id: 'settings.profileHarnessLabel',

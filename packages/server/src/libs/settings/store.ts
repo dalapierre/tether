@@ -12,12 +12,9 @@ export type StoredRepository = {
     path: string;
 };
 
-export type AgentProfileType = 'coding' | 'conversation';
-
 export type AgentProfile = {
     id: string;
     name: string;
-    type: AgentProfileType;
     agent: AgentId;
     yoloMode: boolean;
     /** When false, coding sessions run in the repository checkout instead of a worktree. */
@@ -52,7 +49,6 @@ function createDefaultProfile(overrides: Partial<AgentProfile> = {}): AgentProfi
     return {
         id: DEFAULT_PROFILE_ID,
         name: 'Coding',
-        type: 'coding',
         agent: 'cursor',
         yoloMode: false,
         useWorktrees: true,
@@ -83,10 +79,6 @@ function isStoredRepository(value: unknown): value is StoredRepository {
     );
 }
 
-function isAgentProfileType(value: unknown): value is AgentProfileType {
-    return value === 'coding' || value === 'conversation';
-}
-
 function isAgentProfile(value: unknown): value is AgentProfile {
     if (!value || typeof value !== 'object') return false;
     const profile = value as Partial<AgentProfile> & Record<string, unknown>;
@@ -95,7 +87,6 @@ function isAgentProfile(value: unknown): value is AgentProfile {
         profile.id.length > 0 &&
         typeof profile.name === 'string' &&
         profile.name.trim().length > 0 &&
-        isAgentProfileType(profile.type) &&
         isAgentId(profile.agent) &&
         typeof profile.yoloMode === 'boolean'
     );
@@ -105,7 +96,6 @@ function normalizeProfile(profile: AgentProfile & { useWorktrees?: boolean }): A
     return {
         id: profile.id,
         name: profile.name.trim(),
-        type: profile.type,
         agent: profile.agent,
         yoloMode: profile.yoloMode,
         useWorktrees: typeof profile.useWorktrees === 'boolean' ? profile.useWorktrees : true,

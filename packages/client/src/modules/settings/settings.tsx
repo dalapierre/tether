@@ -15,7 +15,7 @@ import {
     type AvailableRepository,
     type Repository,
 } from '@client/libs/api/repositories';
-import { getSettings, updateSettings, type AgentProfile, type AgentProfileType } from '@client/libs/api/settings';
+import { getSettings, updateSettings, type AgentProfile } from '@client/libs/api/settings';
 import { DEFAULT_KEYBINDS, cloneKeybinds, keybindsEqual, type Keybinds } from '@client/libs/keybinds';
 import { clearAccessToken } from '@client/libs/auth/session';
 import { showToast } from '@client/modules/toast';
@@ -36,7 +36,6 @@ type HeaderCrumb = {
 
 type ProfileDraft = {
     name: string;
-    type: AgentProfileType;
     agent: AgentId;
     yoloMode: boolean;
     useWorktrees: boolean;
@@ -71,7 +70,6 @@ function createLocalProfileId(existing: AgentProfile[]): string {
 function emptyDraftProfile(defaultAgent: AgentId = 'cursor'): ProfileDraft {
     return {
         name: '',
-        type: 'coding',
         agent: defaultAgent,
         yoloMode: false,
         useWorktrees: true,
@@ -81,7 +79,6 @@ function emptyDraftProfile(defaultAgent: AgentId = 'cursor'): ProfileDraft {
 function draftFromProfile(profile: AgentProfile): ProfileDraft {
     return {
         name: profile.name,
-        type: profile.type,
         agent: profile.agent,
         yoloMode: profile.yoloMode,
         useWorktrees: profile.useWorktrees,
@@ -91,7 +88,6 @@ function draftFromProfile(profile: AgentProfile): ProfileDraft {
 function profileDraftEquals(draft: ProfileDraft, profile: AgentProfile): boolean {
     return (
         draft.name.trim() === profile.name.trim() &&
-        draft.type === profile.type &&
         draft.agent === profile.agent &&
         draft.yoloMode === profile.yoloMode &&
         draft.useWorktrees === profile.useWorktrees
@@ -375,10 +371,9 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
         const nextProfile: AgentProfile = {
             id: createLocalProfileId(profiles),
             name,
-            type: draftProfile.type,
             agent: draftProfile.agent,
             yoloMode: draftProfile.yoloMode,
-            useWorktrees: draftProfile.type === 'coding' ? draftProfile.useWorktrees : true,
+            useWorktrees: draftProfile.useWorktrees,
         };
         const nextProfiles = [...profiles, nextProfile];
         const nextDefault = defaultProfileId || nextProfile.id;
@@ -402,10 +397,9 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
                 ? {
                       ...profile,
                       name,
-                      type: draftProfile.type,
                       agent: draftProfile.agent,
                       yoloMode: draftProfile.yoloMode,
-                      useWorktrees: draftProfile.type === 'coding' ? draftProfile.useWorktrees : true,
+                      useWorktrees: draftProfile.useWorktrees,
                   }
                 : profile,
         );
@@ -856,26 +850,6 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
                             </label>
 
                             <label className={styles.label}>
-                                {intl.formatMessage(messages.profileTypeLabel)}
-                                <select
-                                    className={styles.select}
-                                    value={draftProfile.type}
-                                    disabled={profileFormBusy}
-                                    onChange={(event) => {
-                                        const next = event.target.value;
-                                        if (next === 'coding' || next === 'conversation') {
-                                            setDraftProfile((current) => ({ ...current, type: next }));
-                                        }
-                                    }}
-                                >
-                                    <option value='coding'>{intl.formatMessage(messages.profileTypeCoding)}</option>
-                                    <option value='conversation'>
-                                        {intl.formatMessage(messages.profileTypeConversation)}
-                                    </option>
-                                </select>
-                            </label>
-
-                            <label className={styles.label}>
                                 {intl.formatMessage(messages.profileHarnessLabel)}
                                 <select
                                     className={styles.select}
@@ -912,17 +886,15 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
                                 }
                             />
 
-                            {draftProfile.type === 'coding' ? (
-                                <Toggle
-                                    label={intl.formatMessage(messages.profileUseWorktreesLabel)}
-                                    description={intl.formatMessage(messages.profileUseWorktreesHint)}
-                                    checked={draftProfile.useWorktrees}
-                                    disabled={profileFormBusy}
-                                    onChange={(checked) =>
-                                        setDraftProfile((current) => ({ ...current, useWorktrees: checked }))
-                                    }
-                                />
-                            ) : null}
+                            <Toggle
+                                label={intl.formatMessage(messages.profileUseWorktreesLabel)}
+                                description={intl.formatMessage(messages.profileUseWorktreesHint)}
+                                checked={draftProfile.useWorktrees}
+                                disabled={profileFormBusy}
+                                onChange={(checked) =>
+                                    setDraftProfile((current) => ({ ...current, useWorktrees: checked }))
+                                }
+                            />
                         </div>
                     ) : null}
                 </div>

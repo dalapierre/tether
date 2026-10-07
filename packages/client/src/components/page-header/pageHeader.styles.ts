@@ -2,7 +2,7 @@ export const styles = {
     header: 'flex shrink-0 items-center gap-1 px-2 pt-[max(0.25rem,env(safe-area-inset-top))] pb-0 md:px-3 md:pt-1',
     start: 'flex min-h-10 min-w-0 flex-1 items-center gap-1',
     logoLink:
-        'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md transition-colors active:bg-zinc-800',
+        'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md transition-colors md:hover:bg-zinc-800 active:bg-zinc-800',
     logo: 'h-7 w-7',
     backIcon: 'h-5 w-5',
     crumbs: 'flex min-w-0 items-center gap-1.5 overflow-hidden pr-2 text-sm',

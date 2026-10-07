@@ -115,40 +115,18 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
         [branches],
     );
 
-    const isCoding = selectedProfile?.type === 'coding';
-    const usesWorktrees = isCoding && selectedProfile?.useWorktrees !== false;
+    const usesWorktrees = selectedProfile?.useWorktrees !== false;
 
     async function handleStart() {
         const trimmedName = name.trim();
         if (!trimmedName || !profileId || !selectedProfile || starting) return;
+        if (!repositoryId) return;
 
-        if (selectedProfile.type === 'coding') {
-            if (!repositoryId) return;
-
-            if (usesWorktrees) {
-                const trimmedBranch = branch.trim();
-                if (!trimmedBranch) return;
-                if (!isValidBranchName(trimmedBranch)) {
-                    showToast('invalid-branch-name');
-                    return;
-                }
-
-                setStarting(true);
-                try {
-                    const session = await createSession({
-                        profileId,
-                        name: trimmedName,
-                        repositoryId,
-                        branch: trimmedBranch,
-                    });
-                    onStarted(session);
-                } catch (err: unknown) {
-                    showToast(
-                        'generic-error',
-                        err instanceof Error ? err.message : intl.formatMessage(messages.startFailed),
-                    );
-                    setStarting(false);
-                }
+        if (usesWorktrees) {
+            const trimmedBranch = branch.trim();
+            if (!trimmedBranch) return;
+            if (!isValidBranchName(trimmedBranch)) {
+                showToast('invalid-branch-name');
                 return;
             }
 
@@ -158,6 +136,7 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                     profileId,
                     name: trimmedName,
                     repositoryId,
+                    branch: trimmedBranch,
                 });
                 onStarted(session);
             } catch (err: unknown) {
@@ -175,6 +154,7 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
             const session = await createSession({
                 profileId,
                 name: trimmedName,
+                repositoryId,
             });
             onStarted(session);
         } catch (err: unknown) {
@@ -189,8 +169,8 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
         name.trim().length > 0 &&
         Boolean(profileId) &&
         Boolean(selectedProfile) &&
-        (selectedProfile?.type === 'conversation' ||
-            (Boolean(repositoryId) && (!usesWorktrees || branch.trim().length > 0)));
+        Boolean(repositoryId) &&
+        (!usesWorktrees || branch.trim().length > 0);
 
     return (
         <div
@@ -265,52 +245,46 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                                     />
                                 </div>
 
-                                {isCoding ? (
-                                    <>
-                                        <label className={styles.label}>
-                                            {intl.formatMessage(messages.projectLabel)}
-                                            <select
-                                                className={styles.select}
-                                                value={repositoryId}
-                                                disabled={starting || repositories.length === 0}
-                                                onChange={(event) => {
-                                                    setRepositoryId(event.target.value);
-                                                    setBranch('');
-                                                }}
-                                            >
-                                                <option value='' disabled>
-                                                    {intl.formatMessage(
-                                                        repositories.length === 0
-                                                            ? messages.projectsEmpty
-                                                            : messages.projectPlaceholder,
-                                                    )}
-                                                </option>
-                                                {repositories.map((repository) => (
-                                                    <option key={repository.id} value={repository.id}>
-                                                        {repository.name}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </label>
+                                <label className={styles.label}>
+                                    {intl.formatMessage(messages.projectLabel)}
+                                    <select
+                                        className={styles.select}
+                                        value={repositoryId}
+                                        disabled={starting || repositories.length === 0}
+                                        onChange={(event) => {
+                                            setRepositoryId(event.target.value);
+                                            setBranch('');
+                                        }}
+                                    >
+                                        <option value='' disabled>
+                                            {intl.formatMessage(
+                                                repositories.length === 0
+                                                    ? messages.projectsEmpty
+                                                    : messages.projectPlaceholder,
+                                            )}
+                                        </option>
+                                        {repositories.map((repository) => (
+                                            <option key={repository.id} value={repository.id}>
+                                                {repository.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
 
-                                        {usesWorktrees ? (
-                                            <div>
-                                                <p className={styles.label}>
-                                                    {intl.formatMessage(messages.branchLabel)}
-                                                </p>
-                                                <SearchSelect
-                                                    options={branchOptions}
-                                                    value={branch}
-                                                    allowCustom
-                                                    onChange={setBranch}
-                                                    onSelect={(option) => setBranch(option.value)}
-                                                    placeholder={intl.formatMessage(messages.branchPlaceholder)}
-                                                    disabled={starting || !repositoryId}
-                                                    ariaLabel={intl.formatMessage(messages.branchLabel)}
-                                                />
-                                            </div>
-                                        ) : null}
-                                    </>
+                                {usesWorktrees ? (
+                                    <div>
+                                        <p className={styles.label}>{intl.formatMessage(messages.branchLabel)}</p>
+                                        <SearchSelect
+                                            options={branchOptions}
+                                            value={branch}
+                                            allowCustom
+                                            onChange={setBranch}
+                                            onSelect={(option) => setBranch(option.value)}
+                                            placeholder={intl.formatMessage(messages.branchPlaceholder)}
+                                            disabled={starting || !repositoryId}
+                                            ariaLabel={intl.formatMessage(messages.branchLabel)}
+                                        />
+                                    </div>
                                 ) : null}
                             </div>
                         ) : null}

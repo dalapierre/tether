@@ -2,12 +2,9 @@ import { ApiError, apiFetch } from '@client/libs/api/client';
 import type { AgentId } from '@client/libs/agents/agents';
 import { DEFAULT_KEYBINDS, cloneKeybinds, type Keybinds } from '@client/libs/keybinds';
 
-export type AgentProfileType = 'coding' | 'conversation';
-
 export type AgentProfile = {
     id: string;
     name: string;
-    type: AgentProfileType;
     agent: AgentId;
     yoloMode: boolean;
     useWorktrees: boolean;
