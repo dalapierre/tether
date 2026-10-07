@@ -55,6 +55,8 @@ function actionLabel(
                     return formatMessage(messages.keybindGoBack);
                 case 'toggleReview':
                     return formatMessage(messages.keybindToggleReview);
+                case 'reviewFullscreen':
+                    return formatMessage(messages.keybindReviewFullscreen);
                 case 'toggleTerminal':
                     return formatMessage(messages.keybindToggleTerminal);
                 case 'enterAgentInsert':

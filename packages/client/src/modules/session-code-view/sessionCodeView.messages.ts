@@ -21,6 +21,8 @@ type Messages = {
     collapseFolder: { name: string };
     collapseAllFolders: NoMessageValues;
     resetReviews: NoMessageValues;
+    enterFullscreen: NoMessageValues;
+    exitFullscreen: NoMessageValues;
     discardChange: NoMessageValues;
     discardConfirm: { path: string };
     discardConfirmCancel: NoMessageValues;
@@ -115,6 +117,14 @@ export const messages = defineMessages<Messages>(
         resetReviews: {
             id: 'sessionCodeView.resetReviews',
             defaultMessage: 'Reset reviews',
+        },
+        enterFullscreen: {
+            id: 'sessionCodeView.enterFullscreen',
+            defaultMessage: 'Fullscreen review',
+        },
+        exitFullscreen: {
+            id: 'sessionCodeView.exitFullscreen',
+            defaultMessage: 'Exit fullscreen review',
         },
         discardChange: {
             id: 'sessionCodeView.discardChange',
