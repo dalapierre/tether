@@ -358,6 +358,11 @@ export function SessionList() {
                         onKeyDown={(event) => {
                             if (event.key !== 'Escape') return;
                             event.preventDefault();
+                            if (searchQuery) {
+                                setSearchQuery('');
+                                setSelectedIndex(null);
+                                return;
+                            }
                             event.currentTarget.blur();
                         }}
                     />
