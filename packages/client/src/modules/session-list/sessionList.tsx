@@ -143,6 +143,17 @@ export function SessionList() {
         },
         { enabled: listInteractive, allowInEditable: true },
     );
+    useKeybind(
+        'home',
+        'deleteSession',
+        () => {
+            const index = selectedIndexRef.current;
+            const session = index === null ? null : filteredSessionsRef.current[index];
+            if (!session) return;
+            setPendingDelete(session);
+        },
+        { enabled: listInteractive },
+    );
 
     useEffect(() => {
         if (!listInteractive) return;

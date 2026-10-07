@@ -16,8 +16,18 @@ export function ConfirmDialog({
 
     useEffect(() => {
         function onKeyDown(event: KeyboardEvent) {
-            if (event.key === 'Escape' && !busy) {
+            if (busy || event.defaultPrevented || event.repeat) return;
+            if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+
+            if (event.key === 'Escape') {
+                event.preventDefault();
                 onCancel();
+                return;
+            }
+
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                onConfirm();
             }
         }
 
@@ -25,7 +35,7 @@ export function ConfirmDialog({
         return () => {
             window.removeEventListener('keydown', onKeyDown);
         };
-    }, [busy, onCancel]);
+    }, [busy, onCancel, onConfirm]);
 
     useEffect(() => {
         panelRef.current?.focus();

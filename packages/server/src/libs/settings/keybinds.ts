@@ -8,6 +8,7 @@ export type HomeKeybinds = {
     focusSearch: string;
     previousSession: string;
     nextSession: string;
+    deleteSession: string;
 };
 
 export type SessionKeybinds = {
@@ -29,7 +30,14 @@ export type Keybinds = {
     session: SessionKeybinds;
 };
 
-const HOME_ACTIONS = ['newSession', 'openSettings', 'focusSearch', 'previousSession', 'nextSession'] as const;
+const HOME_ACTIONS = [
+    'newSession',
+    'openSettings',
+    'focusSearch',
+    'previousSession',
+    'nextSession',
+    'deleteSession',
+] as const;
 const SESSION_ACTIONS = [
     'goBack',
     'toggleReview',
@@ -51,6 +59,7 @@ export const DEFAULT_KEYBINDS: Keybinds = {
         focusSearch: 's',
         previousSession: 'arrowup',
         nextSession: 'arrowdown',
+        deleteSession: 'delete',
     },
     session: {
         goBack: 'escape',

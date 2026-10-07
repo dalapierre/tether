@@ -44,6 +44,8 @@ function actionLabel(
                     return formatMessage(messages.keybindPreviousSession);
                 case 'nextSession':
                     return formatMessage(messages.keybindNextSession);
+                case 'deleteSession':
+                    return formatMessage(messages.keybindDeleteSession);
             }
             break;
         case 'session':
