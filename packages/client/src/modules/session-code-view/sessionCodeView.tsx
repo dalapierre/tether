@@ -431,6 +431,37 @@ function FolderIcon() {
     );
 }
 
+function CollapseAllFoldersIcon() {
+    return (
+        <svg
+            className={styles.collapseAllIcon}
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='1.75'
+            aria-hidden='true'
+        >
+            <path strokeLinecap='round' strokeLinejoin='round' d='M3.75 6.75h10.5M3.75 12h7.5m-7.5 5.25h4.5' />
+            <path
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                d='m19.5 8.25-2.25 2.25L15 8.25m4.5 7.5-2.25-2.25L15 15.75'
+            />
+        </svg>
+    );
+}
+
+function collectDirPaths(nodes: FileTreeNode[]): string[] {
+    const paths: string[] = [];
+    for (const node of nodes) {
+        if (node.type === 'dir') {
+            paths.push(node.path);
+            paths.push(...collectDirPaths(node.children));
+        }
+    }
+    return paths;
+}
+
 function DiscardIcon() {
     return (
         <svg
@@ -649,6 +680,7 @@ export function SessionCodeView({
     paneActiveRef.current = keybindsEnabled;
 
     const tree = useMemo(() => buildFileTree(files), [files]);
+    const dirPaths = useMemo(() => collectDirPaths(tree), [tree]);
     fileTreeWidthRef.current = fileTreeWidth;
     const selectedPathRef = useRef(selectedPath);
     selectedPathRef.current = selectedPath;
@@ -1328,6 +1360,10 @@ export function SessionCodeView({
         });
     }
 
+    function collapseAllFolders() {
+        setCollapsedPaths(new Set(dirPaths));
+    }
+
     async function confirmDiscard() {
         const path = pendingDiscardPath;
         if (!path || discarding) return;
@@ -1384,6 +1420,17 @@ export function SessionCodeView({
                                 ? intl.formatMessage(messages.filesChanged, { count: files.length })
                                 : intl.formatMessage(messages.filesChangedTitle)}
                         </p>
+                        {dirPaths.length > 0 ? (
+                            <button
+                                type='button'
+                                className={styles.collapseAllButton}
+                                title={intl.formatMessage(messages.collapseAllFolders)}
+                                aria-label={intl.formatMessage(messages.collapseAllFolders)}
+                                onClick={collapseAllFolders}
+                            >
+                                <CollapseAllFoldersIcon />
+                            </button>
+                        ) : null}
                     </div>
                     {listLoading ? (
                         <Spinner label={loadingLabel} />

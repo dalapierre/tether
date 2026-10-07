@@ -9,8 +9,11 @@ export const styles = {
     listPanel: 'flex h-full min-h-0 w-full flex-1 flex-col',
     listPanelMobileHidden: 'hidden h-full min-h-0 w-full flex-col md:flex',
     fileTreeResize: 'z-30',
-    toolbar: 'flex h-7 shrink-0 items-center border-b border-zinc-800 bg-zinc-900 px-3',
-    toolbarTitle: 'min-w-0 truncate text-xs text-zinc-400',
+    toolbar: 'flex h-7 shrink-0 items-center gap-2 border-b border-zinc-800 bg-zinc-900 px-2 md:px-3',
+    toolbarTitle: 'min-w-0 flex-1 truncate text-xs text-zinc-400',
+    collapseAllButton:
+        'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors active:bg-zinc-800 active:text-zinc-100 md:hover:bg-zinc-800/80 md:hover:text-zinc-100',
+    collapseAllIcon: 'h-3.5 w-3.5',
     centered: 'flex flex-1 items-center justify-center px-4 text-sm text-zinc-500',
     fileList: 'code-review-scroll min-h-0 flex-1 overflow-y-auto',
     treeRow:

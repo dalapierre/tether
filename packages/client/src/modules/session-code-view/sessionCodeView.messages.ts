@@ -19,6 +19,7 @@ type Messages = {
     filesChanged: { count: number };
     expandFolder: { name: string };
     collapseFolder: { name: string };
+    collapseAllFolders: NoMessageValues;
     discardChange: NoMessageValues;
     discardConfirm: { path: string };
     discardConfirmCancel: NoMessageValues;
@@ -100,6 +101,10 @@ export const messages = defineMessages<Messages>(
         collapseFolder: {
             id: 'sessionCodeView.collapseFolder',
             defaultMessage: 'Collapse {name}',
+        },
+        collapseAllFolders: {
+            id: 'sessionCodeView.collapseAllFolders',
+            defaultMessage: 'Collapse all folders',
         },
         discardChange: {
             id: 'sessionCodeView.discardChange',
