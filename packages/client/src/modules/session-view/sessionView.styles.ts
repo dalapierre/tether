@@ -1,5 +1,9 @@
 export const styles = {
     root: 'flex min-h-0 flex-1 flex-col bg-zinc-950 text-zinc-100',
+    connectionStatus: 'flex items-center gap-1.5 px-2 text-xs text-zinc-400',
+    connectionDot: 'h-2 w-2 shrink-0 rounded-full',
+    connectionDotConnecting: 'bg-amber-400',
+    connectionDotDisconnected: 'bg-red-500',
     // Desktop: match PageHeader inset (md:px-3) and back IconButton (w-11) + gap-1
     // so repo/branch and the review control line up with the breadcrumb row.
     meta: 'flex shrink-0 items-center justify-between gap-3 border-b border-zinc-800 px-4 py-2 text-xs text-zinc-400 md:px-[3.75rem]',

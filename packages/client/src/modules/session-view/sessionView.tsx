@@ -1014,23 +1014,38 @@ export function SessionView({ sessionId }: SessionViewProps) {
                 showSettings={false}
                 onBack={() => navigate('/', { replace: true })}
                 actions={
-                    <div className={styles.mobileActions}>
-                        <IconButton label={intl.formatMessage(messages.arrowUp)} onClick={sendArrowUp}>
-                            <ArrowUpIcon />
-                        </IconButton>
-                        <IconButton label={intl.formatMessage(messages.arrowDown)} onClick={sendArrowDown}>
-                            <ArrowDownIcon />
-                        </IconButton>
-                        <IconButton
-                            label={intl.formatMessage(messages.paste)}
-                            onClick={() => void pasteFromClipboard()}
-                        >
-                            <PasteIcon />
-                        </IconButton>
-                        <IconButton label={intl.formatMessage(messages.clearInput)} onClick={clearPromptInput}>
-                            <ClearInputIcon />
-                        </IconButton>
-                    </div>
+                    <>
+                        {connectionLabel ? (
+                            <div className={styles.connectionStatus} role='status'>
+                                <span
+                                    className={`${styles.connectionDot} ${
+                                        connection === 'disconnected'
+                                            ? styles.connectionDotDisconnected
+                                            : styles.connectionDotConnecting
+                                    }`}
+                                    aria-hidden='true'
+                                />
+                                {connectionLabel}
+                            </div>
+                        ) : null}
+                        <div className={styles.mobileActions}>
+                            <IconButton label={intl.formatMessage(messages.arrowUp)} onClick={sendArrowUp}>
+                                <ArrowUpIcon />
+                            </IconButton>
+                            <IconButton label={intl.formatMessage(messages.arrowDown)} onClick={sendArrowDown}>
+                                <ArrowDownIcon />
+                            </IconButton>
+                            <IconButton
+                                label={intl.formatMessage(messages.paste)}
+                                onClick={() => void pasteFromClipboard()}
+                            >
+                                <PasteIcon />
+                            </IconButton>
+                            <IconButton label={intl.formatMessage(messages.clearInput)} onClick={clearPromptInput}>
+                                <ClearInputIcon />
+                            </IconButton>
+                        </div>
+                    </>
                 }
             />
             {!isDesktop ? (
@@ -1085,7 +1100,6 @@ export function SessionView({ sessionId }: SessionViewProps) {
                             harness: harnessLabel(session.agent, intl.formatMessage),
                         })
                     )}
-                    {connectionLabel ? ` · ${connectionLabel}` : ''}
                 </p>
                 <div className={styles.metaEnd}>
                     <button
