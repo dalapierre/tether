@@ -142,3 +142,7 @@ All network calls must require authentication via the access token **unless spec
 
 - Default to authenticated requests on both client and server when adding or changing API routes, fetch helpers, or other network I/O.
 - Only skip access-token auth when the task or existing API explicitly marks the endpoint as public/unauthenticated.
+
+### Settings schema versioning
+
+The on-disk settings file (`settings.json`) has a top-level `version` field (see `packages/server/src/libs/settings/store.ts`). When making **significant** changes to the settings schema (adding/removing/renaming persisted fields, changing shapes or semantics of existing data), **ask the user whether to bump the schema version** before finishing the work. Do not silently bump it, and do not skip asking just because migration logic does not exist yet.

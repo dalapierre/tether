@@ -30,7 +30,11 @@ export type Settings = {
     keybinds: Keybinds;
 };
 
+/** Current settings.json schema version. Bump when the on-disk shape changes. */
+const SETTINGS_FILE_VERSION = 1;
+
 type SettingsFile = {
+    version: number;
     devDir: string;
     defaultAgent: AgentId;
     defaultProfileId: string;
@@ -59,6 +63,7 @@ function createDefaultProfile(overrides: Partial<AgentProfile> = {}): AgentProfi
 const DEFAULT_AGENT: AgentId = 'cursor';
 
 const defaultSettingsFile: SettingsFile = {
+    version: SETTINGS_FILE_VERSION,
     devDir: '',
     defaultAgent: DEFAULT_AGENT,
     defaultProfileId: DEFAULT_PROFILE_ID,
@@ -153,6 +158,8 @@ function normalizeSettingsFile(value: unknown): SettingsFile {
     }
 
     const record = value as Record<string, unknown>;
+    const version =
+        typeof record.version === 'number' && Number.isInteger(record.version) ? record.version : SETTINGS_FILE_VERSION;
     const devDir = typeof record.devDir === 'string' ? record.devDir : '';
     const profiles = normalizeProfiles(record.profiles, record.agent, record.yoloMode);
     const defaultAgent = resolveDefaultAgent(record.defaultAgent ?? record.agent);
@@ -160,7 +167,7 @@ function normalizeSettingsFile(value: unknown): SettingsFile {
     const keybinds = normalizeKeybinds(record.keybinds);
     const repositories = Array.isArray(record.repositories) ? record.repositories.filter(isStoredRepository) : [];
 
-    return { devDir, defaultAgent, defaultProfileId, profiles, keybinds, repositories };
+    return { version, devDir, defaultAgent, defaultProfileId, profiles, keybinds, repositories };
 }
 
 /** One-time: move settings from packages/server/data into ~/.tether. */
