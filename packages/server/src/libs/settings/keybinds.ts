@@ -82,10 +82,10 @@ function isChordString(value: unknown): value is string {
 
 function rewriteModToAlt(chord: string): string {
     // Persist Alt explicitly; older defaults/recording stored the platform mod as `mod` (Ctrl).
-    // Leave `super` chords alone.
+    // Accept macOS Option aliases; leave `super` chords alone.
     return chord
         .split('+')
-        .map((part) => (part === 'mod' || part === 'ctrl' ? 'alt' : part))
+        .map((part) => (part === 'mod' || part === 'ctrl' || part === 'option' || part === 'opt' ? 'alt' : part))
         .filter((part, index, parts) => part !== 'alt' || parts.indexOf('alt') === index)
         .join('+');
 }

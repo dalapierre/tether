@@ -32,6 +32,9 @@ const KEY_ALIASES: Record<string, string> = {
     meta: 'super',
     win: 'super',
     cmd: 'super',
+    // Option is Alt on macOS; accept either name in stored chords.
+    option: 'alt',
+    opt: 'alt',
     arrowup: 'arrowup',
     arrowdown: 'arrowdown',
     arrowleft: 'arrowleft',
@@ -41,6 +44,48 @@ const KEY_ALIASES: Record<string, string> = {
     left: 'arrowleft',
     right: 'arrowright',
 };
+
+/** Map KeyboardEvent.code → normalized key token (physical key, layout-independent). */
+const CODE_TO_KEY: Record<string, string> = {
+    Comma: 'comma',
+    Period: 'period',
+    Slash: 'slash',
+    Backslash: 'backslash',
+    BracketLeft: 'bracketleft',
+    BracketRight: 'bracketright',
+    Semicolon: 'semicolon',
+    Quote: 'quote',
+    Backquote: 'backquote',
+    Minus: 'minus',
+    Equal: 'equal',
+    Space: 'space',
+    Escape: 'escape',
+    Enter: 'enter',
+    Backspace: 'backspace',
+    Delete: 'delete',
+    Tab: 'tab',
+    ArrowUp: 'arrowup',
+    ArrowDown: 'arrowdown',
+    ArrowLeft: 'arrowleft',
+    ArrowRight: 'arrowright',
+};
+
+function keyFromKeyboardCode(code: string): string | null {
+    if (!code) return null;
+    if (code.startsWith('Key') && code.length === 4) {
+        return code.slice(3).toLowerCase();
+    }
+    if (code.startsWith('Digit') && code.length === 6) {
+        return code.slice(5);
+    }
+    if (code.startsWith('Numpad') && code.length === 7 && code[6]! >= '0' && code[6]! <= '9') {
+        return code.slice(6);
+    }
+    if (/^F\d{1,2}$/.test(code)) {
+        return code.toLowerCase();
+    }
+    return CODE_TO_KEY[code] ?? null;
+}
 
 function platformFlags(): { isMac: boolean; isWindows: boolean } {
     if (typeof navigator === 'undefined') {
@@ -159,6 +204,14 @@ function keyFromKeyboardEvent(event: KeyboardEvent): string | null {
     const lower = raw.toLowerCase();
     if (lower === 'control' || lower === 'meta' || lower === 'alt' || lower === 'shift') {
         return null;
+    }
+
+    // macOS Option (and Alt elsewhere) remaps event.key to special characters
+    // (e.g. Option+Q → "œ"). Prefer the physical key from event.code so chords
+    // like alt+q / option+q match and record correctly.
+    if (event.altKey) {
+        const fromCode = keyFromKeyboardCode(event.code);
+        if (fromCode) return fromCode;
     }
 
     return normalizeKeyToken(lower === ' ' ? 'space' : lower) || null;
