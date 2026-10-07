@@ -1,3 +1,4 @@
+import { ApiError } from '@client/libs/api/client';
 import {
     discardSessionDiffFile,
     getSessionDiff,
@@ -828,6 +829,8 @@ export function SessionCodeView({
     const selectedPathRef = useRef(selectedPath);
     selectedPathRef.current = selectedPath;
     const filesSignatureRef = useRef(fileListSignature(files));
+    /** Bumped to drop in-flight summary responses that must not overwrite newer state (e.g. after discard). */
+    const diffFilesRequestIdRef = useRef(0);
     const fileContentFingerprintRef = useRef<string | null>(null);
 
     const persistFileTreeWidth = useCallback(() => {
@@ -951,15 +954,18 @@ export function SessionCodeView({
     useEffect(() => {
         let cancelled = false;
         filesSignatureRef.current = '';
+        // Invalidate any in-flight summary from a previous session/effect.
+        diffFilesRequestIdRef.current += 1;
 
         const load = (initial: boolean) => {
             if (initial) {
                 setLoading(true);
             }
 
+            const requestId = ++diffFilesRequestIdRef.current;
             return getSessionDiff(sessionId)
                 .then((diff) => {
-                    if (!cancelled) {
+                    if (!cancelled && requestId === diffFilesRequestIdRef.current) {
                         applyDiffFiles(diff.files);
                     }
                 })
@@ -1566,8 +1572,9 @@ export function SessionCodeView({
         if (!selectedPath) return;
 
         let cancelled = false;
+        const path = selectedPath;
         const timer = window.setInterval(() => {
-            getSessionDiffFile(sessionId, selectedPath)
+            getSessionDiffFile(sessionId, path)
                 .then((file) => {
                     if (cancelled) return;
                     setFileDiff((prev) => {
@@ -1583,8 +1590,15 @@ export function SessionCodeView({
                         return file;
                     });
                 })
-                .catch(() => {
-                    // Best-effort background refresh; keep the last good diff.
+                .catch((err: unknown) => {
+                    if (cancelled) return;
+                    // File left the review diff (e.g. discarded); drop stale selection/content.
+                    if (err instanceof ApiError && err.message === 'File not found in diff') {
+                        if (selectedPathRef.current === path) {
+                            selectPath(null);
+                        }
+                    }
+                    // Other errors: best-effort refresh; keep the last good diff.
                 });
         }, DIFF_POLL_MS);
 
@@ -1592,7 +1606,7 @@ export function SessionCodeView({
             cancelled = true;
             window.clearInterval(timer);
         };
-    }, [sessionId, selectedPath]);
+    }, [sessionId, selectedPath, selectPath]);
 
     function toggleFolder(path: string) {
         setCollapsedPaths((prev) => {
@@ -1621,8 +1635,10 @@ export function SessionCodeView({
         setDiscarding(true);
         try {
             await discardSessionDiffFile(sessionId, path);
+            // Drop any in-flight poll that may still carry a pre-discard file list.
+            diffFilesRequestIdRef.current += 1;
             const diff = await getSessionDiff(sessionId);
-            // Force the next poll comparison to accept this list even if timing races.
+            // Force apply even if the signature somehow matches the previous list.
             filesSignatureRef.current = '';
             applyDiffFiles(diff.files);
             setPendingDiscardPath(null);
