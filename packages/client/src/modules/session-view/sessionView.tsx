@@ -206,6 +206,18 @@ function isScrolledToBottom(term: Terminal): boolean {
     return buffer.viewportY >= buffer.baseY;
 }
 
+function isTerminalFocused(term: Terminal): boolean {
+    return Boolean(term.textarea) && document.activeElement === term.textarea;
+}
+
+/** Keep the harness/shell prompt and painted cursor in view. */
+function revealTerminalPrompt(term: Terminal): void {
+    term.scrollToBottom();
+    // Fit/background/keyboard resize can leave the cursor painted off the
+    // real cell until the renderer redraws.
+    term.refresh(0, Math.max(0, term.rows - 1));
+}
+
 /** Keep in sync with server PTY resize clamp in sessions/store.ts */
 const MAX_TERMINAL_COLS = 300;
 
@@ -559,7 +571,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
         socketRef.current = socket;
         setConnection('connecting');
 
-        // Stick to the live prompt after the user types, even if a write
+        // Stick to the live prompt after the user focuses/types, even if a write
         // started while they were scrolled up in history.
         let followOutput = isScrolledToBottom(term);
 
@@ -580,14 +592,45 @@ export function SessionView({ sessionId }: SessionViewProps) {
             followOutput = isScrolledToBottom(term);
         });
 
+        // Entering insert mode (tap / keybind) must reveal the harness input
+        // before the first keystroke — otherwise typed text stays off-screen.
+        let focusSettleTimers: number[] = [];
+        const onTerminalFocus = () => {
+            followOutput = true;
+            revealTerminalPrompt(term);
+            for (const timer of focusSettleTimers) {
+                window.clearTimeout(timer);
+            }
+            // Soft keyboard / visualViewport can settle after focus; re-stick.
+            focusSettleTimers = [50, 300].map((delay) =>
+                window.setTimeout(() => {
+                    if (!isTerminalFocused(term)) return;
+                    followOutput = true;
+                    syncTerminalLayout({
+                        host: terminalRef.current,
+                        term,
+                        fitAddon,
+                        socket,
+                        refresh: true,
+                        followOutput: true,
+                    });
+                }, delay),
+            );
+        };
+        term.textarea?.addEventListener('focus', onTerminalFocus);
+
         const onResize = () => {
             // Wait a frame so bindSessionViewport has applied visualViewport layout.
             requestAnimationFrame(() => {
+                if (isTerminalFocused(term)) {
+                    followOutput = true;
+                }
                 syncTerminalLayout({
                     host: terminalRef.current,
                     term,
                     fitAddon,
                     socket,
+                    refresh: isTerminalFocused(term),
                     followOutput,
                 });
             });
@@ -598,6 +641,9 @@ export function SessionView({ sessionId }: SessionViewProps) {
             // Wait for layout to settle after the browser restores the tab.
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
+                    if (isTerminalFocused(term)) {
+                        followOutput = true;
+                    }
                     syncTerminalLayout({
                         host: terminalRef.current,
                         term,
@@ -653,6 +699,10 @@ export function SessionView({ sessionId }: SessionViewProps) {
             visualViewport?.removeEventListener('resize', onResize);
             observer.disconnect();
             detachTouchScroll();
+            term.textarea?.removeEventListener('focus', onTerminalFocus);
+            for (const timer of focusSettleTimers) {
+                window.clearTimeout(timer);
+            }
             dataDisposable.dispose();
             scrollDisposable.dispose();
             socket.close();
@@ -716,13 +766,41 @@ export function SessionView({ sessionId }: SessionViewProps) {
             followOutput = isScrolledToBottom(term);
         });
 
+        let focusSettleTimers: number[] = [];
+        const onTerminalFocus = () => {
+            followOutput = true;
+            revealTerminalPrompt(term);
+            for (const timer of focusSettleTimers) {
+                window.clearTimeout(timer);
+            }
+            focusSettleTimers = [50, 300].map((delay) =>
+                window.setTimeout(() => {
+                    if (!isTerminalFocused(term)) return;
+                    followOutput = true;
+                    syncTerminalLayout({
+                        host: shellTerminalRef.current,
+                        term,
+                        fitAddon,
+                        socket,
+                        refresh: true,
+                        followOutput: true,
+                    });
+                }, delay),
+            );
+        };
+        term.textarea?.addEventListener('focus', onTerminalFocus);
+
         const onResize = () => {
             requestAnimationFrame(() => {
+                if (isTerminalFocused(term)) {
+                    followOutput = true;
+                }
                 syncTerminalLayout({
                     host: shellTerminalRef.current,
                     term,
                     fitAddon,
                     socket,
+                    refresh: isTerminalFocused(term),
                     followOutput,
                 });
             });
@@ -732,6 +810,9 @@ export function SessionView({ sessionId }: SessionViewProps) {
             if (document.visibilityState === 'hidden') return;
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
+                    if (isTerminalFocused(term)) {
+                        followOutput = true;
+                    }
                     syncTerminalLayout({
                         host: shellTerminalRef.current,
                         term,
@@ -782,6 +863,10 @@ export function SessionView({ sessionId }: SessionViewProps) {
             visualViewport?.removeEventListener('resize', onResize);
             observer.disconnect();
             detachTouchScroll();
+            term.textarea?.removeEventListener('focus', onTerminalFocus);
+            for (const timer of focusSettleTimers) {
+                window.clearTimeout(timer);
+            }
             dataDisposable.dispose();
             scrollDisposable.dispose();
             socket.close();
@@ -793,11 +878,17 @@ export function SessionView({ sessionId }: SessionViewProps) {
     }, [loading, failed, session, intl, shellVisited]);
 
     function focusTerminal() {
-        termRef.current?.focus();
+        const term = termRef.current;
+        if (!term) return;
+        revealTerminalPrompt(term);
+        term.focus();
     }
 
     function focusShellTerminal() {
-        shellTermRef.current?.focus();
+        const term = shellTermRef.current;
+        if (!term) return;
+        revealTerminalPrompt(term);
+        term.focus();
     }
 
     function applyPaste(text: string) {
@@ -952,12 +1043,14 @@ export function SessionView({ sessionId }: SessionViewProps) {
         if (!fitAddon || !term) return;
 
         requestAnimationFrame(() => {
+            const followOutput = isTerminalFocused(term) || isScrolledToBottom(term);
             syncTerminalLayout({
                 host: terminalRef.current,
                 term,
                 fitAddon,
                 socket: socketRef.current,
                 refresh: true,
+                followOutput,
             });
         });
     }, [tab, isDesktop, showDesktopReview, showDesktopShell, reviewPaneWidthPct, shellPaneHeightPct]);
@@ -977,12 +1070,14 @@ export function SessionView({ sessionId }: SessionViewProps) {
         if (!fitAddon || !term) return;
 
         requestAnimationFrame(() => {
+            const followOutput = isTerminalFocused(term) || isScrolledToBottom(term);
             syncTerminalLayout({
                 host: shellTerminalRef.current,
                 term,
                 fitAddon,
                 socket: shellSocketRef.current,
                 refresh: true,
+                followOutput,
             });
             if (becameVisible) {
                 term.focus();
