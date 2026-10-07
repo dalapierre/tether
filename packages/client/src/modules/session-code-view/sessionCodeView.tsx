@@ -423,10 +423,15 @@ function FileRow({
                 <span className={styles.fileStats}>
                     <span className={styles.additions}>
                         {intl.formatMessage(messages.additions, { count: file.additions })}
-                    </span>{' '}
-                    <span className={styles.deletions}>
-                        {intl.formatMessage(messages.deletions, { count: file.deletions })}
                     </span>
+                    {file.deletions > 0 ? (
+                        <>
+                            {' '}
+                            <span className={styles.deletions}>
+                                {intl.formatMessage(messages.deletions, { count: file.deletions })}
+                            </span>
+                        </>
+                    ) : null}
                 </span>
             ) : null}
         </button>
@@ -1027,10 +1032,14 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
         return () => element.removeEventListener('scroll', onScroll);
     }, [keybindsEnabled, showingMarkdownPreview, fileDiff, rememberScrollRatio]);
 
+    const isAddedFile = fileDiff?.status === 'added';
     const diffEditorOptions = useMemo(
         () => ({
             readOnly: true,
             renderSideBySide: isDesktop,
+            // Monaco clamps splitViewDefaultRatio to [0.1, 0.9]; use the floor so added
+            // files devote almost all width to the new content (original pane is empty).
+            splitViewDefaultRatio: isDesktop && isAddedFile ? 0.1 : 0.5,
             wordWrap: 'on' as const,
             wrappingIndent: 'same' as const,
             fontSize: isDesktop ? 13 : 11,
@@ -1057,7 +1066,7 @@ export function SessionCodeView({ sessionId, onHasFilesChange, keybindsEnabled =
             automaticLayout: true,
             originalEditable: false,
         }),
-        [isDesktop],
+        [isDesktop, isAddedFile],
     );
 
     // Keep the open file's contents fresh even when summary stats are unchanged.
