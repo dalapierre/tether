@@ -18,6 +18,7 @@ type Messages = {
     projectLabel: NoMessageValues;
     projectPlaceholder: NoMessageValues;
     projectsEmpty: NoMessageValues;
+    projectNoResults: NoMessageValues;
     branchLabel: NoMessageValues;
     branchPlaceholder: NoMessageValues;
     start: NoMessageValues;
@@ -89,11 +90,15 @@ export const messages = defineMessages<Messages>(
         },
         projectPlaceholder: {
             id: 'newSession.projectPlaceholder',
-            defaultMessage: 'Select a repository',
+            defaultMessage: 'Search repositories…',
         },
         projectsEmpty: {
             id: 'newSession.projectsEmpty',
             defaultMessage: 'No repositories available. Add one in Settings.',
+        },
+        projectNoResults: {
+            id: 'newSession.projectNoResults',
+            defaultMessage: 'No matching repositories.',
         },
         branchLabel: {
             id: 'newSession.branchLabel',

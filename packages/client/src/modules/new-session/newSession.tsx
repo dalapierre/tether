@@ -110,6 +110,11 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
         [profiles],
     );
 
+    const repositoryOptions = useMemo(
+        () => repositories.map((repository) => ({ value: repository.id, label: repository.name })),
+        [repositories],
+    );
+
     const branchOptions = useMemo(
         () => branches.map((branchName) => ({ value: branchName, label: branchName })),
         [branches],
@@ -245,31 +250,22 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                                     />
                                 </div>
 
-                                <label className={styles.label}>
-                                    {intl.formatMessage(messages.projectLabel)}
-                                    <select
-                                        className={styles.select}
-                                        value={repositoryId}
-                                        disabled={starting || repositories.length === 0}
-                                        onChange={(event) => {
-                                            setRepositoryId(event.target.value);
+                                <div>
+                                    <p className={styles.label}>{intl.formatMessage(messages.projectLabel)}</p>
+                                    <SearchSelect
+                                        options={repositoryOptions}
+                                        value={repositoryId || null}
+                                        onSelect={(option) => {
+                                            setRepositoryId(option.value);
                                             setBranch('');
                                         }}
-                                    >
-                                        <option value='' disabled>
-                                            {intl.formatMessage(
-                                                repositories.length === 0
-                                                    ? messages.projectsEmpty
-                                                    : messages.projectPlaceholder,
-                                            )}
-                                        </option>
-                                        {repositories.map((repository) => (
-                                            <option key={repository.id} value={repository.id}>
-                                                {repository.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </label>
+                                        placeholder={intl.formatMessage(messages.projectPlaceholder)}
+                                        emptyMessage={intl.formatMessage(messages.projectsEmpty)}
+                                        noResultsMessage={intl.formatMessage(messages.projectNoResults)}
+                                        disabled={starting}
+                                        ariaLabel={intl.formatMessage(messages.projectLabel)}
+                                    />
+                                </div>
 
                                 {usesWorktrees ? (
                                     <div>
