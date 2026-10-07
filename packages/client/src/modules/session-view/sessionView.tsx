@@ -16,7 +16,13 @@ import {
 } from '@client/libs/api/sessions';
 import { bindSessionViewport } from '@client/libs/dom/bindSessionViewport';
 import { useIsDesktop } from '@client/libs/dom/useMediaQuery';
-import { useKeybind, useKeybindChord, useKeybinds, withSuperModifier } from '@client/libs/keybinds';
+import {
+    isTerminalInsertTarget,
+    useKeybind,
+    useKeybindChord,
+    useKeybinds,
+    withSuperModifier,
+} from '@client/libs/keybinds';
 import {
     clampReviewPaneWidthPct,
     clampShellPaneHeightPct,
@@ -38,7 +44,7 @@ import { showToast } from '@client/modules/toast';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
-import { Suspense, lazy, useCallback, useEffect, useRef, useState, type ClipboardEvent } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useRef, useState, type ClipboardEvent } from 'react';
 import { useIntl } from 'react-intl';
 import { useNavigate } from 'react-router-dom';
 import { messages } from './sessionView.messages';
@@ -273,6 +279,9 @@ export function SessionView({ sessionId }: SessionViewProps) {
     const shellFitAddonRef = useRef<FitAddon | null>(null);
     const sendInputRef = useRef<(data: string) => void>(() => {});
     const pasteInputRef = useRef<HTMLTextAreaElement | null>(null);
+    const reviewPaneRef = useRef<HTMLDivElement | null>(null);
+    const prevShellPaneVisibleRef = useRef(false);
+    const prevReviewPaneVisibleRef = useRef(false);
 
     const onHasFilesChange = useCallback((hasFiles: boolean) => {
         setHasReviewFiles(hasFiles);
@@ -295,7 +304,19 @@ export function SessionView({ sessionId }: SessionViewProps) {
         setShellPaneHeightPct(shellPaneHeightPctRef.current);
     }, []);
 
+    function blurFocusInsideReview() {
+        const active = document.activeElement;
+        if (active instanceof HTMLElement && reviewPaneRef.current?.contains(active)) {
+            active.blur();
+        }
+    }
+
     function toggleDesktopReview() {
+        if (desktopReviewOpen) {
+            // Blur before the pane is display:none'd so the browser doesn't
+            // move focus onto an xterm helper textarea (insert mode).
+            blurFocusInsideReview();
+        }
         setDesktopReviewOpen((open) => {
             const next = !open;
             setReviewPanelOpen(sessionId, next);
@@ -337,6 +358,9 @@ export function SessionView({ sessionId }: SessionViewProps) {
             if (isDesktop) {
                 toggleDesktopReview();
                 return;
+            }
+            if (tab === 'review') {
+                blurFocusInsideReview();
             }
             setTab((current) => {
                 if (current === 'review') return 'agent';
@@ -906,6 +930,11 @@ export function SessionView({ sessionId }: SessionViewProps) {
     }, [tab, isDesktop, showDesktopReview, showDesktopShell, reviewPaneWidthPct, shellPaneHeightPct]);
 
     useEffect(() => {
+        // Focus only when the shell pane becomes visible — not on every layout
+        // sync (e.g. review panel toggle / resize), which would steal focus into insert mode.
+        const becameVisible = shellPaneVisible && !prevShellPaneVisibleRef.current;
+        prevShellPaneVisibleRef.current = shellPaneVisible;
+
         if (!shellVisited) return;
         if (!isDesktop && tab !== 'terminal') return;
         if (isDesktop && !desktopShellOpen) return;
@@ -922,11 +951,22 @@ export function SessionView({ sessionId }: SessionViewProps) {
                 socket: shellSocketRef.current,
                 refresh: true,
             });
-            if (shellPaneVisible) {
+            if (becameVisible) {
                 term.focus();
             }
         });
     }, [tab, isDesktop, desktopShellOpen, shellVisited, shellPaneVisible, shellPaneHeightPct, showDesktopReview]);
+
+    // If focus was inside the review pane when it hid, the browser may move it
+    // onto a nearby xterm textarea. Undo that so closing review doesn't enter insert mode.
+    useLayoutEffect(() => {
+        const wasVisible = prevReviewPaneVisibleRef.current;
+        prevReviewPaneVisibleRef.current = reviewPaneVisible;
+        if (!wasVisible || reviewPaneVisible) return;
+        if (isTerminalInsertTarget(document.activeElement)) {
+            (document.activeElement as HTMLElement).blur();
+        }
+    }, [reviewPaneVisible]);
 
     if (loading) {
         return (
@@ -1094,6 +1134,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                     </div>
                     {session.type === 'coding' && reviewVisited ? (
                         <div
+                            ref={reviewPaneRef}
                             className={reviewPaneVisible ? styles.paneReview : styles.paneInactive}
                             aria-hidden={!reviewPaneVisible}
                         >
