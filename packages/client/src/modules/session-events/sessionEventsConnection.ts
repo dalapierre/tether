@@ -59,12 +59,6 @@ function maybeToastStatusChange(
     }
 }
 
-function clearReconnectTimer() {
-    if (reconnectTimer === null) return;
-    clearTimeout(reconnectTimer);
-    reconnectTimer = null;
-}
-
 function scheduleReconnect() {
     if (intentionalClose || reconnectTimer !== null) return;
     reconnectTimer = setTimeout(() => {
