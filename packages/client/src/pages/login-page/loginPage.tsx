@@ -1,3 +1,4 @@
+import logoLight from '@client/assets/logo_light.svg';
 import { login } from '@client/libs/api/auth';
 import { ApiError } from '@client/libs/api/client';
 import { isAuthenticated } from '@client/libs/auth/session';
@@ -44,7 +45,9 @@ export function LoginPage() {
     return (
         <main className={styles.main}>
             <div className={styles.panel}>
-                <h1 className={styles.title}>{intl.formatMessage(messages.title)}</h1>
+                <h1 className={styles.title}>
+                    <img className={styles.logo} src={logoLight} alt={intl.formatMessage(messages.title)} />
+                </h1>
                 <form className={styles.form} onSubmit={onSubmit}>
                     <label className={styles.label}>
                         {intl.formatMessage(messages.accessKeyLabel)}

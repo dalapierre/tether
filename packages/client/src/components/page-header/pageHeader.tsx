@@ -1,3 +1,4 @@
+import logoLight from '@client/assets/logo_light.svg';
 import { IconButton } from '@client/components/icon-button';
 import { useSettings } from '@client/modules/settings/settingsContext';
 import { Fragment } from 'react';
@@ -49,16 +50,16 @@ export function PageHeader({ crumbs = [], actions, showSettings = true, onBack }
     return (
         <header className={styles.header}>
             <div className={styles.start}>
+                <Link to='/' className={styles.logoLink} aria-label={intl.formatMessage(messages.home)}>
+                    <img className={styles.logo} src={logoLight} alt='' />
+                </Link>
                 {onBack ? (
                     <IconButton label={intl.formatMessage(messages.back)} onClick={onBack}>
                         <BackIcon />
                     </IconButton>
                 ) : null}
                 {crumbs.length > 0 ? (
-                    <nav
-                        className={`${styles.crumbs}${onBack ? '' : ` ${styles.crumbsInset}`}`}
-                        aria-label={intl.formatMessage(messages.breadcrumb)}
-                    >
+                    <nav className={styles.crumbs} aria-label={intl.formatMessage(messages.breadcrumb)}>
                         {crumbs.map((crumb, index) => {
                             const isLast = index === crumbs.length - 1;
                             const key = `${crumb.label}-${index}`;
