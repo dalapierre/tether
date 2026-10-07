@@ -1,6 +1,6 @@
 export const styles = {
-    root: 'flex w-full items-center gap-2 text-left disabled:opacity-60',
-    text: 'min-w-0 flex flex-col gap-0.5',
+    root: 'flex w-full items-center justify-between gap-3 text-left disabled:opacity-60',
+    text: 'min-w-0 flex flex-1 flex-col gap-0.5',
     label: 'text-sm text-zinc-400',
     description: 'text-xs text-zinc-500',
     track: 'relative h-7 w-12 shrink-0 rounded-full transition-colors',
