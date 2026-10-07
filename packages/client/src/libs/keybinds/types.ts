@@ -24,7 +24,8 @@ export type SessionKeybindAction =
     | 'scrollFileUp'
     | 'scrollFileDown'
     | 'scrollSpeedModifier'
-    | 'toggleMarkdownPreview';
+    | 'toggleMarkdownPreview'
+    | 'markFileReviewed';
 
 export type KeybindActionForCategory = {
     home: HomeKeybindAction;
@@ -64,6 +65,7 @@ export const SESSION_KEYBIND_ACTIONS: readonly SessionKeybindAction[] = [
     'scrollFileDown',
     'scrollSpeedModifier',
     'toggleMarkdownPreview',
+    'markFileReviewed',
 ];
 
 export const KEYBIND_ACTIONS_BY_CATEGORY = {
@@ -96,6 +98,7 @@ export const DEFAULT_KEYBINDS: Keybinds = {
         scrollFileDown: 'arrowdown',
         scrollSpeedModifier: 'shift',
         toggleMarkdownPreview: 'm',
+        markFileReviewed: 'r',
     },
 };
 

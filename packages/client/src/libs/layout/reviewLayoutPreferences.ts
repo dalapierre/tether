@@ -24,6 +24,8 @@ const LEGACY_REVIEW_PANEL_OPEN_BY_SESSION_KEY = 'tether.layout.reviewPanelOpenBy
 const REVIEW_PANEL_OPEN_SUFFIX = 'reviewPanelOpen';
 /** Stores path + scroll; value may be a legacy plain path string. */
 const SELECTED_DIFF_FILE_SUFFIX = 'selectedDiffPath';
+/** path → fingerprint at the time the file was marked reviewed. */
+const REVIEWED_DIFF_FILES_SUFFIX = 'reviewedDiffFiles';
 
 type ReviewPanelOpenBySession = Record<string, boolean>;
 
@@ -272,4 +274,38 @@ export function setSelectedDiffFileState(sessionId: string, state: SelectedDiffF
             scrollRatio: clampScrollRatio(state.scrollRatio),
         }),
     );
+}
+
+function parseReviewedDiffFiles(raw: string): Map<string, string> {
+    try {
+        const parsed = JSON.parse(raw) as unknown;
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            return new Map();
+        }
+        const next = new Map<string, string>();
+        for (const [path, fingerprint] of Object.entries(parsed as Record<string, unknown>)) {
+            if (typeof path === 'string' && path.trim() && typeof fingerprint === 'string') {
+                next.set(path, fingerprint);
+            }
+        }
+        return next;
+    } catch {
+        return new Map();
+    }
+}
+
+export function getReviewedDiffFiles(sessionId: string): Map<string, string> {
+    const raw = getSessionLocalStorageItem(sessionId, REVIEWED_DIFF_FILES_SUFFIX);
+    if (raw === null) {
+        return new Map();
+    }
+    return parseReviewedDiffFiles(raw);
+}
+
+export function setReviewedDiffFiles(sessionId: string, reviewed: ReadonlyMap<string, string>): void {
+    if (reviewed.size === 0) {
+        removeSessionLocalStorageItem(sessionId, REVIEWED_DIFF_FILES_SUFFIX);
+        return;
+    }
+    setSessionLocalStorageItem(sessionId, REVIEWED_DIFF_FILES_SUFFIX, JSON.stringify(Object.fromEntries(reviewed)));
 }

@@ -20,9 +20,11 @@ import {
 import {
     clampFileTreeWidthPx,
     getFileTreeWidthPx,
+    getReviewedDiffFiles,
     getSelectedDiffFileState,
     getSelectedDiffPath,
     setFileTreeWidthPx,
+    setReviewedDiffFiles,
     setSelectedDiffFileState,
 } from '@client/libs/layout/reviewLayoutPreferences';
 import { setupMonaco, TETHER_DIFF_THEME } from '@client/libs/monaco/setup';
@@ -320,13 +322,16 @@ function applyScrollRatio(
     }
 }
 
+function fileFingerprint(file: SessionDiffFile): string {
+    return `${file.oldPath ?? ''}\0${file.status}\0${file.additions}\0${file.deletions}\0${file.binary}`;
+}
+
 function fileListSignature(files: SessionDiffFile[]): string {
-    return files
-        .map(
-            (file) =>
-                `${file.path}\0${file.oldPath ?? ''}\0${file.status}\0${file.additions}\0${file.deletions}\0${file.binary}`,
-        )
-        .join('\n');
+    return files.map((file) => `${file.path}\0${fileFingerprint(file)}`).join('\n');
+}
+
+function fileContentFingerprint(file: SessionFileDiff): string {
+    return `${file.status}\0${file.original}\0${file.modified}\0${file.binary}`;
 }
 
 function statusClass(status: DiffFileStatus): string {
@@ -451,6 +456,25 @@ function CollapseAllFoldersIcon() {
     );
 }
 
+function ResetReviewsIcon() {
+    return (
+        <svg
+            className={styles.resetReviewsIcon}
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='1.75'
+            aria-hidden='true'
+        >
+            <path
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                d='M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182'
+            />
+        </svg>
+    );
+}
+
 function collectDirPaths(nodes: FileTreeNode[]): string[] {
     const paths: string[] = [];
     for (const node of nodes) {
@@ -515,6 +539,7 @@ function FileRow({
     name,
     depth,
     selected,
+    reviewed,
     onSelect,
     onDiscard,
 }: {
@@ -522,15 +547,23 @@ function FileRow({
     name: string;
     depth: number;
     selected: boolean;
+    reviewed: boolean;
     onSelect: (path: string) => void;
     onDiscard: (path: string) => void;
 }) {
     const intl = useIntl();
     const discardLabel = intl.formatMessage(messages.discardChange);
+    const rowTone = reviewed
+        ? selected
+            ? styles.treeRowSelectedReviewed
+            : styles.treeRowReviewed
+        : selected
+          ? styles.treeRowSelected
+          : '';
 
     return (
         <div
-            className={`${styles.treeRow} ${styles.fileRow}${selected ? ` ${styles.treeRowSelected}` : ''}`}
+            className={`${styles.treeRow} ${styles.fileRow}${rowTone ? ` ${rowTone}` : ''}`}
             style={{ paddingLeft: TREE_BASE_PAD_PX + depth * TREE_INDENT_PX }}
         >
             <button
@@ -591,6 +624,7 @@ function FileTree({
     nodes,
     depth,
     selectedPath,
+    reviewedPaths,
     collapsedPaths,
     onToggle,
     onSelect,
@@ -599,6 +633,7 @@ function FileTree({
     nodes: FileTreeNode[];
     depth: number;
     selectedPath: string | null;
+    reviewedPaths: ReadonlyMap<string, string>;
     collapsedPaths: Set<string>;
     onToggle: (path: string) => void;
     onSelect: (path: string) => void;
@@ -615,6 +650,7 @@ function FileTree({
                             name={node.name}
                             depth={depth}
                             selected={selectedPath === node.file.path}
+                            reviewed={reviewedPaths.has(node.file.path)}
                             onSelect={onSelect}
                             onDiscard={onDiscard}
                         />
@@ -630,6 +666,7 @@ function FileTree({
                                 nodes={node.children}
                                 depth={depth + 1}
                                 selectedPath={selectedPath}
+                                reviewedPaths={reviewedPaths}
                                 collapsedPaths={collapsedPaths}
                                 onToggle={onToggle}
                                 onSelect={onSelect}
@@ -658,6 +695,9 @@ export function SessionCodeView({
     const [fileDiff, setFileDiff] = useState<SessionFileDiff | null>(null);
     const [fileLoading, setFileLoading] = useState(false);
     const [collapsedPaths, setCollapsedPaths] = useState<Set<string>>(() => new Set());
+    const [reviewedFingerprints, setReviewedFingerprints] = useState<Map<string, string>>(() =>
+        getReviewedDiffFiles(sessionId),
+    );
     const [fileTreeWidth, setFileTreeWidth] = useState(getFileTreeWidthPx);
     const [pendingDiscardPath, setPendingDiscardPath] = useState<string | null>(null);
     const [discarding, setDiscarding] = useState(false);
@@ -685,6 +725,7 @@ export function SessionCodeView({
     const selectedPathRef = useRef(selectedPath);
     selectedPathRef.current = selectedPath;
     const filesSignatureRef = useRef(fileListSignature(files));
+    const fileContentFingerprintRef = useRef<string | null>(null);
 
     const persistFileTreeWidth = useCallback(() => {
         setFileTreeWidthPx(fileTreeWidthRef.current);
@@ -697,7 +738,22 @@ export function SessionCodeView({
 
     useEffect(() => {
         setSelectedPath(getSelectedDiffPath(sessionId));
+        setReviewedFingerprints(getReviewedDiffFiles(sessionId));
     }, [sessionId]);
+
+    const updateReviewedFingerprints = useCallback(
+        (updater: (prev: Map<string, string>) => Map<string, string>) => {
+            setReviewedFingerprints((prev) => {
+                const next = updater(prev);
+                if (next === prev) {
+                    return prev;
+                }
+                setReviewedDiffFiles(sessionId, next);
+                return next;
+            });
+        },
+        [sessionId],
+    );
 
     const selectPath = useCallback(
         (path: string | null) => {
@@ -765,13 +821,28 @@ export function SessionCodeView({
             }
             filesSignatureRef.current = nextSignature;
             setFiles(nextFiles);
+            const nextByPath = new Map(nextFiles.map((file) => [file.path, file]));
+            updateReviewedFingerprints((prev) => {
+                if (prev.size === 0) return prev;
+                let changed = false;
+                const next = new Map<string, string>();
+                for (const [path, fingerprint] of prev) {
+                    const file = nextByPath.get(path);
+                    if (!file || fileFingerprint(file) !== fingerprint) {
+                        changed = true;
+                        continue;
+                    }
+                    next.set(path, fingerprint);
+                }
+                return changed ? next : prev;
+            });
             const selected = selectedPathRef.current;
-            if (selected && !nextFiles.some((file) => file.path === selected)) {
+            if (selected && !nextByPath.has(selected)) {
                 selectPath(null);
             }
             return true;
         },
-        [selectPath],
+        [selectPath, updateReviewedFingerprints],
     );
 
     useEffect(() => {
@@ -1090,6 +1161,23 @@ export function SessionCodeView({
         setPendingDiscardPath(path);
     }, []);
 
+    const toggleReviewed = useCallback(
+        (path: string) => {
+            const file = files.find((entry) => entry.path === path);
+            if (!file) return;
+            updateReviewedFingerprints((prev) => {
+                const next = new Map(prev);
+                if (next.has(path)) {
+                    next.delete(path);
+                } else {
+                    next.set(path, fileFingerprint(file));
+                }
+                return next;
+            });
+        },
+        [files, updateReviewedFingerprints],
+    );
+
     useKeybind('session', 'nextFile', () => selectAdjacentFile(1), {
         enabled: keybindsEnabled && files.length > 0,
     });
@@ -1112,6 +1200,14 @@ export function SessionCodeView({
             handleMarkdownViewModeChange(markdownViewMode === 'code' ? 'preview' : 'code');
         },
         { enabled: keybindsEnabled && Boolean(selectedPath) && isMarkdownPath(selectedPath) },
+    );
+    useKeybind(
+        'session',
+        'markFileReviewed',
+        () => {
+            if (selectedPath) toggleReviewed(selectedPath);
+        },
+        { enabled: keybindsEnabled && Boolean(selectedPath) },
     );
     useKeybind('session', 'commentSelection', openCommentDialog, {
         enabled: keybindsEnabled && Boolean(selectionComment) && !pendingComment,
@@ -1315,6 +1411,31 @@ export function SessionCodeView({
         [isDesktop, isAddedFile],
     );
 
+    // Reset content fingerprint when the selected path changes so a stale fileDiff
+    // from the previous file cannot clear the new file's reviewed state.
+    useEffect(() => {
+        fileContentFingerprintRef.current = null;
+    }, [selectedPath]);
+
+    // Clear reviewed when the open file's contents change after it was marked.
+    useEffect(() => {
+        if (!fileDiff || fileDiff.path !== selectedPathRef.current) {
+            return;
+        }
+        const nextFingerprint = fileContentFingerprint(fileDiff);
+        const prevFingerprint = fileContentFingerprintRef.current;
+        if (prevFingerprint !== null && prevFingerprint !== nextFingerprint) {
+            const path = fileDiff.path;
+            updateReviewedFingerprints((reviewed) => {
+                if (!reviewed.has(path)) return reviewed;
+                const next = new Map(reviewed);
+                next.delete(path);
+                return next;
+            });
+        }
+        fileContentFingerprintRef.current = nextFingerprint;
+    }, [fileDiff, updateReviewedFingerprints]);
+
     // Keep the open file's contents fresh even when summary stats are unchanged.
     useEffect(() => {
         if (!selectedPath) return;
@@ -1362,6 +1483,10 @@ export function SessionCodeView({
 
     function collapseAllFolders() {
         setCollapsedPaths(new Set(dirPaths));
+    }
+
+    function resetReviews() {
+        updateReviewedFingerprints((prev) => (prev.size === 0 ? prev : new Map()));
     }
 
     async function confirmDiscard() {
@@ -1420,6 +1545,17 @@ export function SessionCodeView({
                                 ? intl.formatMessage(messages.filesChanged, { count: files.length })
                                 : intl.formatMessage(messages.filesChangedTitle)}
                         </p>
+                        {reviewedFingerprints.size > 0 ? (
+                            <button
+                                type='button'
+                                className={styles.collapseAllButton}
+                                title={intl.formatMessage(messages.resetReviews)}
+                                aria-label={intl.formatMessage(messages.resetReviews)}
+                                onClick={resetReviews}
+                            >
+                                <ResetReviewsIcon />
+                            </button>
+                        ) : null}
                         {dirPaths.length > 0 ? (
                             <button
                                 type='button'
@@ -1442,6 +1578,7 @@ export function SessionCodeView({
                                 nodes={tree}
                                 depth={0}
                                 selectedPath={selectedPath}
+                                reviewedPaths={reviewedFingerprints}
                                 collapsedPaths={collapsedPaths}
                                 onToggle={toggleFolder}
                                 onSelect={selectPath}
@@ -1500,6 +1637,15 @@ export function SessionCodeView({
                                     )}
                                 </button>
                             ) : null}
+                            <label className={styles.reviewedToggle}>
+                                <input
+                                    type='checkbox'
+                                    className={styles.reviewedCheckbox}
+                                    checked={reviewedFingerprints.has(selectedPath)}
+                                    onChange={() => toggleReviewed(selectedPath)}
+                                />
+                                {intl.formatMessage(messages.reviewed)}
+                            </label>
                         </div>
                         {fileLoading || !fileDiff ? (
                             <Spinner label={loadingLabel} />

@@ -27,6 +27,7 @@ export type SessionKeybinds = {
     scrollFileDown: string;
     scrollSpeedModifier: string;
     toggleMarkdownPreview: string;
+    markFileReviewed: string;
 };
 
 export type Keybinds = {
@@ -58,6 +59,7 @@ const SESSION_ACTIONS = [
     'scrollFileDown',
     'scrollSpeedModifier',
     'toggleMarkdownPreview',
+    'markFileReviewed',
 ] as const;
 
 export const DEFAULT_KEYBINDS: Keybinds = {
@@ -85,6 +87,7 @@ export const DEFAULT_KEYBINDS: Keybinds = {
         scrollFileDown: 'arrowdown',
         scrollSpeedModifier: 'shift',
         toggleMarkdownPreview: 'm',
+        markFileReviewed: 'r',
     },
 };
 

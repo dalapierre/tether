@@ -59,6 +59,7 @@ type Messages = {
     keybindScrollFileDown: NoMessageValues;
     keybindScrollSpeedModifier: NoMessageValues;
     keybindToggleMarkdownPreview: NoMessageValues;
+    keybindMarkFileReviewed: NoMessageValues;
     devDirLabel: NoMessageValues;
     devDirPlaceholder: NoMessageValues;
     devDirHint: NoMessageValues;
@@ -335,6 +336,10 @@ export const messages = defineMessages<Messages>(
         keybindToggleMarkdownPreview: {
             id: 'settings.keybindToggleMarkdownPreview',
             defaultMessage: 'Toggle markdown preview',
+        },
+        keybindMarkFileReviewed: {
+            id: 'settings.keybindMarkFileReviewed',
+            defaultMessage: 'Mark file as reviewed',
         },
         devDirLabel: {
             id: 'settings.devDirLabel',

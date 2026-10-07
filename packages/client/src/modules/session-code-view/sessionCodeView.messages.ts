@@ -20,12 +20,14 @@ type Messages = {
     expandFolder: { name: string };
     collapseFolder: { name: string };
     collapseAllFolders: NoMessageValues;
+    resetReviews: NoMessageValues;
     discardChange: NoMessageValues;
     discardConfirm: { path: string };
     discardConfirmCancel: NoMessageValues;
     discardConfirmContinue: NoMessageValues;
     discardFailed: NoMessageValues;
     commentSelection: NoMessageValues;
+    reviewed: NoMessageValues;
 };
 
 export const messages = defineMessages<Messages>(
@@ -106,6 +108,10 @@ export const messages = defineMessages<Messages>(
             id: 'sessionCodeView.collapseAllFolders',
             defaultMessage: 'Collapse all folders',
         },
+        resetReviews: {
+            id: 'sessionCodeView.resetReviews',
+            defaultMessage: 'Reset reviews',
+        },
         discardChange: {
             id: 'sessionCodeView.discardChange',
             defaultMessage: 'Discard changes',
@@ -129,6 +135,10 @@ export const messages = defineMessages<Messages>(
         commentSelection: {
             id: 'sessionCodeView.commentSelection',
             defaultMessage: 'Add comment',
+        },
+        reviewed: {
+            id: 'sessionCodeView.reviewed',
+            defaultMessage: 'Reviewed',
         },
     },
     { typed: true },

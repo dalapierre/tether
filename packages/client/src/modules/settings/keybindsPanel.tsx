@@ -79,6 +79,8 @@ function actionLabel(
                     return formatMessage(messages.keybindScrollSpeedModifier);
                 case 'toggleMarkdownPreview':
                     return formatMessage(messages.keybindToggleMarkdownPreview);
+                case 'markFileReviewed':
+                    return formatMessage(messages.keybindMarkFileReviewed);
             }
             break;
     }

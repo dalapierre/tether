@@ -14,11 +14,14 @@ export const styles = {
     collapseAllButton:
         'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors active:bg-zinc-800 active:text-zinc-100 md:hover:bg-zinc-800/80 md:hover:text-zinc-100',
     collapseAllIcon: 'h-3.5 w-3.5',
+    resetReviewsIcon: 'h-3.5 w-3.5',
     centered: 'flex flex-1 items-center justify-center px-4 text-sm text-zinc-500',
     fileList: 'code-review-scroll min-h-0 flex-1 overflow-y-auto',
     treeRow:
         'group flex w-full items-center gap-2 border-b border-zinc-900/80 py-2 pr-3 text-left md:hover:bg-zinc-900/80',
-    treeRowSelected: 'bg-zinc-900/80',
+    treeRowSelected: 'bg-zinc-700/70',
+    treeRowReviewed: 'bg-emerald-950',
+    treeRowSelectedReviewed: 'bg-emerald-800/60',
     dirButton: 'text-zinc-300 active:bg-zinc-900/80',
     fileRow: 'text-zinc-100',
     fileSelect: 'flex min-w-0 flex-1 items-center gap-2 text-left active:bg-transparent md:hover:bg-transparent',
@@ -51,6 +54,9 @@ export const styles = {
     fileHeaderMode:
         'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors active:bg-zinc-800 active:text-zinc-100 md:hover:bg-zinc-800/80 md:hover:text-zinc-100',
     fileHeaderModeIcon: 'h-4 w-4',
+    reviewedToggle:
+        'inline-flex shrink-0 cursor-pointer items-center gap-1.5 select-none text-xs text-zinc-400 transition-colors md:hover:text-zinc-200',
+    reviewedCheckbox: 'h-3.5 w-3.5 accent-emerald-500',
     markdownViewPane: 'flex min-h-0 flex-1 flex-col',
     markdownViewHidden: 'hidden',
     editorWrap: 'relative min-h-0 flex-1',
