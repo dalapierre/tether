@@ -1263,7 +1263,13 @@ export function SessionView({ sessionId }: SessionViewProps) {
                             displaySession.defaultBranch ? (
                                 <>
                                     {' · '}
-                                    <span className={styles.metaBehind}>
+                                    <span
+                                        className={
+                                            displaySession.behindDefault >= 20
+                                                ? styles.metaBehindDanger
+                                                : styles.metaBehindWarning
+                                        }
+                                    >
                                         {intl.formatMessage(messages.branchBehindDefault, {
                                             count: displaySession.behindDefault,
                                             defaultBranch: displaySession.defaultBranch,
