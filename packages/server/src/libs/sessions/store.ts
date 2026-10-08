@@ -328,11 +328,11 @@ async function behindForSession(
         return { behindDefault: null, defaultBranch: null };
     }
 
-    // Prefer the live remote default tip over a stale local checkout / remote-tracking cache.
+    // Never block list/snapshot on `git fetch` (can take many seconds / up to 60s).
+    // Return behind from local remote-tracking refs and refresh in the background;
+    // branch events push updated counts when origin's default tip moves.
     const fetchState = await getRemoteFetchState(session.worktreePath);
-    if (fetchState === 'unknown') {
-        await fetchRemoteDefault(session.worktreePath);
-    } else if (fetchState === 'stale') {
+    if (fetchState !== 'fresh') {
         void refreshSessionBehindFromRemote(session);
     }
 
@@ -496,8 +496,11 @@ async function startWatchingHead(session: RuntimeSession): Promise<void> {
     }
 }
 
-async function toPublic(session: RuntimeSession): Promise<Session> {
-    await syncSessionBranch(session, { broadcast: true });
+async function toPublic(session: RuntimeSession, options: { syncBranch?: boolean } = {}): Promise<Session> {
+    // List/snapshot should stay cheap: branch is kept current by restore + HEAD watchers.
+    if (options.syncBranch !== false) {
+        await syncSessionBranch(session, { broadcast: true });
+    }
 
     const { behindDefault, defaultBranch } = await behindForSession(session);
 
@@ -1043,7 +1046,8 @@ export async function listSessions(repositoryId?: string): Promise<Session[]> {
     const items = [...sessions.values()]
         .filter((session) => !repositoryId || session.repositoryId === repositoryId)
         .sort((a, b) => b.createdAt - a.createdAt);
-    return Promise.all(items.map((session) => toPublic(session)));
+    // Basic session info only — no per-session branch sync (watchers own that).
+    return Promise.all(items.map((session) => toPublic(session, { syncBranch: false })));
 }
 
 export function hasSession(id: string): boolean {
