@@ -1,4 +1,5 @@
 import { verifyAccessToken } from '@server/libs/authTokens.js';
+import { logger, sanitizeUrl } from '@server/libs/logger.js';
 import {
     attachSessionEvents,
     attachSessionShell,
@@ -16,8 +17,10 @@ export function attachTerminalServer(server: HttpServer): void {
     const wss = new WebSocketServer({ noServer: true });
 
     server.on('upgrade', (request, socket, head) => {
-        const url = new URL(request.url ?? '', 'http://localhost');
+        const rawUrl = request.url ?? '';
+        const url = new URL(rawUrl, 'http://localhost');
         const pathname = url.pathname;
+        const loggedUrl = sanitizeUrl(rawUrl);
         const terminalMatch = TERMINAL_PATH.exec(pathname);
         const shellMatch = SHELL_PATH.exec(pathname);
         const isEvents = pathname === EVENTS_PATH;
@@ -27,8 +30,11 @@ export function attachTerminalServer(server: HttpServer): void {
             return;
         }
 
+        logger.info(`WS ${loggedUrl}`);
+
         const token = url.searchParams.get('token') ?? '';
         if (!token || !verifyAccessToken(token)) {
+            logger.warn(`WS ${loggedUrl} → 403`);
             socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
             socket.destroy();
             return;
@@ -36,6 +42,7 @@ export function attachTerminalServer(server: HttpServer): void {
 
         if (isEvents) {
             wss.handleUpgrade(request, socket, head, (ws) => {
+                logger.info(`WS ${pathname} → connected`);
                 attachSessionEvents(ws);
             });
             return;
@@ -43,6 +50,7 @@ export function attachTerminalServer(server: HttpServer): void {
 
         const sessionId = terminalMatch?.[1] ?? shellMatch?.[1];
         if (!sessionId || !hasSession(sessionId)) {
+            logger.warn(`WS ${loggedUrl} → 404`);
             socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
             socket.destroy();
             return;
@@ -52,8 +60,11 @@ export function attachTerminalServer(server: HttpServer): void {
         wss.handleUpgrade(request, socket, head, (ws) => {
             const attached = isShell ? attachSessionShell(sessionId, ws) : attachSessionTerminal(sessionId, ws);
             if (!attached) {
+                logger.warn(`WS ${pathname} → failed to attach`);
                 ws.close();
+                return;
             }
+            logger.info(`WS ${pathname} → connected`);
         });
     });
 }

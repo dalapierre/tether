@@ -1,6 +1,7 @@
 import { logger } from '@server/libs/logger.js';
 import { restoreSessions } from '@server/libs/sessions/store.js';
 import { attachTerminalServer } from '@server/libs/sessions/terminalServer.js';
+import { requestLogger } from '@server/middleware/requestLogger.js';
 import { requireAuth } from '@server/middleware/requireAuth.js';
 import { agentsRouter } from '@server/routes/agents.js';
 import { authRouter } from '@server/routes/auth.js';
@@ -28,6 +29,7 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use(requestLogger);
 
 app.use('/api/auth', authRouter);
 

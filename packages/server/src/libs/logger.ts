@@ -4,6 +4,19 @@ const RESET = '\x1b[0m';
 const YELLOW = '\x1b[33m';
 const RED = '\x1b[31m';
 
+/** Strip secrets from query strings before logging. */
+export function sanitizeUrl(url: string): string {
+    try {
+        const parsed = new URL(url, 'http://localhost');
+        if (parsed.searchParams.has('token')) {
+            parsed.searchParams.set('token', '[redacted]');
+        }
+        return `${parsed.pathname}${parsed.search}`;
+    } catch {
+        return url;
+    }
+}
+
 function timestamp(): string {
     return new Date().toISOString();
 }
