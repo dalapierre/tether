@@ -249,13 +249,12 @@ export async function getRemoteFetchState(repoPath: string): Promise<'fresh' | '
  * Refresh origin's remote-tracking refs (and origin/HEAD) so behind counts use the
  * live remote default tip, not a stale local cache / local default checkout.
  * Returns true when the remote default tip changed.
- * Pass `{ force: true }` to bypass the TTL (e.g. when creating a worktree).
  */
-export async function fetchRemoteDefault(repoPath: string, options: { force?: boolean } = {}): Promise<boolean> {
+export async function fetchRemoteDefault(repoPath: string): Promise<boolean> {
     const key = await resolveRemoteFetchKey(repoPath);
     const now = Date.now();
     const last = lastRemoteFetchAt.get(key) ?? 0;
-    if (!options.force && now - last < REMOTE_FETCH_TTL_MS) {
+    if (now - last < REMOTE_FETCH_TTL_MS) {
         return false;
     }
 
