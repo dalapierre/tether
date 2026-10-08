@@ -17,4 +17,7 @@ export const styles = {
     advancedChevronOpen: 'h-4 w-4 shrink-0 rotate-180 text-zinc-500 transition-transform',
     advancedFields: 'flex flex-col gap-4',
     footer: 'px-4 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:mx-auto md:w-full md:max-w-2xl',
+    startingOverlay: 'absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-zinc-950/85',
+    startingSpinner: 'flex items-center justify-center',
+    startingLabel: 'text-sm text-zinc-400',
 };

@@ -54,7 +54,14 @@ export function PageHeader({ crumbs = [], actions, showSettings = true, onBack, 
                     to='/'
                     className={styles.logoLink}
                     aria-label={intl.formatMessage(messages.home)}
-                    onClick={onHomeClick}
+                    onClick={
+                        onHomeClick
+                            ? (event) => {
+                                  event.preventDefault();
+                                  onHomeClick();
+                              }
+                            : undefined
+                    }
                 >
                     <img className={styles.logo} src={logoLight} alt='' />
                 </Link>

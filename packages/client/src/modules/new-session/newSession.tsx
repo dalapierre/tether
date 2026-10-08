@@ -2,6 +2,7 @@ import { Button } from '@client/components/button';
 import { IconButton } from '@client/components/icon-button';
 import { PageHeader } from '@client/components/page-header';
 import { SearchSelect } from '@client/components/search-select';
+import { Spinner } from '@client/components/spinner';
 import {
     listRepositories,
     listRepositoryBranches,
@@ -131,9 +132,11 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
 
     useEffect(() => {
         function onKeyDown(event: KeyboardEvent) {
-            if (event.key === 'Escape' && !starting) {
-                onClose();
-            }
+            if (event.key !== 'Escape') return;
+            // Block dismiss while the session is spawning.
+            event.preventDefault();
+            if (starting) return;
+            onClose();
         }
 
         window.addEventListener('keydown', onKeyDown);
@@ -240,14 +243,19 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                 }
             }}
         >
-            <div className={styles.shell}>
+            <div className={styles.shell} inert={starting || undefined}>
                 <PageHeader
                     crumbs={[
-                        { label: intl.formatMessage(messages.sessionsCrumb), onClick: onClose },
+                        {
+                            label: intl.formatMessage(messages.sessionsCrumb),
+                            onClick: starting ? undefined : onClose,
+                        },
                         { label: intl.formatMessage(messages.crumb) },
                     ]}
                     showSettings={false}
-                    onHomeClick={onClose}
+                    onHomeClick={() => {
+                        if (!starting) onClose();
+                    }}
                     actions={
                         <IconButton label={intl.formatMessage(messages.close)} onClick={onClose} disabled={starting}>
                             ×
@@ -384,6 +392,16 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                     </div>
                 </form>
             </div>
+            {starting ? (
+                <div className={styles.startingOverlay}>
+                    <Spinner
+                        size='lg'
+                        label={intl.formatMessage(messages.starting)}
+                        className={styles.startingSpinner}
+                    />
+                    <p className={styles.startingLabel}>{intl.formatMessage(messages.starting)}</p>
+                </div>
+            ) : null}
         </div>
     );
 }
