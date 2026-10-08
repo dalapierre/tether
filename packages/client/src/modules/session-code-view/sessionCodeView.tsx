@@ -74,6 +74,8 @@ type SelectionCommentState = {
     endLine: number;
     top: number;
     left: number;
+    /** When false, the button sits below the first selected line (not enough room above). */
+    placeAbove: boolean;
 };
 
 type PendingCommentState = {
@@ -110,14 +112,18 @@ function selectionLineRange(selection: {
 function readSelectionComment(
     editor: MonacoEditor.IStandaloneCodeEditor,
     fileName: string | null,
+    overlayContainer: HTMLElement | null,
 ): SelectionCommentState | null {
-    if (!fileName) return null;
+    if (!fileName || !overlayContainer) return null;
     const model = editor.getModel();
     const selection = editor.getSelection();
     if (!model || !selection || selection.isEmpty()) return null;
 
     const content = model.getValueInRange(selection);
     if (!content.trim()) return null;
+
+    const editorDom = editor.getDomNode();
+    if (!editorDom) return null;
 
     const startPos = selection.getStartPosition();
     const endPos = selection.getEndPosition();
@@ -133,14 +139,28 @@ function readSelectionComment(
     const right = endVisible?.left ?? startVisible.left;
     const { startLine, endLine } = selectionLineRange(selection);
 
+    // getScrolledVisiblePosition is relative to the modified editor pane. In split
+    // view that pane is only the right half of editorWrap, so map into overlay space.
+    const editorRect = editorDom.getBoundingClientRect();
+    const overlayRect = overlayContainer.getBoundingClientRect();
+    const offsetLeft = editorRect.left - overlayRect.left;
+    const offsetTop = editorRect.top - overlayRect.top;
+    const selectionTop = offsetTop + startVisible.top;
+    const selectionHeight = startVisible.height || 18;
+    // Keep the floating button inside the wrap: above the selection when there is
+    // room, otherwise just below the first highlighted line.
+    const buttonHeight = 36;
+    const gap = 4;
+    const placeAbove = selectionTop >= buttonHeight + gap;
+
     return {
         content,
         fileName,
         startLine,
         endLine,
-        // Anchor at the top of the selection; CSS -translate-y-full keeps the button above it.
-        top: Math.max(0, startVisible.top - 4),
-        left: (startVisible.left + right) / 2,
+        top: placeAbove ? selectionTop - gap : selectionTop + selectionHeight + gap,
+        left: offsetLeft + (startVisible.left + right) / 2,
+        placeAbove,
     };
 }
 
@@ -864,6 +884,7 @@ export function SessionCodeView({
     const [selectionComment, setSelectionComment] = useState<SelectionCommentState | null>(null);
     const [pendingComment, setPendingComment] = useState<PendingCommentState | null>(null);
     const diffEditorRef = useRef<MonacoEditor.IStandaloneDiffEditor | null>(null);
+    const editorWrapRef = useRef<HTMLDivElement | null>(null);
     const selectionDisposablesRef = useRef<{ dispose: () => void }[]>([]);
     const previewScrollRef = useRef<HTMLDivElement | null>(null);
     const fileListRef = useRef<HTMLDivElement | null>(null);
@@ -1189,7 +1210,9 @@ export function SessionCodeView({
             setSelectionComment(null);
             return;
         }
-        setSelectionComment(readSelectionComment(editor.getModifiedEditor(), selectedPathRef.current));
+        setSelectionComment(
+            readSelectionComment(editor.getModifiedEditor(), selectedPathRef.current, editorWrapRef.current),
+        );
     }, []);
 
     const handleDiffEditorMount = useCallback(
@@ -1210,6 +1233,9 @@ export function SessionCodeView({
                 modified.onDidChangeCursorSelection(() => {
                     syncSelectionComment(editor);
                 }),
+                modified.onDidLayoutChange(() => {
+                    syncSelectionComment(editor);
+                }),
             ];
             syncSelectionComment(editor);
             if (paneActiveRef.current) {
@@ -1227,6 +1253,11 @@ export function SessionCodeView({
         diffEditorRef.current = null;
         setSelectionComment(null);
     }, []);
+
+    // Split/unified layout changes shift the modified pane inside editorWrap; remap the button.
+    useLayoutEffect(() => {
+        syncSelectionComment(diffEditorRef.current);
+    }, [diffViewMode, isDesktop, fileTreeWidth, fullscreen, syncSelectionComment]);
 
     const openCommentDialog = useCallback(() => {
         if (!selectionComment) return;
@@ -1723,7 +1754,7 @@ export function SessionCodeView({
         selectionComment && !pendingComment && !showMarkdownPreview ? (
             <button
                 type='button'
-                className={styles.commentButton}
+                className={`${styles.commentButton}${selectionComment.placeAbove ? ` ${styles.commentButtonAbove}` : ''}`}
                 style={{ top: selectionComment.top, left: selectionComment.left }}
                 onMouseDown={(event) => {
                     // Keep the Monaco selection when clicking the overlay button.
@@ -1881,6 +1912,7 @@ export function SessionCodeView({
                         ) : showMarkdownToggle ? (
                             <div className={styles.markdownViewPane}>
                                 <div
+                                    ref={editorWrapRef}
                                     className={`${styles.editorWrap}${showMarkdownPreview ? ` ${styles.markdownViewHidden}` : ''}`}
                                 >
                                     <div className={styles.editorFill}>
@@ -1904,7 +1936,7 @@ export function SessionCodeView({
                                 </Suspense>{' '}
                             </div>
                         ) : (
-                            <div className={styles.editorWrap}>
+                            <div ref={editorWrapRef} className={styles.editorWrap}>
                                 <div className={styles.editorFill}>
                                     <SessionDiffEditor
                                         original={editorContents.original}

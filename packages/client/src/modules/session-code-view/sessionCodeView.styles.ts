@@ -65,10 +65,11 @@ export const styles = {
     reviewedCheckbox: 'h-3.5 w-3.5 accent-emerald-500',
     markdownViewPane: 'flex min-h-0 flex-1 flex-col',
     markdownViewHidden: 'hidden',
-    editorWrap: 'relative min-h-0 flex-1',
+    editorWrap: 'relative min-h-0 flex-1 overflow-hidden',
     editorFill: 'absolute inset-0',
     commentButton:
-        'absolute z-10 inline-flex h-9 -translate-x-1/2 -translate-y-full items-center rounded-md border border-zinc-700 bg-zinc-900 px-3.5 text-sm font-medium text-zinc-100 shadow-md active:bg-zinc-800 md:hover:bg-zinc-800',
+        'absolute z-20 inline-flex h-9 -translate-x-1/2 items-center rounded-md border border-zinc-700 bg-zinc-900 px-3.5 text-sm font-medium text-zinc-100 shadow-md active:bg-zinc-800 md:hover:bg-zinc-800',
+    commentButtonAbove: '-translate-y-full',
 
     markdownPreview: 'code-review-scroll min-h-0 flex-1 overflow-y-auto',
     markdownBody: 'mx-auto max-w-3xl px-4 py-6 text-sm leading-relaxed text-zinc-200 md:px-8',
