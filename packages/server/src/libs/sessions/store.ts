@@ -94,13 +94,21 @@ let usageSamplerStarted = false;
 
 type HeadWatcher = {
     watcher: FSWatcher;
-    headPath: string;
-    lastHead: string | null;
+    /** Last observed checkout tip; used to detect same-branch commits. */
+    lastTipSha: string | null;
     debounce: ReturnType<typeof setTimeout> | null;
 };
 
 const headWatchers = new Map<string, HeadWatcher>();
 const HEAD_DEBOUNCE_MS = 75;
+
+/** Gitdir children that signal branch switches (HEAD) or commits/resets (index). */
+function isGitMetaWatchPath(filename: string | Buffer | null | undefined): boolean {
+    // Some platforms omit the name; treat as interesting rather than drop the event.
+    if (filename == null || filename === '') return true;
+    const normalized = String(filename).replace(/\\/g, '/');
+    return normalized === 'HEAD' || normalized === 'index';
+}
 
 type DiffWatcher = {
     watcher: FSWatcher;
@@ -575,17 +583,12 @@ async function startWatchingHead(session: RuntimeSession): Promise<void> {
     if (!headPath) return;
 
     // Watch the gitdir (not HEAD itself): atomic renames replace the inode and miss file watches.
+    // HEAD text is unchanged on same-branch commits; the index updates, so watch both.
     const watchDir = path.dirname(headPath);
-    let initialHead: string | null = null;
-    try {
-        initialHead = await readFile(headPath, 'utf8');
-    } catch {
-        initialHead = null;
-    }
 
     try {
         const watcher = watch(watchDir, (_eventType, filename) => {
-            if (filename && filename !== 'HEAD') return;
+            if (!isGitMetaWatchPath(filename)) return;
             const current = headWatchers.get(session.id);
             if (!current) return;
             if (current.debounce) {
@@ -597,14 +600,17 @@ async function startWatchingHead(session: RuntimeSession): Promise<void> {
                 if (!live) return;
                 void (async () => {
                     try {
-                        const nextHead = await readFile(current.headPath, 'utf8');
-                        if (current.lastHead !== null && nextHead === current.lastHead) {
-                            return;
+                        const prevTip = current.lastTipSha ?? live.baseSha;
+                        const nextTip = await syncReviewBase(live);
+                        current.lastTipSha = nextTip;
+                        const branchChanged = await syncSessionBranch(live);
+                        // Branch switches already schedule a refresh inside syncSessionBranch.
+                        // Same-branch commits only advance the tip — refresh the review tree.
+                        if (!branchChanged && nextTip !== prevTip) {
+                            scheduleDiffRefresh(live.id, { immediate: true });
                         }
-                        current.lastHead = nextHead;
-                        await syncSessionBranch(live);
                     } catch (err: unknown) {
-                        logger.error(`Failed to sync branch for session ${session.id}`, err);
+                        logger.error(`Failed to sync review base for session ${session.id}`, err);
                     }
                 })();
             }, HEAD_DEBOUNCE_MS);
@@ -614,8 +620,7 @@ async function startWatchingHead(session: RuntimeSession): Promise<void> {
         });
         headWatchers.set(session.id, {
             watcher,
-            headPath,
-            lastHead: initialHead,
+            lastTipSha: session.baseSha || null,
             debounce: null,
         });
     } catch (err: unknown) {
