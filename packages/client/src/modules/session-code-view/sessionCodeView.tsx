@@ -710,6 +710,11 @@ function FileRow({
             <button
                 type='button'
                 className={styles.fileSelect}
+                onMouseDown={(event) => {
+                    // Keep focus out of the file tree so review keybinds (e.g. "r")
+                    // don't suddenly show a focus ring on the file name.
+                    event.preventDefault();
+                }}
                 onClick={() => onSelect(file.path)}
                 aria-current={selected ? 'true' : undefined}
             >
@@ -851,6 +856,8 @@ export function SessionCodeView({
     const diffEditorRef = useRef<MonacoEditor.IStandaloneDiffEditor | null>(null);
     const selectionDisposablesRef = useRef<{ dispose: () => void }[]>([]);
     const previewScrollRef = useRef<HTMLDivElement | null>(null);
+    const fileListRef = useRef<HTMLDivElement | null>(null);
+    const reviewedCheckboxRef = useRef<HTMLInputElement | null>(null);
     const pendingScrollRatioRef = useRef<number | null>(null);
     /** Scroll position for the open file; survives desktop pane `display:none`. */
     const scrollRatioRef = useRef(0);
@@ -1359,7 +1366,17 @@ export function SessionCodeView({
         'session',
         'markFileReviewed',
         () => {
-            if (selectedPath) toggleReviewed(selectedPath);
+            if (!selectedPath) return;
+            // Clear a leftover focus ring on the file name / reviewed checkbox when
+            // toggling via "r" (keyboard modality otherwise makes it visible).
+            const active = document.activeElement;
+            if (
+                active instanceof HTMLElement &&
+                (fileListRef.current?.contains(active) || active === reviewedCheckboxRef.current)
+            ) {
+                active.blur();
+            }
+            toggleReviewed(selectedPath);
         },
         { enabled: keybindsEnabled && Boolean(selectedPath) },
     );
@@ -1754,7 +1771,7 @@ export function SessionCodeView({
                     ) : files.length === 0 ? (
                         <p className={styles.centered}>{intl.formatMessage(messages.empty)}</p>
                     ) : (
-                        <div className={styles.fileList}>
+                        <div ref={fileListRef} className={styles.fileList}>
                             <FileTree
                                 nodes={tree}
                                 depth={0}
@@ -1835,8 +1852,16 @@ export function SessionCodeView({
                                 </button>
                             ) : null}
                             <DiffViewModeControls mode={diffViewMode} onChange={handleDiffViewModeChange} />
-                            <label className={styles.reviewedToggle}>
+                            <label
+                                className={styles.reviewedToggle}
+                                onMouseDown={(event) => {
+                                    // Don't steal focus into the header checkbox (next to the
+                                    // file name) when toggling reviewed with the mouse.
+                                    event.preventDefault();
+                                }}
+                            >
                                 <input
+                                    ref={reviewedCheckboxRef}
                                     type='checkbox'
                                     className={styles.reviewedCheckbox}
                                     checked={reviewedFingerprints.has(selectedPath)}
