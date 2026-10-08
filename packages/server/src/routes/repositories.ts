@@ -1,3 +1,4 @@
+import { logger } from '@server/libs/logger.js';
 import {
     addRepository,
     listAvailableRepositories,
@@ -14,7 +15,7 @@ repositoriesRouter.get('/', async (_req, res) => {
         const repositories = await listRepositories();
         res.json({ repositories });
     } catch (err: unknown) {
-        console.error('Failed to list repositories', err);
+        logger.error('Failed to list repositories', err);
         res.status(500).json({ error: 'Failed to list repositories' });
     }
 });
@@ -24,7 +25,7 @@ repositoriesRouter.get('/available', async (_req, res) => {
         const repositories = await listAvailableRepositories();
         res.json({ repositories });
     } catch (err: unknown) {
-        console.error('Failed to list available repositories', err);
+        logger.error('Failed to list available repositories', err);
         res.status(500).json({ error: 'Failed to list available repositories' });
     }
 });
@@ -38,7 +39,7 @@ repositoriesRouter.get('/:id/branches', async (req, res) => {
         }
         res.json({ branches });
     } catch (err: unknown) {
-        console.error('Failed to list repository branches', err);
+        logger.error('Failed to list repository branches', err);
         res.status(500).json({ error: 'Failed to list branches' });
     }
 });
@@ -64,7 +65,7 @@ repositoriesRouter.post('/', async (req, res) => {
                 ? 400
                 : 500;
         if (status === 500) {
-            console.error('Failed to add repository', err);
+            logger.error('Failed to add repository', err);
         }
         res.status(status).json({ error: status === 500 ? 'Failed to add repository' : message });
     }
@@ -79,7 +80,7 @@ repositoriesRouter.delete('/:id', async (req, res) => {
         }
         res.status(204).send();
     } catch (err: unknown) {
-        console.error('Failed to remove repository', err);
+        logger.error('Failed to remove repository', err);
         res.status(500).json({ error: 'Failed to remove repository' });
     }
 });

@@ -1,4 +1,5 @@
 import { isAgentId } from '@server/libs/agents/agents.js';
+import { logger } from '@server/libs/logger.js';
 import { isKeybinds, normalizeKeybinds } from '@server/libs/settings/keybinds.js';
 import {
     getSettings,
@@ -20,7 +21,7 @@ settingsRouter.get('/', async (_req, res) => {
         const settings = await getSettings();
         res.json({ settings });
     } catch (err: unknown) {
-        console.error('Failed to load settings', err);
+        logger.error('Failed to load settings', err);
         res.status(500).json({ error: 'Failed to load settings' });
     }
 });
@@ -111,7 +112,7 @@ settingsRouter.put('/', async (req, res) => {
         });
         res.json({ settings });
     } catch (err: unknown) {
-        console.error('Failed to save settings', err);
+        logger.error('Failed to save settings', err);
         res.status(500).json({ error: 'Failed to save settings' });
     }
 });

@@ -1,4 +1,5 @@
 import { getAgentCommandCandidates, type AgentId } from '@server/libs/agents/agents.js';
+import { logger } from '@server/libs/logger.js';
 import { getHomeDir } from '@server/libs/paths.js';
 import { findCommandOnPath, resolvePtyLaunch, type PtyLaunch } from '@server/libs/process/resolveCommand.js';
 import { execFile } from 'node:child_process';
@@ -119,7 +120,7 @@ export async function createAgentSessionId(agent: AgentId): Promise<string | nul
                         return id;
                     }
                 } catch (err: unknown) {
-                    console.error(`Failed to create Cursor chat via ${candidate}`, err);
+                    logger.error(`Failed to create Cursor chat via ${candidate}`, err);
                 }
             }
             return null;
@@ -180,7 +181,7 @@ export async function ensureWorkspaceTrusted(agent: AgentId, workspacePath: stri
                 return;
         }
     } catch (err: unknown) {
-        console.error(`Failed to pre-trust workspace for ${agent}`, err);
+        logger.error(`Failed to pre-trust workspace for ${agent}`, err);
     }
 }
 

@@ -1,4 +1,5 @@
 import { createAccessToken, isAccessKeyConfigured, validateAccessKey } from '@server/libs/authTokens.js';
+import { logger } from '@server/libs/logger.js';
 import { Router } from 'express';
 
 export const authRouter = Router();
@@ -19,7 +20,7 @@ authRouter.post('/login', async (req, res) => {
         const { token, expiresAt } = await createAccessToken();
         res.json({ token, expiresAt });
     } catch (err: unknown) {
-        console.error('Failed to create access token', err);
+        logger.error('Failed to create access token', err);
         res.status(500).json({ error: 'Failed to create access token' });
     }
 });

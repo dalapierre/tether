@@ -1,4 +1,5 @@
 import { isAgentId, type AgentId } from '@server/libs/agents/agents.js';
+import { logger } from '@server/libs/logger.js';
 import { getRepositoryWorktreesDir, getSessionsFilePath, getTetherHomeDir } from '@server/libs/paths.js';
 import {
     fetchRemoteDefault,
@@ -194,7 +195,7 @@ async function readStoredSessions(): Promise<StoredSession[]> {
     try {
         parsed = JSON.parse(raw);
     } catch {
-        console.error('Failed to parse sessions.json — starting with an empty session list');
+        logger.error('Failed to parse sessions.json — starting with an empty session list');
         return [];
     }
 
@@ -284,7 +285,7 @@ async function refreshSessionBehindFromRemote(session: RuntimeSession): Promise<
             });
         }
     } catch (err: unknown) {
-        console.error(`Failed to refresh remote behind count for session ${session.id}`, err);
+        logger.error(`Failed to refresh remote behind count for session ${session.id}`, err);
     }
 }
 
@@ -299,7 +300,7 @@ async function syncSessionBranch(session: RuntimeSession, options: { broadcast?:
 
     session.branch = branch;
     void persistSessions().catch((err: unknown) => {
-        console.error(`Failed to persist branch for session ${session.id}`, err);
+        logger.error(`Failed to persist branch for session ${session.id}`, err);
     });
 
     if (options.broadcast !== false) {
@@ -361,7 +362,7 @@ function startWatchingDiff(session: RuntimeSession): void {
         });
         diffWatchers.set(session.id, { watcher, debounce: null });
     } catch (err: unknown) {
-        console.error(`Failed to watch workspace for session ${session.id}`, err);
+        logger.error(`Failed to watch workspace for session ${session.id}`, err);
     }
 }
 
@@ -402,7 +403,7 @@ async function startWatchingHead(session: RuntimeSession): Promise<void> {
                         current.lastHead = nextHead;
                         await syncSessionBranch(live);
                     } catch (err: unknown) {
-                        console.error(`Failed to sync branch for session ${session.id}`, err);
+                        logger.error(`Failed to sync branch for session ${session.id}`, err);
                     }
                 })();
             }, HEAD_DEBOUNCE_MS);
@@ -417,7 +418,7 @@ async function startWatchingHead(session: RuntimeSession): Promise<void> {
             debounce: null,
         });
     } catch (err: unknown) {
-        console.error(`Failed to watch HEAD for session ${session.id}`, err);
+        logger.error(`Failed to watch HEAD for session ${session.id}`, err);
     }
 }
 
@@ -452,7 +453,7 @@ function setStatus(session: RuntimeSession, status: SessionStatus): void {
         broadcastSessionDiff(session.id);
     }
     void persistSessions().catch((err: unknown) => {
-        console.error(`Failed to persist status for session ${session.id}`, err);
+        logger.error(`Failed to persist status for session ${session.id}`, err);
     });
 }
 
@@ -775,7 +776,7 @@ export async function restoreSessions(): Promise<void> {
         return;
     }
 
-    console.log(`Restoring ${stored.length} session(s) from disk`);
+    logger.info(`Restoring ${stored.length} session(s) from disk`);
 
     for (const item of stored) {
         if (sessions.has(item.id)) {
@@ -823,7 +824,7 @@ export async function restoreSessions(): Promise<void> {
             }
             await spawnHarness(session, { resume: Boolean(session.agentSessionId) });
         } catch (err: unknown) {
-            console.error(`Failed to restore session ${session.id}`, err);
+            logger.error(`Failed to restore session ${session.id}`, err);
         }
     }
 
@@ -887,7 +888,7 @@ async function syncReviewBase(session: RuntimeSession): Promise<string> {
         if (session.baseSha !== head) {
             session.baseSha = head;
             void persistSessions().catch((err: unknown) => {
-                console.error(`Failed to persist review base for session ${session.id}`, err);
+                logger.error(`Failed to persist review base for session ${session.id}`, err);
             });
         }
         return session.baseSha;
@@ -1088,7 +1089,7 @@ async function cleanupWorktree(session: RuntimeSession): Promise<void> {
             await rm(session.worktreePath, { recursive: true, force: true });
         }
     } catch (err: unknown) {
-        console.error(`Failed to remove worktree for session ${session.id}`, err);
+        logger.error(`Failed to remove worktree for session ${session.id}`, err);
         await rm(session.worktreePath, { recursive: true, force: true }).catch(() => undefined);
         if (repository) {
             await pruneStaleWorktrees(repository.path);
@@ -1131,7 +1132,7 @@ export function deleteSession(id: string): boolean {
     broadcastSessionRemove(id);
 
     void persistSessions().catch((err: unknown) => {
-        console.error(`Failed to persist sessions after deleting ${id}`, err);
+        logger.error(`Failed to persist sessions after deleting ${id}`, err);
     });
     void cleanupWorktree(session);
 
@@ -1148,7 +1149,7 @@ export function attachSessionEvents(socket: WebSocket): void {
             }
         })
         .catch((err: unknown) => {
-            console.error('Failed to send session events snapshot', err);
+            logger.error('Failed to send session events snapshot', err);
         });
 }
 

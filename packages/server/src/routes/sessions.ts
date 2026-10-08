@@ -1,3 +1,4 @@
+import { logger } from '@server/libs/logger.js';
 import {
     createSession,
     deleteSession,
@@ -18,7 +19,7 @@ sessionsRouter.get('/', async (req, res) => {
         const sessions = await listSessions(repositoryId || undefined);
         res.json({ sessions });
     } catch (err: unknown) {
-        console.error('Failed to list sessions', err);
+        logger.error('Failed to list sessions', err);
         res.status(500).json({ error: 'Failed to list sessions' });
     }
 });
@@ -32,7 +33,7 @@ sessionsRouter.get('/:id/diff', async (req, res) => {
         }
         res.json({ diff });
     } catch (err: unknown) {
-        console.error('Failed to load session diff', err);
+        logger.error('Failed to load session diff', err);
         res.status(500).json({ error: 'Failed to load session diff' });
     }
 });
@@ -57,7 +58,7 @@ sessionsRouter.get('/:id/diff/file', async (req, res) => {
             res.status(400).json({ error: message });
             return;
         }
-        console.error('Failed to load session file diff', err);
+        logger.error('Failed to load session file diff', err);
         res.status(500).json({ error: 'Failed to load file diff' });
     }
 });
@@ -82,7 +83,7 @@ sessionsRouter.post('/:id/diff/discard', async (req, res) => {
             res.status(400).json({ error: message });
             return;
         }
-        console.error('Failed to discard session file change', err);
+        logger.error('Failed to discard session file change', err);
         res.status(500).json({ error: 'Failed to discard file change' });
     }
 });
@@ -96,7 +97,7 @@ sessionsRouter.get('/:id', async (req, res) => {
         }
         res.json({ session });
     } catch (err: unknown) {
-        console.error('Failed to get session', err);
+        logger.error('Failed to get session', err);
         res.status(500).json({ error: 'Failed to get session' });
     }
 });
@@ -124,7 +125,7 @@ sessionsRouter.post('/:id/restart', async (req, res) => {
             res.status(400).json({ error: message });
             return;
         }
-        console.error('Failed to restart session', err);
+        logger.error('Failed to restart session', err);
         res.status(500).json({ error: 'Failed to restart session' });
     }
 });
@@ -164,7 +165,7 @@ sessionsRouter.post('/', async (req, res) => {
                 ? 400
                 : 500;
         if (status === 500) {
-            console.error('Failed to create session', err);
+            logger.error('Failed to create session', err);
         }
         res.status(status).json({ error: status === 500 ? 'Failed to create session' : message });
     }
