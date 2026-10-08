@@ -14,9 +14,11 @@ import {
     type OscTitleParseState,
 } from '@server/libs/sessions/agentStatus.js';
 import {
+    assertSafeRelativePath,
     discardSessionDiffFile,
     getSessionDiffSummary,
     getSessionFileDiff,
+    isDiffAbortError,
     type SessionDiffSummary,
     type SessionFileDiff,
 } from '@server/libs/sessions/diff.js';
@@ -102,11 +104,145 @@ const HEAD_DEBOUNCE_MS = 75;
 
 type DiffWatcher = {
     watcher: FSWatcher;
-    debounce: ReturnType<typeof setTimeout> | null;
 };
 
 const diffWatchers = new Map<string, DiffWatcher>();
 const DIFF_DEBOUNCE_MS = 400;
+
+type DiffCacheEntry = {
+    cache: SessionDiffSummary | null;
+    controller: AbortController | null;
+    running: boolean;
+    dirty: boolean;
+    debounce: ReturnType<typeof setTimeout> | null;
+};
+
+const diffCaches = new Map<string, DiffCacheEntry>();
+
+/** Serialize heavy monorepo `git diff` work so session swap / light git stay responsive. */
+let heavyDiffChain: Promise<void> = Promise.resolve();
+
+function withHeavyDiffSlot<T>(fn: () => Promise<T>): Promise<T> {
+    const run = heavyDiffChain.then(fn, fn);
+    heavyDiffChain = run.then(
+        () => undefined,
+        () => undefined,
+    );
+    return run;
+}
+
+function getOrCreateDiffCache(sessionId: string): DiffCacheEntry {
+    let entry = diffCaches.get(sessionId);
+    if (!entry) {
+        entry = {
+            cache: null,
+            controller: null,
+            running: false,
+            dirty: false,
+            debounce: null,
+        };
+        diffCaches.set(sessionId, entry);
+    }
+    return entry;
+}
+
+function clearDiffCache(sessionId: string): void {
+    const entry = diffCaches.get(sessionId);
+    if (!entry) return;
+    if (entry.debounce) {
+        clearTimeout(entry.debounce);
+    }
+    entry.controller?.abort();
+    diffCaches.delete(sessionId);
+}
+
+/**
+ * Background refresh of the session diff summary.
+ * Never awaited from HTTP handlers — completes independently and notifies via WS.
+ * Watcher events are debounced; explicit kicks (GET miss, busy→ready) run immediately.
+ */
+function scheduleDiffRefresh(sessionId: string, options: { immediate?: boolean } = {}): void {
+    const session = sessions.get(sessionId);
+    if (!session || session.type !== 'coding') return;
+
+    const entry = getOrCreateDiffCache(sessionId);
+    entry.dirty = true;
+    if (entry.debounce) {
+        clearTimeout(entry.debounce);
+        entry.debounce = null;
+    }
+    if (options.immediate) {
+        void runDiffRefresh(sessionId);
+        return;
+    }
+    entry.debounce = setTimeout(() => {
+        entry.debounce = null;
+        void runDiffRefresh(sessionId);
+    }, DIFF_DEBOUNCE_MS);
+}
+
+async function runDiffRefresh(sessionId: string): Promise<void> {
+    const entry = diffCaches.get(sessionId);
+    if (!entry) return;
+
+    if (entry.running) {
+        entry.controller?.abort();
+        return;
+    }
+
+    entry.running = true;
+    try {
+        while (entry.dirty) {
+            const session = sessions.get(sessionId);
+            if (!session || session.type !== 'coding') {
+                entry.dirty = false;
+                break;
+            }
+
+            entry.dirty = false;
+            const controller = new AbortController();
+            entry.controller = controller;
+
+            try {
+                await withHeavyDiffSlot(async () => {
+                    if (controller.signal.aborted) {
+                        throw Object.assign(new Error('aborted'), { name: 'AbortError' });
+                    }
+                    const live = sessions.get(sessionId);
+                    if (!live || live.type !== 'coding') return;
+
+                    const baseSha = await syncReviewBase(live);
+                    if (controller.signal.aborted) return;
+
+                    const summary = await getSessionDiffSummary(live.worktreePath, baseSha, controller.signal);
+                    if (controller.signal.aborted) return;
+                    if (!sessions.has(sessionId)) return;
+
+                    entry.cache = summary;
+                    broadcastSessionDiff(sessionId);
+                });
+            } catch (err: unknown) {
+                if (isDiffAbortError(err) || (err instanceof Error && err.name === 'AbortError')) {
+                    // Superseded by a newer schedule; loop if still dirty.
+                    if (!entry.dirty) {
+                        entry.dirty = true;
+                    }
+                    continue;
+                }
+                logger.error(`Failed to refresh session diff for ${sessionId}`, err);
+            } finally {
+                if (entry.controller === controller) {
+                    entry.controller = null;
+                }
+            }
+        }
+    } finally {
+        entry.running = false;
+        if (entry.dirty && sessions.has(sessionId)) {
+            void runDiffRefresh(sessionId);
+        }
+    }
+}
 
 function shouldIgnoreDiffWatchPath(filename: string): boolean {
     const normalized = filename.replace(/\\/g, '/');
@@ -385,7 +521,7 @@ async function syncSessionBranch(session: RuntimeSession, options: { broadcast?:
             behindDefault,
             defaultBranch,
         });
-        broadcastSessionDiff(session.id);
+        scheduleDiffRefresh(session.id, { immediate: true });
     }
 
     return true;
@@ -404,9 +540,6 @@ function stopWatchingHead(sessionId: string): void {
 function stopWatchingDiff(sessionId: string): void {
     const existing = diffWatchers.get(sessionId);
     if (!existing) return;
-    if (existing.debounce) {
-        clearTimeout(existing.debounce);
-    }
     existing.watcher.close();
     diffWatchers.delete(sessionId);
 }
@@ -420,21 +553,15 @@ function startWatchingDiff(session: RuntimeSession): void {
             if (typeof filename === 'string' && shouldIgnoreDiffWatchPath(filename)) {
                 return;
             }
-            const current = diffWatchers.get(session.id);
-            if (!current) return;
-            if (current.debounce) {
-                clearTimeout(current.debounce);
-            }
-            current.debounce = setTimeout(() => {
-                current.debounce = null;
-                if (!sessions.has(session.id)) return;
-                broadcastSessionDiff(session.id);
-            }, DIFF_DEBOUNCE_MS);
+            if (!diffWatchers.has(session.id)) return;
+            scheduleDiffRefresh(session.id);
         });
         watcher.on('error', () => {
             stopWatchingDiff(session.id);
         });
-        diffWatchers.set(session.id, { watcher, debounce: null });
+        diffWatchers.set(session.id, { watcher });
+        // Warm the cache so the first GET is usually already filled.
+        scheduleDiffRefresh(session.id, { immediate: true });
     } catch (err: unknown) {
         logger.error(`Failed to watch workspace for session ${session.id}`, err);
     }
@@ -605,9 +732,9 @@ function setStatus(session: RuntimeSession, status: SessionStatus): void {
     session.status = status;
     broadcastStatus(session.id, status);
     broadcastSessionStatus({ sessionId: session.id, name: session.name, status });
-    // Agents often finish writing when they go idle; nudge clients to refresh review diffs.
+    // Agents often finish writing when they go idle; recompute review diffs in the background.
     if (previous === 'busy' && status === 'ready' && session.type === 'coding') {
-        broadcastSessionDiff(session.id);
+        scheduleDiffRefresh(session.id, { immediate: true });
     }
     void persistSessions().catch((err: unknown) => {
         logger.error(`Failed to persist status for session ${session.id}`, err);
@@ -1109,26 +1236,73 @@ async function syncReviewBase(session: RuntimeSession): Promise<string> {
     }
 }
 
-export async function getSessionDiff(id: string): Promise<SessionDiffSummary | null> {
+export type SessionDiffResult = {
+    diff: SessionDiffSummary;
+    /** True when a background refresh is in flight or scheduled (cache may be empty/stale). */
+    pending: boolean;
+};
+
+/**
+ * Non-blocking: returns cached summary immediately (or empty + pending).
+ * Never awaits a full-tree git diff.
+ */
+export async function getSessionDiff(id: string): Promise<SessionDiffResult | null> {
     const session = sessions.get(id);
     if (!session || session.type !== 'coding') return null;
+
     const baseSha = await syncReviewBase(session);
-    return getSessionDiffSummary(session.worktreePath, baseSha);
+    const entry = getOrCreateDiffCache(id);
+    const pending = entry.running || entry.dirty || entry.debounce !== null;
+
+    if (entry.cache && entry.cache.baseSha === baseSha) {
+        return { diff: entry.cache, pending };
+    }
+
+    // Missing or base-mismatched cache: kick a refresh and return without waiting.
+    scheduleDiffRefresh(id, { immediate: true });
+    if (entry.cache) {
+        return { diff: entry.cache, pending: true };
+    }
+    return { diff: { baseSha, files: [] }, pending: true };
 }
 
 export async function getSessionDiffFile(id: string, filePath: string): Promise<SessionFileDiff | null> {
     const session = sessions.get(id);
     if (!session || session.type !== 'coding') return null;
+
     const baseSha = await syncReviewBase(session);
-    return getSessionFileDiff(session.worktreePath, baseSha, filePath);
+    const safePath = assertSafeRelativePath(filePath);
+    const entry = getOrCreateDiffCache(id);
+    const meta = entry.cache?.files.find((file) => file.path === safePath);
+
+    if (!meta) {
+        scheduleDiffRefresh(id, { immediate: true });
+        throw new Error('File not found in diff');
+    }
+
+    return getSessionFileDiff(session.worktreePath, baseSha, meta);
 }
 
 export async function discardSessionFileChange(id: string, filePath: string): Promise<boolean> {
     const session = sessions.get(id);
     if (!session || session.type !== 'coding') return false;
+
     const baseSha = await syncReviewBase(session);
-    await discardSessionDiffFile(session.worktreePath, baseSha, filePath);
-    broadcastSessionDiff(session.id);
+    const safePath = assertSafeRelativePath(filePath);
+    const entry = getOrCreateDiffCache(id);
+    const meta = entry.cache?.files.find((file) => file.path === safePath);
+
+    if (!meta) {
+        scheduleDiffRefresh(id, { immediate: true });
+        throw new Error('File not found in diff');
+    }
+
+    await discardSessionDiffFile(session.worktreePath, baseSha, meta);
+    entry.cache = {
+        baseSha,
+        files: entry.cache!.files.filter((file) => file.path !== safePath),
+    };
+    scheduleDiffRefresh(session.id, { immediate: true });
     return true;
 }
 
@@ -1326,6 +1500,7 @@ export function deleteSession(id: string): boolean {
 
     stopWatchingHead(session.id);
     stopWatchingDiff(session.id);
+    clearDiffCache(session.id);
 
     try {
         session.pty?.kill();

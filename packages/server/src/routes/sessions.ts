@@ -26,12 +26,12 @@ sessionsRouter.get('/', async (req, res) => {
 
 sessionsRouter.get('/:id/diff', async (req, res) => {
     try {
-        const diff = await getSessionDiff(req.params.id);
-        if (!diff) {
+        const result = await getSessionDiff(req.params.id);
+        if (!result) {
             res.status(404).json({ error: 'Session not found' });
             return;
         }
-        res.json({ diff });
+        res.json({ diff: result.diff, pending: result.pending });
     } catch (err: unknown) {
         logger.error('Failed to load session diff', err);
         res.status(500).json({ error: 'Failed to load session diff' });

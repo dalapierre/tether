@@ -9,7 +9,6 @@ import {
     connectSessionShell,
     connectSessionTerminal,
     getSession,
-    getSessionDiff,
     sendTerminalMessage,
     type ServerTerminalMessage,
     type Session,
@@ -37,7 +36,13 @@ import {
 import { attachTouchScroll } from '@client/libs/terminal/touchScroll';
 import { AURA_TERMINAL_THEME } from '@client/libs/theme/aura';
 import { Spinner } from '@client/components/spinner';
-import { getDiffGeneration, getLiveSession, getSessionsSnapshot, subscribe } from '@client/modules/session-events';
+import {
+    ensureSessionDiff,
+    getDiffGeneration,
+    getLiveSession,
+    getSessionsSnapshot,
+    subscribe,
+} from '@client/modules/session-events';
 import { showToast } from '@client/modules/toast';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
@@ -1093,11 +1098,14 @@ export function SessionView({ sessionId }: SessionViewProps) {
 
         let cancelled = false;
 
-        getSessionDiff(session.id)
-            .then((diff) => {
-                if (!cancelled) {
-                    setHasReviewFiles(diff.files.length > 0);
+        ensureSessionDiff(session.id, diffGeneration)
+            .then((state) => {
+                if (cancelled) return;
+                // Cold/pending empty responses should not clear a previously known review tab.
+                if (state.pending && (!state.summary || state.summary.files.length === 0)) {
+                    return;
                 }
+                setHasReviewFiles((state.summary?.files.length ?? 0) > 0);
             })
             .catch(() => {
                 // Keep the last known state; tab enablement is best-effort.

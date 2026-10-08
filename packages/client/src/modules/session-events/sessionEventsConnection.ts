@@ -5,6 +5,7 @@ import {
     type SessionStatus,
 } from '@client/libs/api/sessions';
 import { showToast } from '@client/modules/toast';
+import { clearSessionDiff } from './sessionDiffStore';
 import {
     applySessionBranch,
     applySessionStatus,
@@ -87,6 +88,7 @@ function connect() {
 
         if (parsed.type === 'remove') {
             removeSession(parsed.sessionId);
+            clearSessionDiff(parsed.sessionId);
             return;
         }
 

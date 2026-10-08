@@ -1,7 +1,6 @@
 import { ApiError } from '@client/libs/api/client';
 import {
     discardSessionDiffFile,
-    getSessionDiff,
     getSessionDiffFile,
     type DiffFileStatus,
     type SessionDiffFile,
@@ -34,6 +33,7 @@ import {
 import { setupMonaco, TETHER_DIFF_THEME } from '@client/libs/monaco/setup';
 import {
     bumpDiffGeneration,
+    ensureSessionDiff,
     getDiffGeneration,
     subscribe as subscribeSessionEvents,
 } from '@client/modules/session-events';
@@ -1031,38 +1031,34 @@ export function SessionCodeView({
 
     useEffect(() => {
         let cancelled = false;
+        const hadFiles = filesSignatureRef.current !== '';
         filesSignatureRef.current = '';
         // Invalidate any in-flight summary from a previous session/effect.
-        diffFilesRequestIdRef.current += 1;
+        const requestId = ++diffFilesRequestIdRef.current;
+        if (!hadFiles) {
+            setLoading(true);
+        }
 
-        const load = (initial: boolean) => {
-            if (initial) {
-                setLoading(true);
-            }
-
-            const requestId = ++diffFilesRequestIdRef.current;
-            return getSessionDiff(sessionId)
-                .then((diff) => {
-                    if (!cancelled && requestId === diffFilesRequestIdRef.current) {
-                        applyDiffFiles(diff.files);
-                    }
-                })
-                .catch((err: unknown) => {
-                    if (!cancelled && initial) {
-                        showToast(
-                            'generic-error',
-                            err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed),
-                        );
-                    }
-                })
-                .finally(() => {
-                    if (!cancelled && initial) {
-                        setLoading(false);
-                    }
-                });
-        };
-
-        void load(true);
+        ensureSessionDiff(sessionId, diffGeneration)
+            .then((state) => {
+                if (cancelled || requestId !== diffFilesRequestIdRef.current) return;
+                if (state.error && !state.summary) {
+                    showToast('generic-error', state.error);
+                    return;
+                }
+                // Keep prior files while a cold refresh is still pending with an empty placeholder.
+                if (state.pending && (!state.summary || state.summary.files.length === 0) && hadFiles) {
+                    return;
+                }
+                if (state.summary) {
+                    applyDiffFiles(state.summary.files);
+                }
+            })
+            .finally(() => {
+                if (!cancelled && requestId === diffFilesRequestIdRef.current) {
+                    setLoading(false);
+                }
+            });
 
         return () => {
             cancelled = true;
@@ -1077,31 +1073,30 @@ export function SessionCodeView({
             return;
         }
 
-        let cancelled = false;
+        const abort = new AbortController();
         setFileLoading(true);
-        getSessionDiffFile(sessionId, selectedPath)
+        getSessionDiffFile(sessionId, selectedPath, { signal: abort.signal })
             .then((file) => {
-                if (!cancelled) {
+                if (!abort.signal.aborted) {
                     setFileDiff(file);
                 }
             })
             .catch((err: unknown) => {
-                if (!cancelled) {
-                    selectPath(null);
-                    showToast(
-                        'generic-error',
-                        err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed),
-                    );
-                }
+                if (abort.signal.aborted) return;
+                selectPath(null);
+                showToast(
+                    'generic-error',
+                    err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed),
+                );
             })
             .finally(() => {
-                if (!cancelled) {
+                if (!abort.signal.aborted) {
                     setFileLoading(false);
                 }
             });
 
         return () => {
-            cancelled = true;
+            abort.abort();
         };
     }, [sessionId, selectedPath, intl, selectPath]);
 
@@ -1665,11 +1660,11 @@ export function SessionCodeView({
     useEffect(() => {
         if (!selectedPath || diffGeneration === 0) return;
 
-        let cancelled = false;
+        const abort = new AbortController();
         const path = selectedPath;
-        getSessionDiffFile(sessionId, path)
+        getSessionDiffFile(sessionId, path, { signal: abort.signal })
             .then((file) => {
-                if (cancelled) return;
+                if (abort.signal.aborted) return;
                 setFileDiff((prev) => {
                     if (
                         prev &&
@@ -1684,7 +1679,7 @@ export function SessionCodeView({
                 });
             })
             .catch((err: unknown) => {
-                if (cancelled) return;
+                if (abort.signal.aborted) return;
                 // File left the review diff (e.g. discarded); drop stale selection/content.
                 if (err instanceof ApiError && err.message === 'File not found in diff') {
                     if (selectedPathRef.current === path) {
@@ -1695,7 +1690,7 @@ export function SessionCodeView({
             });
 
         return () => {
-            cancelled = true;
+            abort.abort();
         };
     }, [sessionId, selectedPath, selectPath, diffGeneration]);
 
@@ -1729,10 +1724,10 @@ export function SessionCodeView({
             // Drop any in-flight request that may still carry a pre-discard file list.
             diffFilesRequestIdRef.current += 1;
             bumpDiffGeneration(sessionId);
-            const diff = await getSessionDiff(sessionId);
+            const state = await ensureSessionDiff(sessionId, getDiffGeneration(sessionId));
             // Force apply even if the signature somehow matches the previous list.
             filesSignatureRef.current = '';
-            applyDiffFiles(diff.files);
+            applyDiffFiles(state.summary?.files ?? []);
             setPendingDiscardPath(null);
         } catch (err: unknown) {
             showToast('generic-error', err instanceof Error ? err.message : intl.formatMessage(messages.discardFailed));

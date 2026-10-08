@@ -104,6 +104,12 @@ type SessionResponse = {
 
 type DiffResponse = {
     diff: SessionDiffSummary;
+    pending?: boolean;
+};
+
+export type SessionDiffFetchResult = {
+    diff: SessionDiffSummary;
+    pending: boolean;
 };
 
 type FileDiffResponse = {
@@ -314,8 +320,13 @@ export async function restartSession(id: string): Promise<Session> {
     return normalizeSession(data.session);
 }
 
-export async function getSessionDiff(sessionId: string): Promise<SessionDiffSummary> {
-    const res = await apiFetch(`/api/sessions/${encodeURIComponent(sessionId)}/diff`);
+export async function getSessionDiff(
+    sessionId: string,
+    init: { signal?: AbortSignal } = {},
+): Promise<SessionDiffFetchResult> {
+    const res = await apiFetch(`/api/sessions/${encodeURIComponent(sessionId)}/diff`, {
+        signal: init.signal,
+    });
 
     if (!res.ok) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null;
@@ -323,12 +334,18 @@ export async function getSessionDiff(sessionId: string): Promise<SessionDiffSumm
     }
 
     const data = (await res.json()) as DiffResponse;
-    return data.diff;
+    return { diff: data.diff, pending: Boolean(data.pending) };
 }
 
-export async function getSessionDiffFile(sessionId: string, filePath: string): Promise<SessionFileDiff> {
+export async function getSessionDiffFile(
+    sessionId: string,
+    filePath: string,
+    init: { signal?: AbortSignal } = {},
+): Promise<SessionFileDiff> {
     const params = new URLSearchParams({ path: filePath });
-    const res = await apiFetch(`/api/sessions/${encodeURIComponent(sessionId)}/diff/file?${params}`);
+    const res = await apiFetch(`/api/sessions/${encodeURIComponent(sessionId)}/diff/file?${params}`, {
+        signal: init.signal,
+    });
 
     if (!res.ok) {
         const body = (await res.json().catch(() => null)) as { error?: string } | null;

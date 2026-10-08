@@ -1,9 +1,6 @@
-import { execFile } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { readFile, unlink } from 'node:fs/promises';
 import path from 'node:path';
-import { promisify } from 'node:util';
-
-const execFileAsync = promisify(execFile);
 
 export type DiffFileStatus = 'added' | 'modified' | 'deleted' | 'renamed';
 
@@ -31,6 +28,17 @@ export type SessionFileDiff = {
     binary: boolean;
 };
 
+export class DiffAbortError extends Error {
+    constructor(message = 'Diff computation aborted') {
+        super(message);
+        this.name = 'DiffAbortError';
+    }
+}
+
+export function isDiffAbortError(err: unknown): boolean {
+    return err instanceof DiffAbortError || (err instanceof Error && err.name === 'AbortError');
+}
+
 function gitEnv(): NodeJS.ProcessEnv {
     return {
         ...process.env,
@@ -39,13 +47,94 @@ function gitEnv(): NodeJS.ProcessEnv {
     };
 }
 
-async function git(cwd: string, args: string[]): Promise<string> {
-    const { stdout } = await execFileAsync('git', args, {
-        cwd,
-        env: gitEnv(),
-        maxBuffer: 20 * 1024 * 1024,
+const MAX_GIT_BUFFER = 20 * 1024 * 1024;
+
+async function git(cwd: string, args: string[], signal?: AbortSignal): Promise<string> {
+    if (signal?.aborted) {
+        throw new DiffAbortError();
+    }
+
+    return new Promise((resolve, reject) => {
+        const child = spawn('git', args, {
+            cwd,
+            env: gitEnv(),
+            stdio: ['ignore', 'pipe', 'pipe'],
+        });
+
+        const stdoutChunks: Buffer[] = [];
+        const stderrChunks: Buffer[] = [];
+        let stdoutLen = 0;
+        let settled = false;
+
+        const onAbort = () => {
+            if (settled) return;
+            try {
+                child.kill('SIGTERM');
+            } catch {
+                // ignore
+            }
+            const killTimer = setTimeout(() => {
+                try {
+                    child.kill('SIGKILL');
+                } catch {
+                    // ignore
+                }
+            }, 1000);
+            killTimer.unref?.();
+        };
+
+        if (signal) {
+            signal.addEventListener('abort', onAbort, { once: true });
+            if (signal.aborted) {
+                onAbort();
+            }
+        }
+
+        child.stdout.on('data', (chunk: Buffer) => {
+            stdoutLen += chunk.length;
+            if (stdoutLen > MAX_GIT_BUFFER) {
+                settled = true;
+                signal?.removeEventListener('abort', onAbort);
+                try {
+                    child.kill('SIGKILL');
+                } catch {
+                    // ignore
+                }
+                reject(new Error('Git stdout exceeded maxBuffer'));
+                return;
+            }
+            stdoutChunks.push(chunk);
+        });
+        child.stderr.on('data', (chunk: Buffer) => {
+            stderrChunks.push(chunk);
+        });
+
+        child.on('error', (err) => {
+            if (settled) return;
+            settled = true;
+            signal?.removeEventListener('abort', onAbort);
+            reject(err);
+        });
+
+        child.on('close', (code, killSignal) => {
+            if (settled) return;
+            settled = true;
+            signal?.removeEventListener('abort', onAbort);
+
+            if (signal?.aborted || killSignal === 'SIGTERM' || killSignal === 'SIGKILL') {
+                reject(new DiffAbortError());
+                return;
+            }
+
+            if (code !== 0) {
+                const stderr = Buffer.concat(stderrChunks).toString('utf8').trim();
+                reject(new Error(stderr || `git ${args.join(' ')} exited with code ${code ?? 'unknown'}`));
+                return;
+            }
+
+            resolve(Buffer.concat(stdoutChunks).toString('utf8'));
+        });
     });
-    return stdout;
 }
 
 function assertSafeRelativePath(filePath: string): string {
@@ -139,10 +228,16 @@ function languageFromPath(filePath: string): string {
     return map[ext] ?? 'plaintext';
 }
 
-async function readBaseFile(worktreePath: string, baseSha: string, filePath: string): Promise<string | null> {
+async function readBaseFile(
+    worktreePath: string,
+    baseSha: string,
+    filePath: string,
+    signal?: AbortSignal,
+): Promise<string | null> {
     try {
-        return await git(worktreePath, ['show', `${baseSha}:${filePath}`]);
-    } catch {
+        return await git(worktreePath, ['show', `${baseSha}:${filePath}`], signal);
+    } catch (err: unknown) {
+        if (isDiffAbortError(err)) throw err;
         return null;
     }
 }
@@ -159,16 +254,22 @@ function looksBinary(content: string): boolean {
     return content.includes('\0');
 }
 
-export async function getSessionDiffSummary(worktreePath: string, baseSha: string): Promise<SessionDiffSummary> {
-    const nameStatus = await git(worktreePath, ['-c', 'core.quotepath=false', 'diff', '--name-status', '-M', baseSha]);
-    const numstat = await git(worktreePath, ['-c', 'core.quotepath=false', 'diff', '--numstat', '-M', baseSha]);
-    const untracked = await git(worktreePath, [
-        '-c',
-        'core.quotepath=false',
-        'ls-files',
-        '--others',
-        '--exclude-standard',
-    ]);
+export async function getSessionDiffSummary(
+    worktreePath: string,
+    baseSha: string,
+    signal?: AbortSignal,
+): Promise<SessionDiffSummary> {
+    const nameStatus = await git(
+        worktreePath,
+        ['-c', 'core.quotepath=false', 'diff', '--name-status', '-M', baseSha],
+        signal,
+    );
+    const numstat = await git(worktreePath, ['-c', 'core.quotepath=false', 'diff', '--numstat', '-M', baseSha], signal);
+    const untracked = await git(
+        worktreePath,
+        ['-c', 'core.quotepath=false', 'ls-files', '--others', '--exclude-standard'],
+        signal,
+    );
 
     const stats = new Map<string, { additions: number | null; deletions: number | null; binary: boolean }>();
     for (const line of numstat.split('\n')) {
@@ -223,6 +324,9 @@ export async function getSessionDiffSummary(worktreePath: string, baseSha: strin
     }
 
     for (const line of untracked.split('\n')) {
+        if (signal?.aborted) {
+            throw new DiffAbortError();
+        }
         const filePath = line.trim();
         if (!filePath || seen.has(filePath)) continue;
         let additions: number | null = 0;
@@ -252,18 +356,12 @@ export async function getSessionDiffSummary(worktreePath: string, baseSha: strin
     return { baseSha, files };
 }
 
+/** Load one file's diff using cached summary metadata (no full-tree re-diff). */
 export async function getSessionFileDiff(
     worktreePath: string,
     baseSha: string,
-    filePath: string,
+    meta: SessionDiffFile,
 ): Promise<SessionFileDiff> {
-    const safePath = assertSafeRelativePath(filePath);
-    const summary = await getSessionDiffSummary(worktreePath, baseSha);
-    const meta = summary.files.find((file) => file.path === safePath);
-    if (!meta) {
-        throw new Error('File not found in diff');
-    }
-
     if (meta.binary) {
         return {
             path: meta.path,
@@ -336,24 +434,23 @@ async function restoreFromBase(worktreePath: string, baseSha: string, filePath: 
 }
 
 /** Restore a single review-diff path to the session base (VS Code–style discard). */
-export async function discardSessionDiffFile(worktreePath: string, baseSha: string, filePath: string): Promise<void> {
-    const safePath = assertSafeRelativePath(filePath);
-    const summary = await getSessionDiffSummary(worktreePath, baseSha);
-    const meta = summary.files.find((file) => file.path === safePath);
-    if (!meta) {
-        throw new Error('File not found in diff');
-    }
+export async function discardSessionDiffFile(
+    worktreePath: string,
+    baseSha: string,
+    meta: SessionDiffFile,
+): Promise<void> {
+    const safePath = assertSafeRelativePath(meta.path);
 
     switch (meta.status) {
         case 'added':
-            await removeWorktreePath(worktreePath, meta.path);
+            await removeWorktreePath(worktreePath, safePath);
             return;
         case 'deleted':
         case 'modified':
-            await restoreFromBase(worktreePath, baseSha, meta.path);
+            await restoreFromBase(worktreePath, baseSha, safePath);
             return;
         case 'renamed': {
-            await removeWorktreePath(worktreePath, meta.path);
+            await removeWorktreePath(worktreePath, safePath);
             if (meta.oldPath) {
                 await restoreFromBase(worktreePath, baseSha, assertSafeRelativePath(meta.oldPath));
             }
@@ -361,3 +458,5 @@ export async function discardSessionDiffFile(worktreePath: string, baseSha: stri
         }
     }
 }
+
+export { assertSafeRelativePath };
