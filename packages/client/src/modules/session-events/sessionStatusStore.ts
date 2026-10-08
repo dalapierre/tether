@@ -15,6 +15,8 @@ export type SessionStatusEntry = {
     branch?: string | null;
     behindDefault?: number | null;
     defaultBranch?: string | null;
+    cpuPercent?: number | null;
+    ramPercent?: number | null;
 };
 
 type Listener = () => void;
@@ -41,6 +43,8 @@ function toStatusEntry(session: Session): SessionStatusEntry {
         branch: session.branch,
         behindDefault: session.behindDefault,
         defaultBranch: session.defaultBranch,
+        cpuPercent: session.cpuPercent,
+        ramPercent: session.ramPercent,
     };
 }
 
@@ -68,6 +72,8 @@ export function seedSessionStatuses(
         branch?: string | null;
         behindDefault?: number | null;
         defaultBranch?: string | null;
+        cpuPercent?: number | null;
+        ramPercent?: number | null;
         profileId?: string;
         agent?: Session['agent'];
         type?: Session['type'];
@@ -88,6 +94,8 @@ export function seedSessionStatuses(
             branch: entry.branch ?? existing?.branch ?? null,
             behindDefault: entry.behindDefault ?? existing?.behindDefault ?? null,
             defaultBranch: entry.defaultBranch ?? existing?.defaultBranch ?? null,
+            cpuPercent: entry.cpuPercent ?? existing?.cpuPercent ?? null,
+            ramPercent: entry.ramPercent ?? existing?.ramPercent ?? null,
             status: entry.status,
             createdAt: entry.createdAt ?? existing?.createdAt ?? 0,
         });
@@ -107,6 +115,8 @@ export function upsertSession(session: Session): void {
         current.branch === session.branch &&
         current.behindDefault === session.behindDefault &&
         current.defaultBranch === session.defaultBranch &&
+        current.cpuPercent === session.cpuPercent &&
+        current.ramPercent === session.ramPercent &&
         current.status === session.status &&
         current.createdAt === session.createdAt
     ) {
@@ -181,6 +191,26 @@ export function applySessionBranch(input: {
         branch: input.branch,
         behindDefault: input.behindDefault,
         defaultBranch: input.defaultBranch,
+    });
+    sessions = next;
+    emit();
+}
+
+export function applySessionUsage(input: {
+    sessionId: string;
+    cpuPercent: number | null;
+    ramPercent: number | null;
+}): void {
+    const current = sessions.get(input.sessionId);
+    if (!current) return;
+    if (current.cpuPercent === input.cpuPercent && current.ramPercent === input.ramPercent) {
+        return;
+    }
+    const next = new Map(sessions);
+    next.set(input.sessionId, {
+        ...current,
+        cpuPercent: input.cpuPercent,
+        ramPercent: input.ramPercent,
     });
     sessions = next;
     emit();

@@ -17,6 +17,8 @@ export type Session = {
     branch: string | null;
     behindDefault: number | null;
     defaultBranch: string | null;
+    cpuPercent: number | null;
+    ramPercent: number | null;
     status: SessionStatus;
     createdAt: number;
 };
@@ -49,6 +51,12 @@ export type ServerSessionEventMessage =
           branch: string | null;
           behindDefault: number | null;
           defaultBranch: string | null;
+      }
+    | {
+          type: 'usage';
+          sessionId: string;
+          cpuPercent: number | null;
+          ramPercent: number | null;
       }
     | {
           type: 'diff';
@@ -110,6 +118,10 @@ function isSessionType(value: unknown): value is SessionType {
     return value === 'coding' || value === 'conversation';
 }
 
+function isNullableNumber(value: unknown): value is number | null {
+    return value === null || typeof value === 'number';
+}
+
 function isSession(value: unknown): value is Session {
     if (!value || typeof value !== 'object') return false;
     const session = value as Partial<Session>;
@@ -124,9 +136,20 @@ function isSession(value: unknown): value is Session {
         (session.branch === null || typeof session.branch === 'string') &&
         (session.behindDefault === null || typeof session.behindDefault === 'number') &&
         (session.defaultBranch === null || typeof session.defaultBranch === 'string') &&
+        // Older servers omit usage fields; treat missing as null.
+        (session.cpuPercent === undefined || isNullableNumber(session.cpuPercent)) &&
+        (session.ramPercent === undefined || isNullableNumber(session.ramPercent)) &&
         isSessionStatus(session.status) &&
         typeof session.createdAt === 'number'
     );
+}
+
+function normalizeSession(session: Session): Session {
+    return {
+        ...session,
+        cpuPercent: session.cpuPercent ?? null,
+        ramPercent: session.ramPercent ?? null,
+    };
 }
 
 export function parseServerSessionEventMessage(raw: string): ServerSessionEventMessage | null {
@@ -139,13 +162,19 @@ export function parseServerSessionEventMessage(raw: string): ServerSessionEventM
             if (!Array.isArray(parsed.sessions) || !parsed.sessions.every(isSession)) {
                 return null;
             }
-            return parsed;
+            return {
+                type: 'snapshot',
+                sessions: parsed.sessions.map(normalizeSession),
+            };
         }
         if (parsed.type === 'upsert') {
             if (!isSession(parsed.session)) {
                 return null;
             }
-            return parsed;
+            return {
+                type: 'upsert',
+                session: normalizeSession(parsed.session),
+            };
         }
         if (parsed.type === 'remove') {
             if (typeof parsed.sessionId !== 'string') {
@@ -177,6 +206,15 @@ export function parseServerSessionEventMessage(raw: string): ServerSessionEventM
             }
             return parsed;
         }
+        if (parsed.type === 'usage') {
+            if (typeof parsed.sessionId !== 'string') {
+                return null;
+            }
+            if (!isNullableNumber(parsed.cpuPercent) || !isNullableNumber(parsed.ramPercent)) {
+                return null;
+            }
+            return parsed;
+        }
         if (parsed.type === 'diff') {
             if (typeof parsed.sessionId !== 'string') {
                 return null;
@@ -203,7 +241,7 @@ export async function listSessions(repositoryId?: string): Promise<Session[]> {
     }
 
     const data = (await res.json()) as ListResponse;
-    return data.sessions;
+    return data.sessions.filter(isSession).map(normalizeSession);
 }
 
 export async function getSession(id: string): Promise<Session | null> {
@@ -219,7 +257,7 @@ export async function getSession(id: string): Promise<Session | null> {
     }
 
     const data = (await res.json()) as SessionResponse;
-    return data.session;
+    return isSession(data.session) ? normalizeSession(data.session) : null;
 }
 
 export async function createSession(input: {
@@ -239,7 +277,10 @@ export async function createSession(input: {
     }
 
     const data = (await res.json()) as SessionResponse;
-    return data.session;
+    if (!isSession(data.session)) {
+        throw new ApiError(res.status, 'Invalid session response');
+    }
+    return normalizeSession(data.session);
 }
 
 export async function deleteSession(id: string): Promise<void> {
@@ -266,7 +307,10 @@ export async function restartSession(id: string): Promise<Session> {
     }
 
     const data = (await res.json()) as SessionResponse;
-    return data.session;
+    if (!isSession(data.session)) {
+        throw new ApiError(res.status, 'Invalid session response');
+    }
+    return normalizeSession(data.session);
 }
 
 export async function getSessionDiff(sessionId: string): Promise<SessionDiffSummary> {

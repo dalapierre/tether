@@ -8,6 +8,7 @@ import { showToast } from '@client/modules/toast';
 import {
     applySessionBranch,
     applySessionStatus,
+    applySessionUsage,
     bumpDiffGeneration,
     hasSessionsSnapshot,
     markSessionReadySeen,
@@ -105,6 +106,15 @@ function connect() {
                 branch: parsed.branch,
                 behindDefault: parsed.behindDefault,
                 defaultBranch: parsed.defaultBranch,
+            });
+            return;
+        }
+
+        if (parsed.type === 'usage') {
+            applySessionUsage({
+                sessionId: parsed.sessionId,
+                cpuPercent: parsed.cpuPercent,
+                ramPercent: parsed.ramPercent,
             });
             return;
         }

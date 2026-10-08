@@ -28,6 +28,12 @@ export type ServerSessionEventMessage =
           defaultBranch: string | null;
       }
     | {
+          type: 'usage';
+          sessionId: string;
+          cpuPercent: number | null;
+          ramPercent: number | null;
+      }
+    | {
           /** Client should refetch diff summary / file contents for this session. */
           type: 'diff';
           sessionId: string;
@@ -93,6 +99,22 @@ export function broadcastSessionBranch(input: {
         branch: input.branch,
         behindDefault: input.behindDefault,
         defaultBranch: input.defaultBranch,
+    };
+    for (const client of clients) {
+        send(client, message);
+    }
+}
+
+export function broadcastSessionUsage(input: {
+    sessionId: string;
+    cpuPercent: number | null;
+    ramPercent: number | null;
+}): void {
+    const message: ServerSessionEventMessage = {
+        type: 'usage',
+        sessionId: input.sessionId,
+        cpuPercent: input.cpuPercent,
+        ramPercent: input.ramPercent,
     };
     for (const client of clients) {
         send(client, message);

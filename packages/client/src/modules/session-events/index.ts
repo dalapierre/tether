@@ -1,6 +1,7 @@
 export { SessionEventsProvider } from './sessionEventsProvider';
 export {
     applySessionBranch,
+    applySessionUsage,
     bumpDiffGeneration,
     getDiffGeneration,
     getLiveSession,

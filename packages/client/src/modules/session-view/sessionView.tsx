@@ -173,6 +173,12 @@ function ReviewIcon({ className }: { className?: string }) {
     );
 }
 
+function usageClassName(percent: number): string {
+    if (percent >= 80) return styles.metaUsageDanger;
+    if (percent >= 50) return styles.metaUsageWarning;
+    return styles.metaUsage;
+}
+
 function harnessLabel(agent: AgentId, formatMessage: ReturnType<typeof useIntl>['formatMessage']): string {
     return formatMessage(agentLabelMessage(agent));
 }
@@ -1271,6 +1277,24 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         })
                     )}
                 </p>
+                {displaySession.cpuPercent != null || displaySession.ramPercent != null ? (
+                    <p className={styles.metaUsageGroup}>
+                        {displaySession.cpuPercent != null ? (
+                            <span className={usageClassName(displaySession.cpuPercent)}>
+                                {intl.formatMessage(messages.metaCpu, {
+                                    percent: displaySession.cpuPercent,
+                                })}
+                            </span>
+                        ) : null}
+                        {displaySession.ramPercent != null ? (
+                            <span className={usageClassName(displaySession.ramPercent)}>
+                                {intl.formatMessage(messages.metaRam, {
+                                    percent: displaySession.ramPercent,
+                                })}
+                            </span>
+                        ) : null}
+                    </p>
+                ) : null}
             </div>
             <div ref={mainRef} className={styles.main}>
                 <div

@@ -21,6 +21,7 @@ import {
     type SessionFileDiff,
 } from '@server/libs/sessions/diff.js';
 import { createAgentSessionId, ensureWorkspaceTrusted, resolveHarnessLaunch } from '@server/libs/sessions/harness.js';
+import { sampleProcessTrees, usageFromSamples, type ProcessTreeSample } from '@server/libs/sessions/processUsage.js';
 import {
     attachStatusClient,
     broadcastSessionBranch,
@@ -28,6 +29,7 @@ import {
     broadcastSessionRemove,
     broadcastSessionStatus,
     broadcastSessionUpsert,
+    broadcastSessionUsage,
     sendSessionEvent,
 } from '@server/libs/sessions/statusHub.js';
 import {
@@ -76,6 +78,15 @@ type RuntimeSession = Omit<Session, 'behindDefault' | 'defaultBranch'> & {
 const sessions = new Map<string, RuntimeSession>();
 const sessionsFile = getSessionsFilePath();
 let persistChain: Promise<void> = Promise.resolve();
+
+type UsageSampleState = {
+    sample: ProcessTreeSample;
+    at: number;
+};
+
+const usageSamples = new Map<string, UsageSampleState>();
+const USAGE_SAMPLE_INTERVAL_MS = 2000;
+let usageSamplerStarted = false;
 
 type HeadWatcher = {
     watcher: FSWatcher;
@@ -437,9 +448,89 @@ async function toPublic(session: RuntimeSession): Promise<Session> {
         branch: session.branch,
         behindDefault,
         defaultBranch,
+        cpuPercent: session.cpuPercent,
+        ramPercent: session.ramPercent,
         status: session.status,
         createdAt: session.createdAt,
     };
+}
+
+function sessionPtyPids(session: RuntimeSession): number[] {
+    const pids: number[] = [];
+    if (session.pty?.pid) pids.push(session.pty.pid);
+    if (session.shellPty?.pid) pids.push(session.shellPty.pid);
+    return pids;
+}
+
+function clearSessionUsage(sessionId: string): void {
+    usageSamples.delete(sessionId);
+}
+
+async function sampleSessionUsage(session: RuntimeSession): Promise<void> {
+    const pids = sessionPtyPids(session);
+    if (pids.length === 0) {
+        if (session.cpuPercent !== null || session.ramPercent !== null) {
+            session.cpuPercent = null;
+            session.ramPercent = null;
+            clearSessionUsage(session.id);
+            broadcastSessionUsage({
+                sessionId: session.id,
+                cpuPercent: null,
+                ramPercent: null,
+            });
+        }
+        return;
+    }
+
+    const nextSample = await sampleProcessTrees(pids);
+    const now = Date.now();
+    if (!nextSample) {
+        if (session.cpuPercent !== null || session.ramPercent !== null) {
+            session.cpuPercent = null;
+            session.ramPercent = null;
+            clearSessionUsage(session.id);
+            broadcastSessionUsage({
+                sessionId: session.id,
+                cpuPercent: null,
+                ramPercent: null,
+            });
+        }
+        return;
+    }
+
+    const previous = usageSamples.get(session.id);
+    usageSamples.set(session.id, { sample: nextSample, at: now });
+    if (!previous) return;
+
+    const usage = usageFromSamples(previous.sample, nextSample, now - previous.at);
+    if (!usage) return;
+    if (session.cpuPercent === usage.cpuPercent && session.ramPercent === usage.ramPercent) {
+        return;
+    }
+
+    session.cpuPercent = usage.cpuPercent;
+    session.ramPercent = usage.ramPercent;
+    broadcastSessionUsage({
+        sessionId: session.id,
+        cpuPercent: usage.cpuPercent,
+        ramPercent: usage.ramPercent,
+    });
+}
+
+async function tickSessionUsage(): Promise<void> {
+    const items = [...sessions.values()];
+    if (items.length === 0) return;
+    await Promise.all(items.map((session) => sampleSessionUsage(session)));
+}
+
+function ensureUsageSamplerStarted(): void {
+    if (usageSamplerStarted) return;
+    usageSamplerStarted = true;
+    setInterval(() => {
+        void tickSessionUsage().catch((err: unknown) => {
+            logger.error('Failed to sample session resource usage', err);
+        });
+    }, USAGE_SAMPLE_INTERVAL_MS);
 }
 
 function setStatus(session: RuntimeSession, status: SessionStatus): void {
@@ -732,6 +823,8 @@ async function createCodingSession(input: {
         type: 'coding',
         repositoryId: repository.id,
         branch: workspace.branch,
+        cpuPercent: null,
+        ramPercent: null,
         status: 'busy',
         createdAt: Date.now(),
         yoloMode: input.yoloMode,
@@ -748,6 +841,7 @@ async function createCodingSession(input: {
     };
 
     sessions.set(id, session);
+    ensureUsageSamplerStarted();
     await persistSessions();
     await startWatchingHead(session);
     startWatchingDiff(session);
@@ -792,6 +886,8 @@ export async function restoreSessions(): Promise<void> {
             type: item.type,
             repositoryId: item.repositoryId,
             branch: item.branch,
+            cpuPercent: null,
+            ramPercent: null,
             status: 'error',
             createdAt: item.createdAt,
             yoloMode: item.yoloMode,
@@ -808,6 +904,7 @@ export async function restoreSessions(): Promise<void> {
         };
 
         sessions.set(item.id, session);
+        ensureUsageSamplerStarted();
 
         if (!(await pathExists(session.worktreePath))) {
             appendOutput(session.id, '\r\n[session restore failed: workspace missing]\r\n');
@@ -1128,6 +1225,7 @@ export function deleteSession(id: string): boolean {
     }
 
     sessions.delete(id);
+    clearSessionUsage(id);
     clearTerminal(id);
     broadcastSessionRemove(id);
 

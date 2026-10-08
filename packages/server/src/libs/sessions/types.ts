@@ -17,6 +17,10 @@ export type Session = {
     behindDefault: number | null;
     /** Remote default branch short name (e.g. main); null when N/A. */
     defaultBranch: string | null;
+    /** Agent (+ shell) process tree CPU as % of all cores; null until sampled. */
+    cpuPercent: number | null;
+    /** Agent (+ shell) process tree RSS as % of system RAM; null until sampled. */
+    ramPercent: number | null;
     status: SessionStatus;
     createdAt: number;
 };

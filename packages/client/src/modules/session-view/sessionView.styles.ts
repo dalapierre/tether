@@ -7,10 +7,14 @@ export const styles = {
     // Mobile: top meta strip under tabs. Desktop: VS Code–style status bar pinned
     // below the main panes (flex order-last) with a top border instead of bottom.
     meta: 'flex shrink-0 items-center gap-3 border-b border-zinc-800 px-4 py-2 text-xs text-zinc-400 md:order-last md:border-b-0 md:border-t md:bg-zinc-900 md:px-3 md:py-1',
-    metaText: 'min-w-0 truncate',
+    metaText: 'min-w-0 flex-1 truncate',
     metaRepo: 'font-bold text-zinc-200',
     metaBehindWarning: 'text-amber-400',
     metaBehindDanger: 'text-red-400',
+    metaUsageGroup: 'ml-auto flex shrink-0 items-center gap-2',
+    metaUsage: 'text-aura-green',
+    metaUsageWarning: 'text-amber-400',
+    metaUsageDanger: 'text-red-400',
     agentToolbar:
         'hidden h-7 shrink-0 items-center justify-end gap-1 border-b border-zinc-800 bg-zinc-900 px-2 md:flex',
     paneToggle:

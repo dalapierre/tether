@@ -10,6 +10,8 @@ type Messages = {
     disconnected: NoMessageValues;
     metaConversation: { harness: string };
     branchBehindDefault: { count: number; defaultBranch: string };
+    metaCpu: { percent: number };
+    metaRam: { percent: number };
     viewTabs: NoMessageValues;
     agentView: NoMessageValues;
     terminalView: NoMessageValues;
@@ -65,6 +67,14 @@ export const messages = defineMessages<Messages>(
         branchBehindDefault: {
             id: 'sessionView.branchBehindDefault',
             defaultMessage: '{count, plural, one {# commit} other {# commits}} behind {defaultBranch}',
+        },
+        metaCpu: {
+            id: 'sessionView.metaCpu',
+            defaultMessage: 'CPU {percent}%',
+        },
+        metaRam: {
+            id: 'sessionView.metaRam',
+            defaultMessage: 'RAM {percent}%',
         },
         viewTabs: {
             id: 'sessionView.viewTabs',
