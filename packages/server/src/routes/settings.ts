@@ -2,8 +2,11 @@ import { isAgentId } from '@server/libs/agents/agents.js';
 import { isKeybinds, normalizeKeybinds } from '@server/libs/settings/keybinds.js';
 import {
     getSettings,
+    MAX_AUTH_TOKEN_EXPIRATION_MINUTES,
     MAX_TOAST_DURATION_SECONDS,
+    MIN_AUTH_TOKEN_EXPIRATION_MINUTES,
     MIN_TOAST_DURATION_SECONDS,
+    normalizeAuthTokenExpirationMinutes,
     normalizeIncomingProfiles,
     normalizeToastDurationSeconds,
     updateSettings,
@@ -25,6 +28,7 @@ settingsRouter.get('/', async (_req, res) => {
 settingsRouter.put('/', async (req, res) => {
     const devDir = typeof req.body?.devDir === 'string' ? req.body.devDir.trim() : undefined;
     const toastDurationRaw = req.body?.toastDurationSeconds;
+    const authTokenExpirationRaw = req.body?.authTokenExpirationMinutes;
     const defaultAgentRaw = typeof req.body?.defaultAgent === 'string' ? req.body.defaultAgent.trim() : undefined;
     const defaultProfileId =
         typeof req.body?.defaultProfileId === 'string' ? req.body.defaultProfileId.trim() : undefined;
@@ -45,6 +49,22 @@ settingsRouter.put('/', async (req, res) => {
     if (toastDurationSeconds < MIN_TOAST_DURATION_SECONDS || toastDurationSeconds > MAX_TOAST_DURATION_SECONDS) {
         res.status(400).json({
             error: `toastDurationSeconds must be between ${MIN_TOAST_DURATION_SECONDS} and ${MAX_TOAST_DURATION_SECONDS}`,
+        });
+        return;
+    }
+
+    if (typeof authTokenExpirationRaw !== 'number' || !Number.isFinite(authTokenExpirationRaw)) {
+        res.status(400).json({ error: 'authTokenExpirationMinutes is required' });
+        return;
+    }
+
+    const authTokenExpirationMinutes = Math.round(authTokenExpirationRaw);
+    if (
+        authTokenExpirationMinutes < MIN_AUTH_TOKEN_EXPIRATION_MINUTES ||
+        authTokenExpirationMinutes > MAX_AUTH_TOKEN_EXPIRATION_MINUTES
+    ) {
+        res.status(400).json({
+            error: `authTokenExpirationMinutes must be between ${MIN_AUTH_TOKEN_EXPIRATION_MINUTES} and ${MAX_AUTH_TOKEN_EXPIRATION_MINUTES}`,
         });
         return;
     }
@@ -83,6 +103,7 @@ settingsRouter.put('/', async (req, res) => {
         const settings = await updateSettings({
             devDir,
             toastDurationSeconds: normalizeToastDurationSeconds(toastDurationSeconds),
+            authTokenExpirationMinutes: normalizeAuthTokenExpirationMinutes(authTokenExpirationMinutes),
             defaultAgent: defaultAgentRaw,
             defaultProfileId,
             profiles,

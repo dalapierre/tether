@@ -3,7 +3,7 @@ import { Router } from 'express';
 
 export const authRouter = Router();
 
-authRouter.post('/login', (req, res) => {
+authRouter.post('/login', async (req, res) => {
     if (!isAccessKeyConfigured()) {
         res.status(503).json({ error: 'ACCESS_KEY is not configured on the server' });
         return;
@@ -15,6 +15,11 @@ authRouter.post('/login', (req, res) => {
         return;
     }
 
-    const { token, expiresAt } = createAccessToken();
-    res.json({ token, expiresAt });
+    try {
+        const { token, expiresAt } = await createAccessToken();
+        res.json({ token, expiresAt });
+    } catch (err: unknown) {
+        console.error('Failed to create access token', err);
+        res.status(500).json({ error: 'Failed to create access token' });
+    }
 });

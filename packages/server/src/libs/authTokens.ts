@@ -1,6 +1,5 @@
+import { getSettings } from '@server/libs/settings/store.js';
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
-
-const TOKEN_TTL_MS = 60 * 60 * 1000; // ~1 hour
 
 type TokenPayload = {
     exp: number;
@@ -34,9 +33,11 @@ export function validateAccessKey(candidate: string): boolean {
     return safeEqual(candidate, requireAccessKey());
 }
 
-export function createAccessToken(): { token: string; expiresAt: number } {
+export async function createAccessToken(): Promise<{ token: string; expiresAt: number }> {
     const secret = requireAccessKey();
-    const expiresAt = Date.now() + TOKEN_TTL_MS;
+    const settings = await getSettings();
+    const ttlMs = settings.authTokenExpirationMinutes * 60 * 1000;
+    const expiresAt = Date.now() + ttlMs;
     const payload: TokenPayload = {
         exp: expiresAt,
         jti: randomBytes(16).toString('hex'),

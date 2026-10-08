@@ -68,6 +68,8 @@ type Messages = {
     devDirHint: NoMessageValues;
     toastDurationLabel: NoMessageValues;
     toastDurationHint: NoMessageValues;
+    authTokenExpirationLabel: NoMessageValues;
+    authTokenExpirationHint: NoMessageValues;
     repositoriesLabel: NoMessageValues;
     repositoriesEmpty: NoMessageValues;
     repositoriesLoadFailed: NoMessageValues;
@@ -380,6 +382,14 @@ export const messages = defineMessages<Messages>(
         toastDurationHint: {
             id: 'settings.toastDurationHint',
             defaultMessage: 'Seconds notifications stay on screen before dismissing (1–120).',
+        },
+        authTokenExpirationLabel: {
+            id: 'settings.authTokenExpirationLabel',
+            defaultMessage: 'Auth token expiration',
+        },
+        authTokenExpirationHint: {
+            id: 'settings.authTokenExpirationHint',
+            defaultMessage: 'Minutes before a login session expires and you must sign in again (1–1440).',
         },
         repositoriesLabel: {
             id: 'settings.repositoriesLabel',
