@@ -2,7 +2,12 @@ import { Button } from '@client/components/button';
 import { IconButton } from '@client/components/icon-button';
 import { PageHeader } from '@client/components/page-header';
 import { SearchSelect } from '@client/components/search-select';
-import { listRepositories, listRepositoryBranches, type Repository } from '@client/libs/api/repositories';
+import {
+    listRepositories,
+    listRepositoryBranches,
+    listRepositoryDirectories,
+    type Repository,
+} from '@client/libs/api/repositories';
 import { createSession } from '@client/libs/api/sessions';
 import { getSettings, type AgentProfile } from '@client/libs/api/settings';
 import { isValidBranchName } from '@client/libs/git/branchName';
@@ -13,6 +18,23 @@ import { messages } from './newSession.messages';
 import { styles } from './newSession.styles';
 import type { NewSessionProps } from './newSession.types';
 
+const DEFAULT_WORKING_DIRECTORY = '/';
+
+function AdvancedChevron({ open }: { open: boolean }) {
+    return (
+        <svg
+            className={open ? styles.advancedChevronOpen : styles.advancedChevron}
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='2'
+            aria-hidden='true'
+        >
+            <path strokeLinecap='round' strokeLinejoin='round' d='m19.5 8.25-7.5 7.5-7.5-7.5' />
+        </svg>
+    );
+}
+
 export function NewSession({ onClose, onStarted }: NewSessionProps) {
     const intl = useIntl();
     const [name, setName] = useState('');
@@ -20,6 +42,9 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
     const [repositoryId, setRepositoryId] = useState('');
     const [branch, setBranch] = useState('');
     const [branches, setBranches] = useState<string[]>([]);
+    const [workingDirectory, setWorkingDirectory] = useState(DEFAULT_WORKING_DIRECTORY);
+    const [directories, setDirectories] = useState<string[]>([DEFAULT_WORKING_DIRECTORY]);
+    const [advancedOpen, setAdvancedOpen] = useState(false);
     const [profiles, setProfiles] = useState<AgentProfile[]>([]);
     const [repositories, setRepositories] = useState<Repository[]>([]);
     const [loading, setLoading] = useState(true);
@@ -60,21 +85,26 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
     useEffect(() => {
         if (!repositoryId) {
             setBranches([]);
+            setDirectories([DEFAULT_WORKING_DIRECTORY]);
+            setWorkingDirectory(DEFAULT_WORKING_DIRECTORY);
             return;
         }
 
         let cancelled = false;
         setBranches([]);
+        setDirectories([DEFAULT_WORKING_DIRECTORY]);
+        setWorkingDirectory(DEFAULT_WORKING_DIRECTORY);
 
-        listRepositoryBranches(repositoryId)
-            .then((items) => {
-                if (!cancelled) {
-                    setBranches(items);
-                }
+        Promise.all([listRepositoryBranches(repositoryId), listRepositoryDirectories(repositoryId)])
+            .then(([branchItems, directoryItems]) => {
+                if (cancelled) return;
+                setBranches(branchItems);
+                setDirectories(directoryItems.length > 0 ? directoryItems : [DEFAULT_WORKING_DIRECTORY]);
             })
             .catch((err: unknown) => {
                 if (!cancelled) {
                     setBranches([]);
+                    setDirectories([DEFAULT_WORKING_DIRECTORY]);
                     showToast(
                         'generic-error',
                         err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed),
@@ -120,12 +150,19 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
         [branches],
     );
 
+    const directoryOptions = useMemo(
+        () => directories.map((directory) => ({ value: directory, label: directory })),
+        [directories],
+    );
+
     const usesWorktrees = selectedProfile?.useWorktrees !== false;
 
     async function handleStart() {
         const trimmedName = name.trim();
         if (!trimmedName || !profileId || !selectedProfile || starting) return;
         if (!repositoryId) return;
+
+        const trimmedWorkingDirectory = workingDirectory.trim() || DEFAULT_WORKING_DIRECTORY;
 
         if (usesWorktrees) {
             const trimmedBranch = branch.trim();
@@ -142,6 +179,7 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                     name: trimmedName,
                     repositoryId,
                     branch: trimmedBranch,
+                    workingDirectory: trimmedWorkingDirectory,
                 });
                 onStarted(session);
             } catch (err: unknown) {
@@ -160,6 +198,7 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                 profileId,
                 name: trimmedName,
                 repositoryId,
+                workingDirectory: trimmedWorkingDirectory,
             });
             onStarted(session);
         } catch (err: unknown) {
@@ -259,6 +298,7 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                                         onSelect={(option) => {
                                             setRepositoryId(option.value);
                                             setBranch('');
+                                            setWorkingDirectory(DEFAULT_WORKING_DIRECTORY);
                                         }}
                                         placeholder={intl.formatMessage(messages.projectPlaceholder)}
                                         emptyMessage={intl.formatMessage(messages.projectsEmpty)}
@@ -283,6 +323,45 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                                         />
                                     </div>
                                 ) : null}
+
+                                <div className={styles.advanced}>
+                                    <button
+                                        type='button'
+                                        className={styles.advancedToggle}
+                                        aria-expanded={advancedOpen}
+                                        onClick={() => setAdvancedOpen((open) => !open)}
+                                        disabled={starting}
+                                    >
+                                        <span>{intl.formatMessage(messages.advancedToggle)}</span>
+                                        <AdvancedChevron open={advancedOpen} />
+                                    </button>
+
+                                    {advancedOpen ? (
+                                        <div className={styles.advancedFields}>
+                                            <div>
+                                                <p className={styles.label}>
+                                                    {intl.formatMessage(messages.workingDirectoryLabel)}
+                                                </p>
+                                                <SearchSelect
+                                                    options={directoryOptions}
+                                                    value={workingDirectory}
+                                                    allowCustom
+                                                    onChange={setWorkingDirectory}
+                                                    onSelect={(option) => setWorkingDirectory(option.value)}
+                                                    placeholder={intl.formatMessage(
+                                                        messages.workingDirectoryPlaceholder,
+                                                    )}
+                                                    emptyMessage={intl.formatMessage(messages.workingDirectoryEmpty)}
+                                                    noResultsMessage={intl.formatMessage(
+                                                        messages.workingDirectoryNoResults,
+                                                    )}
+                                                    disabled={starting || !repositoryId}
+                                                    ariaLabel={intl.formatMessage(messages.workingDirectoryLabel)}
+                                                />
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                </div>
                             </div>
                         ) : null}
                     </div>

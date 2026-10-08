@@ -341,6 +341,37 @@ export async function listRepositoryBranches(id: string): Promise<string[] | nul
     return listLocalBranches(repository.path);
 }
 
+/**
+ * Directory paths under a repository (repo-relative, leading `/`), including `/`.
+ * Uses tracked tree at HEAD so the picker stays fast on large monorepos.
+ */
+export async function listLocalDirectories(repoPath: string): Promise<string[]> {
+    try {
+        const { stdout } = await execFileAsync('git', ['ls-tree', '-d', '-r', '--name-only', 'HEAD'], {
+            cwd: repoPath,
+            maxBuffer: 20 * 1024 * 1024,
+        });
+        const dirs = stdout
+            .split('\n')
+            .map((line) => line.trim().replaceAll('\\', '/'))
+            .filter(Boolean)
+            .map((dir) => (dir.startsWith('/') ? dir : `/${dir}`));
+        dirs.sort((a, b) => a.localeCompare(b));
+        return ['/', ...dirs];
+    } catch {
+        return ['/'];
+    }
+}
+
+/** Tracked directories for an added repository, or null if the repository is unknown. */
+export async function listRepositoryDirectories(id: string): Promise<string[] | null> {
+    const repository = await getRepository(id);
+    if (!repository) {
+        return null;
+    }
+    return listLocalDirectories(repository.path);
+}
+
 export async function listAvailableRepositories(): Promise<AvailableRepository[]> {
     const { devDir } = await getSettings();
     const trimmed = devDir.trim();

@@ -21,6 +21,11 @@ type Messages = {
     projectNoResults: NoMessageValues;
     branchLabel: NoMessageValues;
     branchPlaceholder: NoMessageValues;
+    advancedToggle: NoMessageValues;
+    workingDirectoryLabel: NoMessageValues;
+    workingDirectoryPlaceholder: NoMessageValues;
+    workingDirectoryEmpty: NoMessageValues;
+    workingDirectoryNoResults: NoMessageValues;
     start: NoMessageValues;
     starting: NoMessageValues;
     startFailed: NoMessageValues;
@@ -107,6 +112,26 @@ export const messages = defineMessages<Messages>(
         branchPlaceholder: {
             id: 'newSession.branchPlaceholder',
             defaultMessage: 'Branch name',
+        },
+        advancedToggle: {
+            id: 'newSession.advancedToggle',
+            defaultMessage: 'Advanced',
+        },
+        workingDirectoryLabel: {
+            id: 'newSession.workingDirectoryLabel',
+            defaultMessage: 'Working directory',
+        },
+        workingDirectoryPlaceholder: {
+            id: 'newSession.workingDirectoryPlaceholder',
+            defaultMessage: 'Search directories…',
+        },
+        workingDirectoryEmpty: {
+            id: 'newSession.workingDirectoryEmpty',
+            defaultMessage: 'Select a repository to browse directories.',
+        },
+        workingDirectoryNoResults: {
+            id: 'newSession.workingDirectoryNoResults',
+            defaultMessage: 'No matching directories.',
         },
         start: {
             id: 'newSession.start',

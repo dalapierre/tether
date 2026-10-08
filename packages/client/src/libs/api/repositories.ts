@@ -93,3 +93,19 @@ export async function listRepositoryBranches(id: string): Promise<string[]> {
     const data = (await res.json()) as BranchesResponse;
     return data.branches;
 }
+
+type DirectoriesResponse = {
+    directories: string[];
+};
+
+export async function listRepositoryDirectories(id: string): Promise<string[]> {
+    const res = await apiFetch(`/api/repositories/${encodeURIComponent(id)}/directories`);
+
+    if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new ApiError(res.status, body?.error ?? `HTTP ${res.status}`);
+    }
+
+    const data = (await res.json()) as DirectoriesResponse;
+    return data.directories;
+}

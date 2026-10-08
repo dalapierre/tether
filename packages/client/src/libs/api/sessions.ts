@@ -265,6 +265,7 @@ export async function createSession(input: {
     name: string;
     repositoryId?: string;
     branch?: string;
+    workingDirectory?: string;
 }): Promise<Session> {
     const res = await apiFetch('/api/sessions', {
         method: 'POST',

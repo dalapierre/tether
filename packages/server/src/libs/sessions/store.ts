@@ -64,6 +64,8 @@ type RuntimeSession = Omit<Session, 'behindDefault' | 'defaultBranch'> & {
     /** Branch created for this session (cleanup target); null when reusing an existing branch. */
     ownedBranch: string | null;
     worktreePath: string;
+    /** Repo-relative cwd for agent/shell (`/` = worktree root). */
+    workingDirectory: string;
     /** Cached HEAD of the session checkout; review diffs are working tree vs this commit. */
     baseSha: string;
     /** Retained for sessions.json back-compat; unused for review basing. */
@@ -140,10 +142,70 @@ function isStoredSession(value: unknown): value is StoredSession {
             session.ownedBranch === null ||
             typeof session.ownedBranch === 'string') &&
         typeof session.worktreePath === 'string' &&
+        (session.workingDirectory === undefined || typeof session.workingDirectory === 'string') &&
         typeof session.baseSha === 'string' &&
         typeof session.hadLocalCommits === 'boolean' &&
         (session.agentSessionId === null || typeof session.agentSessionId === 'string')
     );
+}
+
+/**
+ * Normalize a repo-relative working directory to `/` or `/path/to/dir`.
+ * Rejects traversal and empty path segments.
+ */
+function normalizeWorkingDirectory(input: string | undefined): string {
+    let value = (input ?? '/').trim().replaceAll('\\', '/') || '/';
+    if (!value.startsWith('/')) {
+        value = `/${value}`;
+    }
+    value = value.replace(/\/{2,}/g, '/');
+    if (value.length > 1 && value.endsWith('/')) {
+        value = value.slice(0, -1);
+    }
+    if (value === '/') {
+        return '/';
+    }
+    const relative = value.slice(1);
+    if (!relative || relative.includes('\0')) {
+        throw new Error('Invalid working directory');
+    }
+    const parts = relative.split('/');
+    if (parts.some((part) => !part || part === '.' || part === '..')) {
+        throw new Error('Invalid working directory');
+    }
+    return `/${parts.join('/')}`;
+}
+
+/** Absolute cwd for agent/shell inside the session worktree. */
+function resolveSessionCwd(worktreePath: string, workingDirectory: string): string {
+    if (workingDirectory === '/') {
+        return path.resolve(worktreePath);
+    }
+    const relative = workingDirectory.slice(1);
+    const root = path.resolve(worktreePath);
+    const resolved = path.resolve(root, relative);
+    if (resolved !== root && !resolved.startsWith(root + path.sep)) {
+        throw new Error('Invalid working directory');
+    }
+    return resolved;
+}
+
+async function assertWorkingDirectoryExists(worktreePath: string, workingDirectory: string): Promise<void> {
+    if (workingDirectory === '/') {
+        return;
+    }
+    const cwd = resolveSessionCwd(worktreePath, workingDirectory);
+    try {
+        const info = await stat(cwd);
+        if (!info.isDirectory()) {
+            throw new Error('Working directory not found');
+        }
+    } catch (err: unknown) {
+        if (err instanceof Error && err.message === 'Working directory not found') {
+            throw err;
+        }
+        throw new Error('Working directory not found');
+    }
 }
 
 function resolveOwnedBranch(session: Pick<StoredSession, 'branch' | 'createdBranch' | 'ownedBranch'>): string | null {
@@ -173,6 +235,7 @@ function toStored(session: RuntimeSession): StoredSession {
         createdBranch: session.createdBranch,
         ownedBranch: session.ownedBranch,
         worktreePath: session.worktreePath,
+        workingDirectory: session.workingDirectory,
         baseSha: session.baseSha,
         hadLocalCommits: session.hadLocalCommits,
         agentSessionId: session.agentSessionId,
@@ -672,7 +735,8 @@ async function createWorktree(
 }
 
 async function spawnHarness(session: RuntimeSession, options: { resume?: boolean } = {}): Promise<void> {
-    await ensureWorkspaceTrusted(session.agent, session.worktreePath);
+    const cwd = resolveSessionCwd(session.worktreePath, session.workingDirectory);
+    await ensureWorkspaceTrusted(session.agent, cwd);
     const harness = await resolveHarnessLaunch(session.agent, {
         yoloMode: session.yoloMode,
         agentSessionId: session.agentSessionId,
@@ -683,7 +747,7 @@ async function spawnHarness(session: RuntimeSession, options: { resume?: boolean
             name: 'xterm-256color',
             cols: 80,
             rows: 24,
-            cwd: session.worktreePath,
+            cwd,
             env: process.env as Record<string, string>,
         });
         session.pty = term;
@@ -717,6 +781,7 @@ export async function createSession(input: {
     name: string;
     repositoryId?: string;
     branch?: string;
+    workingDirectory?: string;
 }): Promise<Session> {
     const name = input.name.trim();
     if (!name) {
@@ -732,6 +797,7 @@ export async function createSession(input: {
     const yoloMode = profile.yoloMode;
     const useWorktrees = profile.useWorktrees;
     const profileId = profile.id;
+    const workingDirectory = normalizeWorkingDirectory(input.workingDirectory);
 
     const repositoryId = input.repositoryId?.trim() ?? '';
     if (!repositoryId) {
@@ -743,10 +809,27 @@ export async function createSession(input: {
         if (!branch) {
             throw new Error('Branch is required');
         }
-        return createCodingSession({ name, profileId, agent, yoloMode, useWorktrees: true, repositoryId, branch });
+        return createCodingSession({
+            name,
+            profileId,
+            agent,
+            yoloMode,
+            useWorktrees: true,
+            repositoryId,
+            branch,
+            workingDirectory,
+        });
     }
 
-    return createCodingSession({ name, profileId, agent, yoloMode, useWorktrees: false, repositoryId });
+    return createCodingSession({
+        name,
+        profileId,
+        agent,
+        yoloMode,
+        useWorktrees: false,
+        repositoryId,
+        workingDirectory,
+    });
 }
 
 async function allocateSessionId(takenIds: Set<string>, name: string): Promise<string> {
@@ -761,6 +844,7 @@ async function createCodingSession(input: {
     useWorktrees: boolean;
     repositoryId: string;
     branch?: string;
+    workingDirectory: string;
 }): Promise<Session> {
     const repository = await getRepository(input.repositoryId);
     if (!repository) {
@@ -813,6 +897,25 @@ async function createCodingSession(input: {
         };
     }
 
+    try {
+        await assertWorkingDirectoryExists(workspace.worktreePath, input.workingDirectory);
+    } catch (err: unknown) {
+        if (input.useWorktrees) {
+            await execFileAsync('git', ['worktree', 'remove', '--force', workspace.worktreePath], {
+                cwd: repository.path,
+            }).catch(async () => {
+                await rm(workspace.worktreePath, { recursive: true, force: true }).catch(() => undefined);
+                await pruneStaleWorktrees(repository.path);
+            });
+            if (workspace.createdBranch) {
+                await execFileAsync('git', ['branch', '-D', workspace.branch], { cwd: repository.path }).catch(
+                    () => undefined,
+                );
+            }
+        }
+        throw err;
+    }
+
     const agentSessionId = await createAgentSessionId(input.agent);
 
     const session: RuntimeSession = {
@@ -832,6 +935,7 @@ async function createCodingSession(input: {
         createdBranch: workspace.createdBranch,
         ownedBranch: workspace.createdBranch ? workspace.branch : null,
         worktreePath: workspace.worktreePath,
+        workingDirectory: input.workingDirectory,
         baseSha: workspace.baseSha,
         hadLocalCommits: false,
         agentSessionId,
@@ -878,6 +982,12 @@ export async function restoreSessions(): Promise<void> {
         }
 
         const ownedBranch = resolveOwnedBranch(item);
+        let workingDirectory = '/';
+        try {
+            workingDirectory = normalizeWorkingDirectory(item.workingDirectory);
+        } catch {
+            workingDirectory = '/';
+        }
         const session: RuntimeSession = {
             id: item.id,
             name: item.name,
@@ -895,6 +1005,7 @@ export async function restoreSessions(): Promise<void> {
             createdBranch: ownedBranch !== null,
             ownedBranch,
             worktreePath: item.worktreePath,
+            workingDirectory,
             baseSha: item.baseSha,
             hadLocalCommits: item.hadLocalCommits,
             agentSessionId: item.agentSessionId,
@@ -1035,7 +1146,7 @@ function spawnUserShell(session: RuntimeSession): void {
             name: 'xterm-256color',
             cols: 80,
             rows: 24,
-            cwd: session.worktreePath,
+            cwd: resolveSessionCwd(session.worktreePath, session.workingDirectory),
             env: process.env as Record<string, string>,
         });
         session.shellPty = term;

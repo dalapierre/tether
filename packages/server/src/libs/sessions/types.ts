@@ -47,6 +47,11 @@ export type StoredSession = {
      */
     ownedBranch?: string | null;
     worktreePath: string;
+    /**
+     * Repo-relative working directory for the agent/shell (leading `/`, `/` = repo root).
+     * Optional when reading older sessions.json files that predate this field.
+     */
+    workingDirectory?: string;
     /** Cached HEAD of the session checkout; review diffs are working tree vs this commit. */
     baseSha: string;
     /** Retained for sessions.json back-compat; unused for review basing. */

@@ -135,6 +135,7 @@ sessionsRouter.post('/', async (req, res) => {
     const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
     const repositoryId = typeof req.body?.repositoryId === 'string' ? req.body.repositoryId.trim() : '';
     const branch = typeof req.body?.branch === 'string' ? req.body.branch.trim() : '';
+    const workingDirectory = typeof req.body?.workingDirectory === 'string' ? req.body.workingDirectory.trim() : '';
 
     if (!profileId) {
         res.status(400).json({ error: 'Profile is required' });
@@ -151,6 +152,7 @@ sessionsRouter.post('/', async (req, res) => {
             name,
             repositoryId: repositoryId || undefined,
             branch: branch || undefined,
+            workingDirectory: workingDirectory || undefined,
         });
         res.status(201).json({ session });
     } catch (err: unknown) {
@@ -161,6 +163,8 @@ sessionsRouter.post('/', async (req, res) => {
             message === 'Repository is required' ||
             message === 'Repository not found' ||
             message === 'Profile not found' ||
+            message === 'Invalid working directory' ||
+            message === 'Working directory not found' ||
             message.startsWith('Failed to create worktree')
                 ? 400
                 : 500;
