@@ -36,7 +36,7 @@ import {
 import { attachTouchScroll } from '@client/libs/terminal/touchScroll';
 import { AURA_TERMINAL_THEME } from '@client/libs/theme/aura';
 import { Spinner } from '@client/components/spinner';
-import { getSnapshot, subscribe } from '@client/modules/session-events';
+import { getDiffGeneration, getLiveSession, getSessionsSnapshot, subscribe } from '@client/modules/session-events';
 import { showToast } from '@client/modules/toast';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
@@ -271,25 +271,17 @@ export function SessionView({ sessionId }: SessionViewProps) {
     const navigate = useNavigate();
     const isDesktop = useIsDesktop();
     const [session, setSession] = useState<Session | null>(null);
-    const liveStatuses = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+    const liveSessions = useSyncExternalStore(subscribe, getSessionsSnapshot, getSessionsSnapshot);
+    const diffGeneration = useSyncExternalStore(
+        subscribe,
+        () => getDiffGeneration(sessionId),
+        () => getDiffGeneration(sessionId),
+    );
     const displaySession = useMemo(() => {
-        if (!session) return null;
-        const live = liveStatuses.get(session.id);
-        if (!live || live.branch === undefined) return session;
-        if (
-            live.branch === session.branch &&
-            live.behindDefault === session.behindDefault &&
-            live.defaultBranch === session.defaultBranch
-        ) {
-            return session;
-        }
-        return {
-            ...session,
-            branch: live.branch,
-            behindDefault: live.behindDefault ?? session.behindDefault,
-            defaultBranch: live.defaultBranch ?? session.defaultBranch,
-        };
-    }, [session, liveStatuses]);
+        const live = liveSessions.get(sessionId) ?? getLiveSession(sessionId);
+        if (live) return live;
+        return session;
+    }, [session, liveSessions, sessionId]);
     const [loading, setLoading] = useState(true);
     const [failed, setFailed] = useState(false);
     const [connection, setConnection] = useState<ConnectionState>('connecting');
@@ -1036,25 +1028,20 @@ export function SessionView({ sessionId }: SessionViewProps) {
 
         let cancelled = false;
 
-        const check = () => {
-            getSessionDiff(session.id)
-                .then((diff) => {
-                    if (!cancelled) {
-                        setHasReviewFiles(diff.files.length > 0);
-                    }
-                })
-                .catch(() => {
-                    // Keep the last known state; tab enablement is best-effort.
-                });
-        };
+        getSessionDiff(session.id)
+            .then((diff) => {
+                if (!cancelled) {
+                    setHasReviewFiles(diff.files.length > 0);
+                }
+            })
+            .catch(() => {
+                // Keep the last known state; tab enablement is best-effort.
+            });
 
-        check();
-        const timer = window.setInterval(check, 4000);
         return () => {
             cancelled = true;
-            window.clearInterval(timer);
         };
-    }, [session]);
+    }, [session, diffGeneration]);
 
     useEffect(() => {
         if (!hasReviewFiles) {

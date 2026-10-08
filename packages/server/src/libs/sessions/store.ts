@@ -20,7 +20,15 @@ import {
     type SessionFileDiff,
 } from '@server/libs/sessions/diff.js';
 import { createAgentSessionId, ensureWorkspaceTrusted, resolveHarnessLaunch } from '@server/libs/sessions/harness.js';
-import { broadcastSessionBranch, broadcastSessionStatus } from '@server/libs/sessions/statusHub.js';
+import {
+    attachStatusClient,
+    broadcastSessionBranch,
+    broadcastSessionDiff,
+    broadcastSessionRemove,
+    broadcastSessionStatus,
+    broadcastSessionUpsert,
+    sendSessionEvent,
+} from '@server/libs/sessions/statusHub.js';
 import {
     appendOutput,
     appendShellOutput,
@@ -77,6 +85,19 @@ type HeadWatcher = {
 
 const headWatchers = new Map<string, HeadWatcher>();
 const HEAD_DEBOUNCE_MS = 75;
+
+type DiffWatcher = {
+    watcher: FSWatcher;
+    debounce: ReturnType<typeof setTimeout> | null;
+};
+
+const diffWatchers = new Map<string, DiffWatcher>();
+const DIFF_DEBOUNCE_MS = 400;
+
+function shouldIgnoreDiffWatchPath(filename: string): boolean {
+    const normalized = filename.replace(/\\/g, '/');
+    return normalized === '.git' || normalized.startsWith('.git/') || normalized.includes('/.git/');
+}
 
 function isSessionStatus(value: unknown): value is SessionStatus {
     return value === 'ready' || value === 'busy' || value === 'error';
@@ -289,6 +310,7 @@ async function syncSessionBranch(session: RuntimeSession, options: { broadcast?:
             behindDefault,
             defaultBranch,
         });
+        broadcastSessionDiff(session.id);
     }
 
     return true;
@@ -302,6 +324,45 @@ function stopWatchingHead(sessionId: string): void {
     }
     existing.watcher.close();
     headWatchers.delete(sessionId);
+}
+
+function stopWatchingDiff(sessionId: string): void {
+    const existing = diffWatchers.get(sessionId);
+    if (!existing) return;
+    if (existing.debounce) {
+        clearTimeout(existing.debounce);
+    }
+    existing.watcher.close();
+    diffWatchers.delete(sessionId);
+}
+
+function startWatchingDiff(session: RuntimeSession): void {
+    stopWatchingDiff(session.id);
+    if (session.type !== 'coding') return;
+
+    try {
+        const watcher = watch(session.worktreePath, { recursive: true }, (_eventType, filename) => {
+            if (typeof filename === 'string' && shouldIgnoreDiffWatchPath(filename)) {
+                return;
+            }
+            const current = diffWatchers.get(session.id);
+            if (!current) return;
+            if (current.debounce) {
+                clearTimeout(current.debounce);
+            }
+            current.debounce = setTimeout(() => {
+                current.debounce = null;
+                if (!sessions.has(session.id)) return;
+                broadcastSessionDiff(session.id);
+            }, DIFF_DEBOUNCE_MS);
+        });
+        watcher.on('error', () => {
+            stopWatchingDiff(session.id);
+        });
+        diffWatchers.set(session.id, { watcher, debounce: null });
+    } catch (err: unknown) {
+        console.error(`Failed to watch workspace for session ${session.id}`, err);
+    }
 }
 
 async function startWatchingHead(session: RuntimeSession): Promise<void> {
@@ -382,9 +443,14 @@ async function toPublic(session: RuntimeSession): Promise<Session> {
 
 function setStatus(session: RuntimeSession, status: SessionStatus): void {
     if (session.status === status) return;
+    const previous = session.status;
     session.status = status;
     broadcastStatus(session.id, status);
     broadcastSessionStatus({ sessionId: session.id, name: session.name, status });
+    // Agents often finish writing when they go idle; nudge clients to refresh review diffs.
+    if (previous === 'busy' && status === 'ready' && session.type === 'coding') {
+        broadcastSessionDiff(session.id);
+    }
     void persistSessions().catch((err: unknown) => {
         console.error(`Failed to persist status for session ${session.id}`, err);
     });
@@ -683,6 +749,7 @@ async function createCodingSession(input: {
     sessions.set(id, session);
     await persistSessions();
     await startWatchingHead(session);
+    startWatchingDiff(session);
 
     try {
         if (input.agent === 'cursor') {
@@ -693,7 +760,9 @@ async function createCodingSession(input: {
         // Session remains in error state with buffered failure output.
     }
 
-    return await toPublic(session);
+    const publicSession = await toPublic(session);
+    broadcastSessionUpsert(publicSession);
+    return publicSession;
 }
 
 /**
@@ -746,6 +815,7 @@ export async function restoreSessions(): Promise<void> {
 
         await syncSessionBranch(session, { broadcast: false });
         await startWatchingHead(session);
+        startWatchingDiff(session);
 
         try {
             if (session.agent === 'cursor') {
@@ -796,7 +866,9 @@ export async function restartSession(id: string): Promise<Session | null> {
         await ensureCursorStatusIndicatorsEnabled();
     }
     await spawnHarness(session, { resume: Boolean(session.agentSessionId) });
-    return toPublic(session);
+    const publicSession = await toPublic(session);
+    broadcastSessionUpsert(publicSession);
+    return publicSession;
 }
 
 /**
@@ -843,6 +915,7 @@ export async function discardSessionFileChange(id: string, filePath: string): Pr
     if (!session || session.type !== 'coding') return false;
     const baseSha = await syncReviewBase(session);
     await discardSessionDiffFile(session.worktreePath, baseSha, filePath);
+    broadcastSessionDiff(session.id);
     return true;
 }
 
@@ -1039,6 +1112,7 @@ export function deleteSession(id: string): boolean {
     }
 
     stopWatchingHead(session.id);
+    stopWatchingDiff(session.id);
 
     try {
         session.pty?.kill();
@@ -1054,6 +1128,7 @@ export function deleteSession(id: string): boolean {
 
     sessions.delete(id);
     clearTerminal(id);
+    broadcastSessionRemove(id);
 
     void persistSessions().catch((err: unknown) => {
         console.error(`Failed to persist sessions after deleting ${id}`, err);
@@ -1061,6 +1136,20 @@ export function deleteSession(id: string): boolean {
     void cleanupWorktree(session);
 
     return true;
+}
+
+/** Attach the app-wide session events socket and push an initial snapshot. */
+export function attachSessionEvents(socket: WebSocket): void {
+    attachStatusClient(socket);
+    void listSessions()
+        .then((items) => {
+            if (socket.readyState === socket.OPEN) {
+                sendSessionEvent(socket, { type: 'snapshot', sessions: items });
+            }
+        })
+        .catch((err: unknown) => {
+            console.error('Failed to send session events snapshot', err);
+        });
 }
 
 /** Delete every session for a repository. Call before the repository is removed from settings. */

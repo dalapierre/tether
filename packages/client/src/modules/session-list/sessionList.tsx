@@ -4,10 +4,17 @@ import { IconButton } from '@client/components/icon-button';
 import { PageHeader } from '@client/components/page-header';
 import { SwipeToDelete } from '@client/components/swipe-to-delete';
 import { listRepositories, type Repository } from '@client/libs/api/repositories';
-import { deleteSession, listSessions, restartSession, type Session } from '@client/libs/api/sessions';
+import { deleteSession, restartSession, type Session } from '@client/libs/api/sessions';
 import { useKeybind } from '@client/libs/keybinds';
 import { NewSession } from '@client/modules/new-session';
-import { getSnapshot, removeSessionStatus, subscribe, upsertSessionStatus } from '@client/modules/session-events';
+import {
+    getSessionsSnapshot,
+    hasSessionsSnapshot,
+    removeSession,
+    subscribe,
+    upsertSession,
+    upsertSessionStatus,
+} from '@client/modules/session-events';
 import { useSettings } from '@client/modules/settings';
 import { showToast } from '@client/modules/toast';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
@@ -52,8 +59,6 @@ export function SessionList() {
     const { openSettings } = useSettings();
     const [creating, setCreating] = useState(false);
     const [repositories, setRepositories] = useState<Repository[]>([]);
-    const [sessions, setSessions] = useState<Session[]>([]);
-    const [sessionsLoading, setSessionsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [pendingDelete, setPendingDelete] = useState<Session | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -65,28 +70,12 @@ export function SessionList() {
     const selectedIndexRef = useRef(selectedIndex);
     selectedIndexRef.current = selectedIndex;
 
-    const liveStatuses = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+    const liveSessions = useSyncExternalStore(subscribe, getSessionsSnapshot, getSessionsSnapshot);
+    const sessionsLoading = !useSyncExternalStore(subscribe, hasSessionsSnapshot, hasSessionsSnapshot);
 
-    const sessionsWithLiveStatus = useMemo(
-        () =>
-            sessions.map((session) => {
-                const live = liveStatuses.get(session.id);
-                if (!live) return session;
-                const status = live.status !== session.status ? live.status : session.status;
-                const branch = live.branch !== undefined ? live.branch : session.branch;
-                const behindDefault = live.behindDefault !== undefined ? live.behindDefault : session.behindDefault;
-                const defaultBranch = live.defaultBranch !== undefined ? live.defaultBranch : session.defaultBranch;
-                if (
-                    status === session.status &&
-                    branch === session.branch &&
-                    behindDefault === session.behindDefault &&
-                    defaultBranch === session.defaultBranch
-                ) {
-                    return session;
-                }
-                return { ...session, status, branch, behindDefault, defaultBranch };
-            }),
-        [sessions, liveStatuses],
+    const sessions = useMemo(
+        () => [...liveSessions.values()].sort((a, b) => b.createdAt - a.createdAt),
+        [liveSessions],
     );
 
     const projectNames = useMemo(
@@ -96,8 +85,8 @@ export function SessionList() {
 
     const filteredSessions = useMemo(() => {
         const normalized = searchQuery.trim().toLowerCase();
-        if (!normalized) return sessionsWithLiveStatus;
-        return sessionsWithLiveStatus.filter((session) => {
+        if (!normalized) return sessions;
+        return sessions.filter((session) => {
             const project = projectNames.get(session.repositoryId ?? '') ?? session.repositoryId ?? '';
             return (
                 session.name.toLowerCase().includes(normalized) ||
@@ -105,7 +94,7 @@ export function SessionList() {
                 (session.branch?.toLowerCase().includes(normalized) ?? false)
             );
         });
-    }, [sessionsWithLiveStatus, searchQuery, projectNames]);
+    }, [sessions, searchQuery, projectNames]);
 
     filteredSessionsRef.current = filteredSessions;
 
@@ -231,48 +220,18 @@ export function SessionList() {
         };
     }, []);
 
-    useEffect(() => {
-        let cancelled = false;
-
-        setSessionsLoading(true);
-        listSessions()
-            .then((items) => {
-                if (!cancelled) {
-                    setSessions(items);
-                }
-            })
-            .catch((err: unknown) => {
-                if (!cancelled) {
-                    showToast(
-                        'generic-error',
-                        err instanceof Error ? err.message : intl.formatMessage(messages.sessionsLoadFailed),
-                    );
-                }
-            })
-            .finally(() => {
-                if (!cancelled) {
-                    setSessionsLoading(false);
-                }
-            });
-
-        return () => {
-            cancelled = true;
-        };
-    }, [intl]);
-
     async function confirmDelete() {
         const session = pendingDelete;
         if (!session || deletingId) return;
 
         setDeletingId(session.id);
         setPendingDelete(null);
-        setSessions((current) => current.filter((item) => item.id !== session.id));
-        removeSessionStatus(session.id);
+        removeSession(session.id);
 
         try {
             await deleteSession(session.id);
         } catch (err: unknown) {
-            setSessions((current) => [...current, session].sort((a, b) => b.createdAt - a.createdAt));
+            upsertSession(session);
             showToast('generic-error', err instanceof Error ? err.message : intl.formatMessage(messages.deleteFailed));
         } finally {
             setDeletingId(null);
@@ -291,14 +250,7 @@ export function SessionList() {
 
         try {
             const updated = await restartSession(session.id);
-            setSessions((current) =>
-                current.map((item) => (item.id === updated.id ? { ...item, status: updated.status } : item)),
-            );
-            upsertSessionStatus({
-                sessionId: updated.id,
-                name: updated.name,
-                status: updated.status,
-            });
+            upsertSession(updated);
         } catch (err: unknown) {
             upsertSessionStatus({
                 sessionId: session.id,
@@ -316,11 +268,7 @@ export function SessionList() {
             <NewSession
                 onClose={() => setCreating(false)}
                 onStarted={(session) => {
-                    upsertSessionStatus({
-                        sessionId: session.id,
-                        name: session.name,
-                        status: session.status,
-                    });
+                    upsertSession(session);
                     setCreating(false);
                     navigate(`/sessions/${session.id}`);
                 }}

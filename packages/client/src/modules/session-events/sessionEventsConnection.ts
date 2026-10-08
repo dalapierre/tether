@@ -1,16 +1,20 @@
 import {
     connectSessionEvents,
     listSessions,
-    type ServerSessionEventMessage,
+    parseServerSessionEventMessage,
     type SessionStatus,
 } from '@client/libs/api/sessions';
 import { showToast } from '@client/modules/toast';
 import {
     applySessionBranch,
     applySessionStatus,
+    bumpDiffGeneration,
+    hasSessionsSnapshot,
     markSessionReadySeen,
-    seedSessionStatuses,
+    removeSession,
+    seedSessions,
     sessionHasBeenReady,
+    upsertSession,
 } from './sessionStatusStore';
 
 const RECONNECT_DELAY_MS = 2000;
@@ -19,42 +23,6 @@ let started = false;
 let socket: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let intentionalClose = false;
-
-function parseEventMessage(raw: string): ServerSessionEventMessage | null {
-    try {
-        const parsed = JSON.parse(raw) as ServerSessionEventMessage;
-        if (!parsed || typeof parsed !== 'object') {
-            return null;
-        }
-        if (parsed.type === 'status') {
-            if (typeof parsed.sessionId !== 'string' || typeof parsed.name !== 'string') {
-                return null;
-            }
-            if (parsed.status !== 'ready' && parsed.status !== 'busy' && parsed.status !== 'error') {
-                return null;
-            }
-            return parsed;
-        }
-        if (parsed.type === 'branch') {
-            if (typeof parsed.sessionId !== 'string') {
-                return null;
-            }
-            if (parsed.branch !== null && typeof parsed.branch !== 'string') {
-                return null;
-            }
-            if (parsed.behindDefault !== null && typeof parsed.behindDefault !== 'number') {
-                return null;
-            }
-            if (parsed.defaultBranch !== null && typeof parsed.defaultBranch !== 'string') {
-                return null;
-            }
-            return parsed;
-        }
-        return null;
-    } catch {
-        return null;
-    }
-}
 
 function maybeToastStatusChange(
     sessionId: string,
@@ -86,15 +54,6 @@ function scheduleReconnect() {
     }, RECONNECT_DELAY_MS);
 }
 
-async function seed() {
-    try {
-        const sessions = await listSessions();
-        seedSessionStatuses(sessions);
-    } catch {
-        // Status toasts still work from live events if the seed fails.
-    }
-}
-
 function connect() {
     if (intentionalClose) return;
     if (socket && (socket.readyState === WebSocket.CONNECTING || socket.readyState === WebSocket.OPEN)) {
@@ -112,8 +71,23 @@ function connect() {
     socket = nextSocket;
 
     nextSocket.addEventListener('message', (event) => {
-        const parsed = parseEventMessage(String(event.data));
+        const parsed = parseServerSessionEventMessage(String(event.data));
         if (!parsed) return;
+
+        if (parsed.type === 'snapshot') {
+            seedSessions(parsed.sessions);
+            return;
+        }
+
+        if (parsed.type === 'upsert') {
+            upsertSession(parsed.session);
+            return;
+        }
+
+        if (parsed.type === 'remove') {
+            removeSession(parsed.sessionId);
+            return;
+        }
 
         if (parsed.type === 'status') {
             const previous = applySessionStatus({
@@ -125,12 +99,17 @@ function connect() {
             return;
         }
 
-        applySessionBranch({
-            sessionId: parsed.sessionId,
-            branch: parsed.branch,
-            behindDefault: parsed.behindDefault,
-            defaultBranch: parsed.defaultBranch,
-        });
+        if (parsed.type === 'branch') {
+            applySessionBranch({
+                sessionId: parsed.sessionId,
+                branch: parsed.branch,
+                behindDefault: parsed.behindDefault,
+                defaultBranch: parsed.defaultBranch,
+            });
+            return;
+        }
+
+        bumpDiffGeneration(parsed.sessionId);
     });
 
     nextSocket.addEventListener('close', () => {
@@ -146,14 +125,20 @@ function connect() {
 /**
  * Start the app-wide session events socket once per page load.
  * Survives React Strict Mode remounts so Vite's WS proxy is not churned.
+ * REST list is only a bootstrap fallback if the first WS snapshot is delayed.
  */
 export function ensureSessionEventsStarted(): void {
     if (started) return;
     started = true;
     intentionalClose = false;
-    void seed().then(() => {
-        if (!intentionalClose) {
-            connect();
-        }
-    });
+    connect();
+    void listSessions()
+        .then((sessions) => {
+            if (!hasSessionsSnapshot()) {
+                seedSessions(sessions);
+            }
+        })
+        .catch(() => {
+            // Live snapshot / reconnect still hydrates the list when available.
+        });
 }

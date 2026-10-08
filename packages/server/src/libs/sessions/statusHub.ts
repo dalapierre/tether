@@ -1,7 +1,19 @@
-import type { SessionStatus } from '@server/libs/sessions/types.js';
+import type { Session, SessionStatus } from '@server/libs/sessions/types.js';
 import type { WebSocket } from 'ws';
 
 export type ServerSessionEventMessage =
+    | {
+          type: 'snapshot';
+          sessions: Session[];
+      }
+    | {
+          type: 'upsert';
+          session: Session;
+      }
+    | {
+          type: 'remove';
+          sessionId: string;
+      }
     | {
           type: 'status';
           sessionId: string;
@@ -14,6 +26,11 @@ export type ServerSessionEventMessage =
           branch: string | null;
           behindDefault: number | null;
           defaultBranch: string | null;
+      }
+    | {
+          /** Client should refetch diff summary / file contents for this session. */
+          type: 'diff';
+          sessionId: string;
       };
 
 const clients = new Set<WebSocket>();
@@ -24,6 +41,31 @@ function send(socket: WebSocket, message: ServerSessionEventMessage): void {
         socket.send(JSON.stringify(message));
     } catch {
         clients.delete(socket);
+    }
+}
+
+export function sendSessionEvent(socket: WebSocket, message: ServerSessionEventMessage): void {
+    send(socket, message);
+}
+
+export function broadcastSessionSnapshot(sessions: Session[]): void {
+    const message: ServerSessionEventMessage = { type: 'snapshot', sessions };
+    for (const client of clients) {
+        send(client, message);
+    }
+}
+
+export function broadcastSessionUpsert(session: Session): void {
+    const message: ServerSessionEventMessage = { type: 'upsert', session };
+    for (const client of clients) {
+        send(client, message);
+    }
+}
+
+export function broadcastSessionRemove(sessionId: string): void {
+    const message: ServerSessionEventMessage = { type: 'remove', sessionId };
+    for (const client of clients) {
+        send(client, message);
     }
 }
 
@@ -52,6 +94,13 @@ export function broadcastSessionBranch(input: {
         behindDefault: input.behindDefault,
         defaultBranch: input.defaultBranch,
     };
+    for (const client of clients) {
+        send(client, message);
+    }
+}
+
+export function broadcastSessionDiff(sessionId: string): void {
+    const message: ServerSessionEventMessage = { type: 'diff', sessionId };
     for (const client of clients) {
         send(client, message);
     }

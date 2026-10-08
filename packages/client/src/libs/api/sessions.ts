@@ -1,5 +1,5 @@
 import { ApiError, apiFetch } from '@client/libs/api/client';
-import type { AgentId } from '@client/libs/agents/agents';
+import { isAgentId, type AgentId } from '@client/libs/agents/agents';
 import { getAccessToken } from '@client/libs/auth/session';
 import { clearSessionLocalStorage } from '@client/libs/storage/sessionLocalStorage';
 
@@ -26,6 +26,18 @@ export type ServerTerminalMessage =
 
 export type ServerSessionEventMessage =
     | {
+          type: 'snapshot';
+          sessions: Session[];
+      }
+    | {
+          type: 'upsert';
+          session: Session;
+      }
+    | {
+          type: 'remove';
+          sessionId: string;
+      }
+    | {
           type: 'status';
           sessionId: string;
           name: string;
@@ -37,6 +49,10 @@ export type ServerSessionEventMessage =
           branch: string | null;
           behindDefault: number | null;
           defaultBranch: string | null;
+      }
+    | {
+          type: 'diff';
+          sessionId: string;
       };
 
 export type ClientTerminalMessage =
@@ -85,6 +101,93 @@ type DiffResponse = {
 type FileDiffResponse = {
     file: SessionFileDiff;
 };
+
+function isSessionStatus(value: unknown): value is SessionStatus {
+    return value === 'ready' || value === 'busy' || value === 'error';
+}
+
+function isSessionType(value: unknown): value is SessionType {
+    return value === 'coding' || value === 'conversation';
+}
+
+function isSession(value: unknown): value is Session {
+    if (!value || typeof value !== 'object') return false;
+    const session = value as Partial<Session>;
+    return (
+        typeof session.id === 'string' &&
+        typeof session.name === 'string' &&
+        typeof session.profileId === 'string' &&
+        typeof session.agent === 'string' &&
+        isAgentId(session.agent) &&
+        isSessionType(session.type) &&
+        (session.repositoryId === null || typeof session.repositoryId === 'string') &&
+        (session.branch === null || typeof session.branch === 'string') &&
+        (session.behindDefault === null || typeof session.behindDefault === 'number') &&
+        (session.defaultBranch === null || typeof session.defaultBranch === 'string') &&
+        isSessionStatus(session.status) &&
+        typeof session.createdAt === 'number'
+    );
+}
+
+export function parseServerSessionEventMessage(raw: string): ServerSessionEventMessage | null {
+    try {
+        const parsed = JSON.parse(raw) as ServerSessionEventMessage;
+        if (!parsed || typeof parsed !== 'object' || !('type' in parsed)) {
+            return null;
+        }
+        if (parsed.type === 'snapshot') {
+            if (!Array.isArray(parsed.sessions) || !parsed.sessions.every(isSession)) {
+                return null;
+            }
+            return parsed;
+        }
+        if (parsed.type === 'upsert') {
+            if (!isSession(parsed.session)) {
+                return null;
+            }
+            return parsed;
+        }
+        if (parsed.type === 'remove') {
+            if (typeof parsed.sessionId !== 'string') {
+                return null;
+            }
+            return parsed;
+        }
+        if (parsed.type === 'status') {
+            if (typeof parsed.sessionId !== 'string' || typeof parsed.name !== 'string') {
+                return null;
+            }
+            if (!isSessionStatus(parsed.status)) {
+                return null;
+            }
+            return parsed;
+        }
+        if (parsed.type === 'branch') {
+            if (typeof parsed.sessionId !== 'string') {
+                return null;
+            }
+            if (parsed.branch !== null && typeof parsed.branch !== 'string') {
+                return null;
+            }
+            if (parsed.behindDefault !== null && typeof parsed.behindDefault !== 'number') {
+                return null;
+            }
+            if (parsed.defaultBranch !== null && typeof parsed.defaultBranch !== 'string') {
+                return null;
+            }
+            return parsed;
+        }
+        if (parsed.type === 'diff') {
+            if (typeof parsed.sessionId !== 'string') {
+                return null;
+            }
+            return parsed;
+        }
+        return null;
+    } catch {
+        return null;
+    }
+}
 
 export async function listSessions(repositoryId?: string): Promise<Session[]> {
     const params = new URLSearchParams();

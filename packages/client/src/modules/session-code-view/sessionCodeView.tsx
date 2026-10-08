@@ -32,6 +32,11 @@ import {
     type DiffViewMode,
 } from '@client/libs/layout/reviewLayoutPreferences';
 import { setupMonaco, TETHER_DIFF_THEME } from '@client/libs/monaco/setup';
+import {
+    bumpDiffGeneration,
+    getDiffGeneration,
+    subscribe as subscribeSessionEvents,
+} from '@client/modules/session-events';
 import { showToast } from '@client/modules/toast';
 import { DiffEditor } from '@monaco-editor/react';
 import type { editor as MonacoEditor } from 'monaco-editor';
@@ -44,6 +49,7 @@ import {
     useMemo,
     useRef,
     useState,
+    useSyncExternalStore,
     type ReactNode,
 } from 'react';
 import { useIntl } from 'react-intl';
@@ -57,7 +63,6 @@ import type { SessionCodeViewProps } from './sessionCodeView.types';
 const MarkdownPreview = lazy(() => import('./markdownPreview').then((m) => ({ default: m.MarkdownPreview })));
 const TREE_INDENT_PX = 12;
 const TREE_BASE_PAD_PX = 12;
-const DIFF_POLL_MS = 3000;
 /** Continuous scroll speed while a scroll keybind is held. */
 const FILE_SCROLL_PX_PER_SEC = 640;
 /** Coalesce scroll position writes while the user is scrolling. */
@@ -837,6 +842,11 @@ export function SessionCodeView({
     const intl = useIntl();
     const isDesktop = useIsDesktop();
     const { keybinds } = useKeybinds();
+    const diffGeneration = useSyncExternalStore(
+        subscribeSessionEvents,
+        () => getDiffGeneration(sessionId),
+        () => getDiffGeneration(sessionId),
+    );
     const [files, setFiles] = useState<SessionDiffFile[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedPath, setSelectedPath] = useState<string | null>(() => getSelectedDiffPath(sessionId));
@@ -1032,15 +1042,11 @@ export function SessionCodeView({
         };
 
         void load(true);
-        const timer = window.setInterval(() => {
-            void load(false);
-        }, DIFF_POLL_MS);
 
         return () => {
             cancelled = true;
-            window.clearInterval(timer);
         };
-    }, [sessionId, intl, applyDiffFiles]);
+    }, [sessionId, intl, applyDiffFiles, diffGeneration]);
 
     const loadingLabel = intl.formatMessage(messages.loading);
 
@@ -1624,46 +1630,43 @@ export function SessionCodeView({
         fileContentFingerprintRef.current = nextFingerprint;
     }, [fileDiff, updateReviewedFingerprints]);
 
-    // Keep the open file's contents fresh even when summary stats are unchanged.
+    // Refresh the open file when the workspace reports a diff change.
     useEffect(() => {
-        if (!selectedPath) return;
+        if (!selectedPath || diffGeneration === 0) return;
 
         let cancelled = false;
         const path = selectedPath;
-        const timer = window.setInterval(() => {
-            getSessionDiffFile(sessionId, path)
-                .then((file) => {
-                    if (cancelled) return;
-                    setFileDiff((prev) => {
-                        if (
-                            prev &&
-                            prev.path === file.path &&
-                            prev.original === file.original &&
-                            prev.modified === file.modified &&
-                            prev.status === file.status
-                        ) {
-                            return prev;
-                        }
-                        return file;
-                    });
-                })
-                .catch((err: unknown) => {
-                    if (cancelled) return;
-                    // File left the review diff (e.g. discarded); drop stale selection/content.
-                    if (err instanceof ApiError && err.message === 'File not found in diff') {
-                        if (selectedPathRef.current === path) {
-                            selectPath(null);
-                        }
+        getSessionDiffFile(sessionId, path)
+            .then((file) => {
+                if (cancelled) return;
+                setFileDiff((prev) => {
+                    if (
+                        prev &&
+                        prev.path === file.path &&
+                        prev.original === file.original &&
+                        prev.modified === file.modified &&
+                        prev.status === file.status
+                    ) {
+                        return prev;
                     }
-                    // Other errors: best-effort refresh; keep the last good diff.
+                    return file;
                 });
-        }, DIFF_POLL_MS);
+            })
+            .catch((err: unknown) => {
+                if (cancelled) return;
+                // File left the review diff (e.g. discarded); drop stale selection/content.
+                if (err instanceof ApiError && err.message === 'File not found in diff') {
+                    if (selectedPathRef.current === path) {
+                        selectPath(null);
+                    }
+                }
+                // Other errors: best-effort refresh; keep the last good diff.
+            });
 
         return () => {
             cancelled = true;
-            window.clearInterval(timer);
         };
-    }, [sessionId, selectedPath, selectPath]);
+    }, [sessionId, selectedPath, selectPath, diffGeneration]);
 
     function toggleFolder(path: string) {
         setCollapsedPaths((prev) => {
@@ -1692,8 +1695,9 @@ export function SessionCodeView({
         setDiscarding(true);
         try {
             await discardSessionDiffFile(sessionId, path);
-            // Drop any in-flight poll that may still carry a pre-discard file list.
+            // Drop any in-flight request that may still carry a pre-discard file list.
             diffFilesRequestIdRef.current += 1;
+            bumpDiffGeneration(sessionId);
             const diff = await getSessionDiff(sessionId);
             // Force apply even if the signature somehow matches the previous list.
             filesSignatureRef.current = '';

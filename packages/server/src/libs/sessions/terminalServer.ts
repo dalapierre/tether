@@ -1,6 +1,10 @@
 import { verifyAccessToken } from '@server/libs/authTokens.js';
-import { attachSessionShell, attachSessionTerminal, hasSession } from '@server/libs/sessions/store.js';
-import { attachStatusClient } from '@server/libs/sessions/statusHub.js';
+import {
+    attachSessionEvents,
+    attachSessionShell,
+    attachSessionTerminal,
+    hasSession,
+} from '@server/libs/sessions/store.js';
 import type { Server as HttpServer } from 'node:http';
 import { WebSocketServer } from 'ws';
 
@@ -32,7 +36,7 @@ export function attachTerminalServer(server: HttpServer): void {
 
         if (isEvents) {
             wss.handleUpgrade(request, socket, head, (ws) => {
-                attachStatusClient(ws);
+                attachSessionEvents(ws);
             });
             return;
         }
