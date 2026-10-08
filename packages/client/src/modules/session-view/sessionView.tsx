@@ -13,6 +13,7 @@ import {
     sendTerminalMessage,
     type ServerTerminalMessage,
     type Session,
+    type SessionStatus,
 } from '@client/libs/api/sessions';
 import { bindSessionViewport } from '@client/libs/dom/bindSessionViewport';
 import { useIsDesktop } from '@client/libs/dom/useMediaQuery';
@@ -181,6 +182,31 @@ function usageClassName(percent: number): string {
 
 function harnessLabel(agent: AgentId, formatMessage: ReturnType<typeof useIntl>['formatMessage']): string {
     return formatMessage(agentLabelMessage(agent));
+}
+
+function agentStatusLabelFor(
+    status: SessionStatus,
+    formatMessage: ReturnType<typeof useIntl>['formatMessage'],
+): string {
+    switch (status) {
+        case 'ready':
+            return formatMessage(messages.statusReady);
+        case 'busy':
+            return formatMessage(messages.statusBusy);
+        case 'error':
+            return formatMessage(messages.statusError);
+    }
+}
+
+function agentStatusDotClassFor(status: SessionStatus): string {
+    switch (status) {
+        case 'ready':
+            return styles.agentStatusDotReady;
+        case 'busy':
+            return styles.agentStatusDotBusy;
+        case 'error':
+            return styles.agentStatusDotError;
+    }
 }
 
 function prepareMobileTextarea(term: Terminal): void {
@@ -1205,6 +1231,9 @@ export function SessionView({ sessionId }: SessionViewProps) {
             : connection === 'disconnected'
               ? intl.formatMessage(messages.disconnected)
               : null;
+    const agentStatus = displaySession.status;
+    const agentStatusLabel = agentStatusLabelFor(agentStatus, intl.formatMessage);
+    const agentStatusDotClass = agentStatusDotClassFor(agentStatus);
     const terminalToggleLabel = intl.formatMessage(shellPaneVisible ? messages.closeTerminal : messages.openTerminal);
     const reviewToggleLabel = intl.formatMessage(desktopReviewOpen ? messages.closeReview : messages.openReview);
 
@@ -1215,6 +1244,10 @@ export function SessionView({ sessionId }: SessionViewProps) {
                 showSettings={false}
                 actions={
                     <>
+                        <div className={styles.agentStatus} role='status'>
+                            <span className={`${styles.agentStatusDot} ${agentStatusDotClass}`} aria-hidden='true' />
+                            {agentStatusLabel}
+                        </div>
                         {connectionLabel ? (
                             <div className={styles.connectionStatus} role='status'>
                                 <span

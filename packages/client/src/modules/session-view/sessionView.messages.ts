@@ -8,6 +8,9 @@ type Messages = {
     notFound: NoMessageValues;
     connecting: NoMessageValues;
     disconnected: NoMessageValues;
+    statusReady: NoMessageValues;
+    statusBusy: NoMessageValues;
+    statusError: NoMessageValues;
     metaConversation: { harness: string };
     branchBehindDefault: { count: number; defaultBranch: string };
     metaCpu: { percent: number };
@@ -59,6 +62,18 @@ export const messages = defineMessages<Messages>(
         disconnected: {
             id: 'sessionView.disconnected',
             defaultMessage: 'Disconnected',
+        },
+        statusReady: {
+            id: 'sessionView.statusReady',
+            defaultMessage: 'Ready',
+        },
+        statusBusy: {
+            id: 'sessionView.statusBusy',
+            defaultMessage: 'Working',
+        },
+        statusError: {
+            id: 'sessionView.statusError',
+            defaultMessage: 'Error',
         },
         metaConversation: {
             id: 'sessionView.metaConversation',
