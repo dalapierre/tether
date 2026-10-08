@@ -189,10 +189,17 @@ function harnessLabel(agent: AgentId, formatMessage: ReturnType<typeof useIntl>[
     return formatMessage(agentLabelMessage(agent));
 }
 
-function agentStatusLabelFor(
+function sessionStatusLabelFor(
+    connection: ConnectionState,
     status: SessionStatus,
     formatMessage: ReturnType<typeof useIntl>['formatMessage'],
 ): string {
+    if (connection === 'connecting') {
+        return formatMessage(messages.connecting);
+    }
+    if (connection === 'disconnected') {
+        return formatMessage(messages.disconnected);
+    }
     switch (status) {
         case 'ready':
             return formatMessage(messages.statusReady);
@@ -203,14 +210,20 @@ function agentStatusLabelFor(
     }
 }
 
-function agentStatusDotClassFor(status: SessionStatus): string {
+function sessionStatusDotClassFor(connection: ConnectionState, status: SessionStatus): string {
+    if (connection === 'connecting') {
+        return styles.statusDotConnecting;
+    }
+    if (connection === 'disconnected') {
+        return styles.statusDotDisconnected;
+    }
     switch (status) {
         case 'ready':
-            return styles.agentStatusDotReady;
+            return styles.statusDotReady;
         case 'busy':
-            return styles.agentStatusDotBusy;
+            return styles.statusDotBusy;
         case 'error':
-            return styles.agentStatusDotError;
+            return styles.statusDotError;
     }
 }
 
@@ -1233,15 +1246,8 @@ export function SessionView({ sessionId }: SessionViewProps) {
         );
     }
 
-    const connectionLabel =
-        connection === 'connecting'
-            ? intl.formatMessage(messages.connecting)
-            : connection === 'disconnected'
-              ? intl.formatMessage(messages.disconnected)
-              : null;
-    const agentStatus = displaySession.status;
-    const agentStatusLabel = agentStatusLabelFor(agentStatus, intl.formatMessage);
-    const agentStatusDotClass = agentStatusDotClassFor(agentStatus);
+    const statusLabel = sessionStatusLabelFor(connection, displaySession.status, intl.formatMessage);
+    const statusDotClass = sessionStatusDotClassFor(connection, displaySession.status);
     const terminalToggleLabel = intl.formatMessage(shellPaneVisible ? messages.closeTerminal : messages.openTerminal);
     const reviewToggleLabel = intl.formatMessage(desktopReviewOpen ? messages.closeReview : messages.openReview);
 
@@ -1252,23 +1258,10 @@ export function SessionView({ sessionId }: SessionViewProps) {
                 showSettings={false}
                 actions={
                     <>
-                        <div className={styles.agentStatus} role='status'>
-                            <span className={`${styles.agentStatusDot} ${agentStatusDotClass}`} aria-hidden='true' />
-                            {agentStatusLabel}
+                        <div className={styles.status} role='status'>
+                            <span className={`${styles.statusDot} ${statusDotClass}`} aria-hidden='true' />
+                            {statusLabel}
                         </div>
-                        {connectionLabel ? (
-                            <div className={styles.connectionStatus} role='status'>
-                                <span
-                                    className={`${styles.connectionDot} ${
-                                        connection === 'disconnected'
-                                            ? styles.connectionDotDisconnected
-                                            : styles.connectionDotConnecting
-                                    }`}
-                                    aria-hidden='true'
-                                />
-                                {connectionLabel}
-                            </div>
-                        ) : null}
                         <div className={styles.mobileActions}>
                             <IconButton label={intl.formatMessage(messages.arrowUp)} onClick={sendArrowUp}>
                                 <ArrowUpIcon />

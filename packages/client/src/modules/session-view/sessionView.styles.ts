@@ -1,14 +1,12 @@
 export const styles = {
     root: 'flex min-h-0 flex-1 flex-col bg-zinc-950 text-zinc-100',
-    connectionStatus: 'flex items-center gap-1.5 px-2 text-xs text-zinc-400',
-    connectionDot: 'h-2 w-2 shrink-0 rounded-full',
-    connectionDotConnecting: 'bg-amber-400',
-    connectionDotDisconnected: 'bg-red-500',
-    agentStatus: 'flex items-center gap-1.5 px-2 text-xs leading-none text-zinc-400',
-    agentStatusDot: 'h-2 w-2 shrink-0 rounded-full',
-    agentStatusDotReady: 'bg-emerald-500',
-    agentStatusDotBusy: 'bg-amber-400',
-    agentStatusDotError: 'bg-red-500',
+    status: 'flex items-center gap-1.5 px-2 text-xs leading-none text-zinc-400',
+    statusDot: 'h-2 w-2 shrink-0 rounded-full',
+    statusDotConnecting: 'bg-amber-400',
+    statusDotDisconnected: 'bg-red-500',
+    statusDotReady: 'bg-emerald-500',
+    statusDotBusy: 'bg-amber-400',
+    statusDotError: 'bg-red-500',
     // Mobile: top meta strip under tabs. Desktop: VS Code–style status bar pinned
     // below the main panes (flex order-last) with a top border instead of bottom.
     meta: 'flex shrink-0 items-center gap-3 border-b border-zinc-800 px-4 py-2 text-xs text-zinc-400 md:order-last md:border-b-0 md:border-t md:bg-zinc-900 md:px-3 md:py-1',
