@@ -53,6 +53,12 @@ function ClearSearchIcon() {
     );
 }
 
+function usageClassName(percent: number): string {
+    if (percent >= 80) return styles.usageDanger;
+    if (percent >= 50) return styles.usageWarning;
+    return styles.usage;
+}
+
 export function SessionList() {
     const intl = useIntl();
     const navigate = useNavigate();
@@ -378,6 +384,24 @@ export function SessionList() {
                                               {intl.formatMessage(messages.conversationSession)}
                                           </span>
                                       )}
+                                      {session.cpuPercent != null || session.ramPercent != null ? (
+                                          <p className={styles.usageRow}>
+                                              {session.cpuPercent != null ? (
+                                                  <span className={usageClassName(session.cpuPercent)}>
+                                                      {intl.formatMessage(messages.cpuLabel, {
+                                                          percent: session.cpuPercent,
+                                                      })}
+                                                  </span>
+                                              ) : null}
+                                              {session.ramPercent != null ? (
+                                                  <span className={usageClassName(session.ramPercent)}>
+                                                      {intl.formatMessage(messages.ramLabel, {
+                                                          percent: session.ramPercent,
+                                                      })}
+                                                  </span>
+                                              ) : null}
+                                          </p>
+                                      ) : null}
                                   </Card>
                               </SwipeToDelete>
                           </div>

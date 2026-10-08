@@ -11,6 +11,8 @@ type Messages = {
     newSession: NoMessageValues;
     conversationSession: NoMessageValues;
     branchLabel: { branch: string };
+    cpuLabel: { percent: number };
+    ramLabel: { percent: number };
     deleteConfirm: { name: string };
     deleteConfirmContinue: NoMessageValues;
     deleteConfirmCancel: NoMessageValues;
@@ -59,7 +61,15 @@ export const messages = defineMessages<Messages>(
         },
         branchLabel: {
             id: 'sessionList.branchLabel',
-            defaultMessage: 'Branch - {branch}',
+            defaultMessage: '{branch}',
+        },
+        cpuLabel: {
+            id: 'sessionList.cpuLabel',
+            defaultMessage: 'CPU {percent}%',
+        },
+        ramLabel: {
+            id: 'sessionList.ramLabel',
+            defaultMessage: 'RAM {percent}%',
         },
         deleteConfirm: {
             id: 'sessionList.deleteConfirm',

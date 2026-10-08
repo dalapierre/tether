@@ -12,9 +12,9 @@ export const styles = {
     metaBehindWarning: 'text-amber-400',
     metaBehindDanger: 'text-red-400',
     metaUsageGroup: 'ml-auto flex shrink-0 items-center gap-2',
-    metaUsage: 'text-aura-green',
-    metaUsageWarning: 'text-amber-400',
-    metaUsageDanger: 'text-red-400',
+    metaUsage: 'font-bold text-aura-green',
+    metaUsageWarning: 'font-bold text-amber-400',
+    metaUsageDanger: 'font-bold text-red-400',
     agentToolbar:
         'hidden h-7 shrink-0 items-center justify-end gap-1 border-b border-zinc-800 bg-zinc-900 px-2 md:flex',
     paneToggle:

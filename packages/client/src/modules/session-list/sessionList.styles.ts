@@ -14,4 +14,8 @@ export const styles = {
     plusIcon: 'h-6 w-6',
     project: 'truncate text-sm text-zinc-400',
     feature: 'truncate text-xs text-zinc-500',
+    usageRow: 'mt-2 flex items-center justify-start gap-2',
+    usage: 'text-xs font-bold text-aura-green',
+    usageWarning: 'text-xs font-bold text-amber-400',
+    usageDanger: 'text-xs font-bold text-red-400',
 };
