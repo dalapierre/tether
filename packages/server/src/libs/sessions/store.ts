@@ -4,6 +4,7 @@ import { getRepositoryWorktreesDir, getSessionsFilePath, getTetherHomeDir } from
 import {
     fetchRemoteDefault,
     getBehindRemoteDefault,
+    getRemoteDefaultHead,
     getRemoteFetchState,
     getRepository,
     listLocalBranches,
@@ -841,10 +842,24 @@ async function createWorktree(
     const branch = requestedBranch;
     const reuseExisting = localBranches.has(branch);
 
-    const { stdout: headStdout } = await execFileAsync('git', ['rev-parse', reuseExisting ? branch : 'HEAD'], {
-        cwd: repoPath,
-    });
-    const baseSha = headStdout.trim();
+    // New branches must start from origin's default tip, not the local checkout's HEAD
+    // (local main/master is often behind and would bake merge conflicts into the session).
+    let baseSha: string;
+    let startPoint: string | undefined;
+    if (reuseExisting) {
+        const { stdout } = await execFileAsync('git', ['rev-parse', branch], { cwd: repoPath });
+        baseSha = stdout.trim();
+    } else {
+        await fetchRemoteDefault(repoPath, { force: true });
+        const remoteDefault = await getRemoteDefaultHead(repoPath);
+        if (remoteDefault) {
+            startPoint = `origin/${remoteDefault.defaultBranch}`;
+            baseSha = remoteDefault.sha;
+        } else {
+            const { stdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], { cwd: repoPath });
+            baseSha = stdout.trim();
+        }
+    }
 
     const worktreesRoot = getRepositoryWorktreesDir(projectName);
     const worktreePath = path.join(worktreesRoot, leaf);
@@ -853,7 +868,9 @@ async function createWorktree(
 
     const addArgs = reuseExisting
         ? (['worktree', 'add', worktreePath, branch] as const)
-        : (['worktree', 'add', '-b', branch, worktreePath] as const);
+        : startPoint
+          ? (['worktree', 'add', '-b', branch, worktreePath, startPoint] as const)
+          : (['worktree', 'add', '-b', branch, worktreePath] as const);
 
     try {
         await execFileAsync('git', [...addArgs], { cwd: repoPath });
