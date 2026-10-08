@@ -711,11 +711,28 @@ export function SessionView({ sessionId }: SessionViewProps) {
             }
 
             if (parsed.type === 'history' || parsed.type === 'output') {
-                const stickToBottom = parsed.type === 'history' || followOutput;
+                const isHistory = parsed.type === 'history';
+                const stickToBottom = isHistory || followOutput;
                 term.write(parsed.data, () => {
-                    if (stickToBottom || followOutput) {
-                        term.scrollToBottom();
+                    if (!stickToBottom && !followOutput) return;
+                    if (isHistory) {
+                        // Session swap dumps a large buffer; scrollToBottom alone
+                        // can leave the viewport mid-history until fit+refresh
+                        // (the same path window resize already takes).
+                        followOutput = true;
+                        requestAnimationFrame(() => {
+                            syncTerminalLayout({
+                                host: terminalRef.current,
+                                term,
+                                fitAddon,
+                                socket,
+                                refresh: true,
+                                followOutput: true,
+                            });
+                        });
+                        return;
                     }
+                    term.scrollToBottom();
                 });
             }
         });
@@ -875,11 +892,27 @@ export function SessionView({ sessionId }: SessionViewProps) {
             }
 
             if (parsed.type === 'history' || parsed.type === 'output') {
-                const stickToBottom = parsed.type === 'history' || followOutput;
+                const isHistory = parsed.type === 'history';
+                const stickToBottom = isHistory || followOutput;
                 term.write(parsed.data, () => {
-                    if (stickToBottom || followOutput) {
-                        term.scrollToBottom();
+                    if (!stickToBottom && !followOutput) return;
+                    if (isHistory) {
+                        // Same as the agent terminal: history after attach needs
+                        // fit+refresh to land at the bottom, not only scrollToBottom.
+                        followOutput = true;
+                        requestAnimationFrame(() => {
+                            syncTerminalLayout({
+                                host: shellTerminalRef.current,
+                                term,
+                                fitAddon,
+                                socket,
+                                refresh: true,
+                                followOutput: true,
+                            });
+                        });
+                        return;
                     }
+                    term.scrollToBottom();
                 });
             }
         });
