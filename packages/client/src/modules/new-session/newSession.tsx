@@ -5,7 +5,7 @@ import { SearchSelect } from '@client/components/search-select';
 import {
     listRepositories,
     listRepositoryBranches,
-    listRepositoryDirectories,
+    prefetchRepositoryDirectories,
     type Repository,
 } from '@client/libs/api/repositories';
 import { createSession } from '@client/libs/api/sessions';
@@ -95,20 +95,32 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
         setDirectories([DEFAULT_WORKING_DIRECTORY]);
         setWorkingDirectory(DEFAULT_WORKING_DIRECTORY);
 
-        Promise.all([listRepositoryBranches(repositoryId), listRepositoryDirectories(repositoryId)])
-            .then(([branchItems, directoryItems]) => {
-                if (cancelled) return;
-                setBranches(branchItems);
-                setDirectories(directoryItems.length > 0 ? directoryItems : [DEFAULT_WORKING_DIRECTORY]);
+        listRepositoryBranches(repositoryId)
+            .then((branchItems) => {
+                if (!cancelled) {
+                    setBranches(branchItems);
+                }
             })
             .catch((err: unknown) => {
                 if (!cancelled) {
                     setBranches([]);
-                    setDirectories([DEFAULT_WORKING_DIRECTORY]);
                     showToast(
                         'generic-error',
                         err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed),
                     );
+                }
+            });
+
+        // Warm directory options in the background so Advanced is ready on large monorepos.
+        prefetchRepositoryDirectories(repositoryId)
+            .then((directoryItems) => {
+                if (!cancelled) {
+                    setDirectories(directoryItems.length > 0 ? directoryItems : [DEFAULT_WORKING_DIRECTORY]);
+                }
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setDirectories([DEFAULT_WORKING_DIRECTORY]);
                 }
             });
 

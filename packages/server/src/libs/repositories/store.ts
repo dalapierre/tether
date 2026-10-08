@@ -341,26 +341,51 @@ export async function listRepositoryBranches(id: string): Promise<string[] | nul
     return listLocalBranches(repository.path);
 }
 
+const DIRECTORY_LIST_TTL_MS = 60_000;
+const directoryListCache = new Map<string, { at: number; directories: string[] }>();
+const directoryListInFlight = new Map<string, Promise<string[]>>();
+
 /**
  * Directory paths under a repository (repo-relative, leading `/`), including `/`.
  * Uses tracked tree at HEAD so the picker stays fast on large monorepos.
+ * Dedupes in-flight scans and caches briefly so prefetch + UI open share one ls-tree.
  */
 export async function listLocalDirectories(repoPath: string): Promise<string[]> {
-    try {
-        const { stdout } = await execFileAsync('git', ['ls-tree', '-d', '-r', '--name-only', 'HEAD'], {
-            cwd: repoPath,
-            maxBuffer: 20 * 1024 * 1024,
-        });
-        const dirs = stdout
-            .split('\n')
-            .map((line) => line.trim().replaceAll('\\', '/'))
-            .filter(Boolean)
-            .map((dir) => (dir.startsWith('/') ? dir : `/${dir}`));
-        dirs.sort((a, b) => a.localeCompare(b));
-        return ['/', ...dirs];
-    } catch {
-        return ['/'];
+    const key = path.resolve(repoPath);
+    const cached = directoryListCache.get(key);
+    if (cached && Date.now() - cached.at < DIRECTORY_LIST_TTL_MS) {
+        return cached.directories;
     }
+
+    const existing = directoryListInFlight.get(key);
+    if (existing) {
+        return existing;
+    }
+
+    const pending = (async () => {
+        try {
+            const { stdout } = await execFileAsync('git', ['ls-tree', '-d', '-r', '--name-only', 'HEAD'], {
+                cwd: repoPath,
+                maxBuffer: 20 * 1024 * 1024,
+            });
+            const dirs = stdout
+                .split('\n')
+                .map((line) => line.trim().replaceAll('\\', '/'))
+                .filter(Boolean)
+                .map((dir) => (dir.startsWith('/') ? dir : `/${dir}`));
+            dirs.sort((a, b) => a.localeCompare(b));
+            const directories = ['/', ...dirs];
+            directoryListCache.set(key, { at: Date.now(), directories });
+            return directories;
+        } catch {
+            return ['/'];
+        } finally {
+            directoryListInFlight.delete(key);
+        }
+    })();
+
+    directoryListInFlight.set(key, pending);
+    return pending;
 }
 
 /** Tracked directories for an added repository, or null if the repository is unknown. */
