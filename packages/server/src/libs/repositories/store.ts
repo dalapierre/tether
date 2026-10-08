@@ -219,6 +219,82 @@ function shortRemoteBranchName(remoteRef: string): string {
     return remoteRef.startsWith(prefix) ? remoteRef.slice(prefix.length) : remoteRef;
 }
 
+const REMOTE_FETCH_TTL_MS = 60_000;
+const REMOTE_FETCH_TIMEOUT_MS = 60_000;
+const lastRemoteFetchAt = new Map<string, number>();
+const remoteFetchInFlight = new Map<string, Promise<boolean>>();
+
+/** Shared git dir so every worktree of a repo shares one fetch throttle. */
+async function resolveRemoteFetchKey(repoPath: string): Promise<string> {
+    try {
+        const { stdout } = await execFileAsync('git', ['rev-parse', '--git-common-dir'], { cwd: repoPath });
+        const commonDir = stdout.trim();
+        if (!commonDir) return path.resolve(repoPath);
+        return path.isAbsolute(commonDir) ? commonDir : path.resolve(repoPath, commonDir);
+    } catch {
+        return path.resolve(repoPath);
+    }
+}
+
+/** Cache state for origin's default-branch tip used by behind counts. */
+export async function getRemoteFetchState(repoPath: string): Promise<'fresh' | 'stale' | 'unknown'> {
+    const key = await resolveRemoteFetchKey(repoPath);
+    const last = lastRemoteFetchAt.get(key);
+    if (last === undefined) return 'unknown';
+    if (Date.now() - last < REMOTE_FETCH_TTL_MS) return 'fresh';
+    return 'stale';
+}
+
+/**
+ * Refresh origin's remote-tracking refs (and origin/HEAD) so behind counts use the
+ * live remote default tip, not a stale local cache / local default checkout.
+ * Returns true when the remote default tip changed.
+ */
+export async function fetchRemoteDefault(repoPath: string): Promise<boolean> {
+    const key = await resolveRemoteFetchKey(repoPath);
+    const now = Date.now();
+    const last = lastRemoteFetchAt.get(key) ?? 0;
+    if (now - last < REMOTE_FETCH_TTL_MS) {
+        return false;
+    }
+
+    const existing = remoteFetchInFlight.get(key);
+    if (existing) {
+        return existing;
+    }
+
+    const pending = (async (): Promise<boolean> => {
+        try {
+            const before = await getRemoteDefaultHead(repoPath);
+            await execFileAsync('git', ['fetch', 'origin'], {
+                cwd: repoPath,
+                timeout: REMOTE_FETCH_TIMEOUT_MS,
+            });
+            try {
+                // Point refs/remotes/origin/HEAD at whatever origin currently uses as default.
+                await execFileAsync('git', ['remote', 'set-head', 'origin', '-a'], {
+                    cwd: repoPath,
+                    timeout: REMOTE_FETCH_TIMEOUT_MS,
+                });
+            } catch {
+                // Older remotes / missing HEAD are fine; fallbacks cover main/master.
+            }
+            lastRemoteFetchAt.set(key, Date.now());
+            const after = await getRemoteDefaultHead(repoPath);
+            return before?.sha !== after?.sha || before?.defaultBranch !== after?.defaultBranch;
+        } catch {
+            // Offline or auth failures: keep last-known tips and back off for the TTL.
+            lastRemoteFetchAt.set(key, Date.now());
+            return false;
+        } finally {
+            remoteFetchInFlight.delete(key);
+        }
+    })();
+
+    remoteFetchInFlight.set(key, pending);
+    return pending;
+}
+
 /** Tip SHA of origin's default branch (e.g. origin/main), or null when unavailable. */
 export async function getRemoteDefaultHead(repoPath: string): Promise<{ sha: string; defaultBranch: string } | null> {
     const defaultRef = await resolveRemoteDefaultRef(repoPath);

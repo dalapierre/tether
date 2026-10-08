@@ -1,6 +1,12 @@
 import { isAgentId, type AgentId } from '@server/libs/agents/agents.js';
 import { getRepositoryWorktreesDir, getSessionsFilePath, getTetherHomeDir } from '@server/libs/paths.js';
-import { getBehindRemoteDefault, getRepository, listLocalBranches } from '@server/libs/repositories/store.js';
+import {
+    fetchRemoteDefault,
+    getBehindRemoteDefault,
+    getRemoteFetchState,
+    getRepository,
+    listLocalBranches,
+} from '@server/libs/repositories/store.js';
 import {
     ensureCursorStatusIndicatorsEnabled,
     extractStatusFromOutput,
@@ -225,8 +231,40 @@ async function behindForSession(
     if (session.type !== 'coding' || !session.branch) {
         return { behindDefault: null, defaultBranch: null };
     }
+
+    // Prefer the live remote default tip over a stale local checkout / remote-tracking cache.
+    const fetchState = await getRemoteFetchState(session.worktreePath);
+    if (fetchState === 'unknown') {
+        await fetchRemoteDefault(session.worktreePath);
+    } else if (fetchState === 'stale') {
+        void refreshSessionBehindFromRemote(session);
+    }
+
     const behind = await getBehindRemoteDefault(session.worktreePath, session.branch);
     return { behindDefault: behind.behind, defaultBranch: behind.defaultBranch };
+}
+
+/** After a background fetch, push updated behind counts if origin's default tip moved. */
+async function refreshSessionBehindFromRemote(session: RuntimeSession): Promise<void> {
+    try {
+        const updated = await fetchRemoteDefault(session.worktreePath);
+        if (!updated) return;
+
+        for (const live of sessions.values()) {
+            if (live.repositoryId !== session.repositoryId || live.type !== 'coding' || !live.branch) {
+                continue;
+            }
+            const behind = await getBehindRemoteDefault(live.worktreePath, live.branch);
+            broadcastSessionBranch({
+                sessionId: live.id,
+                branch: live.branch,
+                behindDefault: behind.behind,
+                defaultBranch: behind.defaultBranch,
+            });
+        }
+    } catch (err: unknown) {
+        console.error(`Failed to refresh remote behind count for session ${session.id}`, err);
+    }
 }
 
 /**
