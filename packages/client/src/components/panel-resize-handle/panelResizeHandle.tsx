@@ -1,3 +1,4 @@
+import { beginPanelResizeDrag, endPanelResizeDrag } from '@client/libs/layout/panelResizeDrag';
 import { useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { styles } from './panelResizeHandle.styles';
 import type { PanelResizeHandleProps } from './panelResizeHandle.types';
@@ -8,13 +9,25 @@ export function PanelResizeHandle({
     placement = 'edge',
     edge,
     onResize,
+    onResizeStart,
     onResizeEnd,
     className,
 }: PanelResizeHandleProps) {
     const [dragging, setDragging] = useState(false);
+    const activeRef = useRef(false);
     const lastPosRef = useRef(0);
     const vertical = orientation === 'vertical';
     const gap = placement === 'gap';
+
+    function finishDrag() {
+        if (!activeRef.current) {
+            return;
+        }
+        activeRef.current = false;
+        setDragging(false);
+        onResizeEnd?.();
+        endPanelResizeDrag();
+    }
 
     function onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
         if (event.button !== 0) {
@@ -23,8 +36,11 @@ export function PanelResizeHandle({
 
         event.preventDefault();
         lastPosRef.current = vertical ? event.clientY : event.clientX;
+        activeRef.current = true;
         setDragging(true);
         event.currentTarget.setPointerCapture(event.pointerId);
+        beginPanelResizeDrag();
+        onResizeStart?.();
     }
 
     function onPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
@@ -51,8 +67,7 @@ export function PanelResizeHandle({
             // ignore
         }
 
-        setDragging(false);
-        onResizeEnd?.();
+        finishDrag();
     }
 
     let rootClass: string;
@@ -79,7 +94,7 @@ export function PanelResizeHandle({
             onPointerMove={onPointerMove}
             onPointerUp={endDrag}
             onPointerCancel={endDrag}
-            onLostPointerCapture={() => setDragging(false)}
+            onLostPointerCapture={finishDrag}
         />
     );
 }

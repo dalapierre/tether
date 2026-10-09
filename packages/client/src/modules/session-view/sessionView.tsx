@@ -19,6 +19,12 @@ import { bindSessionViewport } from '@client/libs/dom/bindSessionViewport';
 import { useIsDesktop } from '@client/libs/dom/useMediaQuery';
 import { isTerminalInsertTarget, useKeybind, useKeybindChord, useKeybinds } from '@client/libs/keybinds';
 import {
+    getPanelResizeDragEpoch,
+    isPanelResizeDragging,
+    onPanelResizeDragEnd,
+    onPanelResizeDragStart,
+} from '@client/libs/layout/panelResizeDrag';
+import {
     clampReviewPaneWidthPct,
     clampShellPaneHeightPct,
     deltaPxToPct,
@@ -34,6 +40,8 @@ import {
     setShellPaneHeightPct,
     setShellPanelOpen,
 } from '@client/libs/layout/reviewLayoutPreferences';
+import { clearPtyResize, flushPtyResize, schedulePtyResize } from '@client/libs/terminal/ptyResize';
+import { scrollTerminalToBottomNow, writeTerminalHistory } from '@client/libs/terminal/scroll';
 import { attachTouchScroll } from '@client/libs/terminal/touchScroll';
 import { AURA_TERMINAL_THEME } from '@client/libs/theme/aura';
 import { Spinner } from '@client/components/spinner';
@@ -295,7 +303,7 @@ function isTerminalFocused(term: Terminal): boolean {
 
 /** Keep the harness/shell prompt and painted cursor in view. */
 function revealTerminalPrompt(term: Terminal): void {
-    term.scrollToBottom();
+    scrollTerminalToBottomNow(term);
     // Fit/background/keyboard resize can leave the cursor painted off the
     // real cell until the renderer redraws.
     term.refresh(0, Math.max(0, term.rows - 1));
@@ -328,11 +336,7 @@ function syncTerminalLayout(options: {
             term.resize(MAX_TERMINAL_COLS, term.rows);
         }
         if (socket && socket.readyState === WebSocket.OPEN) {
-            sendTerminalMessage(socket, {
-                type: 'resize',
-                cols: term.cols,
-                rows: term.rows,
-            });
+            schedulePtyResize(term, socket, term.cols, term.rows);
         }
         if (refresh) {
             // Returning from a backgrounded tab can leave the cursor
@@ -340,11 +344,59 @@ function syncTerminalLayout(options: {
             term.refresh(0, Math.max(0, term.rows - 1));
         }
         if (stickToBottom) {
-            term.scrollToBottom();
+            scrollTerminalToBottomNow(term);
         }
     } catch {
         // ignore fit errors while unmounted/hidden
     }
+}
+
+/**
+ * One fit after a panel drag. Hide while reflowing if we're stuck to the bottom
+ * so a large scrollback reflow doesn't paint a fast scrub through history.
+ */
+function syncTerminalLayoutAfterPanelResize(options: {
+    host: HTMLElement | null;
+    term: Terminal;
+    fitAddon: FitAddon;
+    socket?: WebSocket | null;
+    /** When set, overrides the usual focused/at-bottom check (use drag-start intent). */
+    followOutput?: boolean;
+}): void {
+    const { host, term, fitAddon, socket } = options;
+    const followOutput = options.followOutput ?? (isTerminalFocused(term) || isScrolledToBottom(term));
+    const element = followOutput ? term.element : null;
+    if (element) {
+        element.style.visibility = 'hidden';
+    }
+    try {
+        syncTerminalLayout({
+            host,
+            term,
+            fitAddon,
+            socket,
+            refresh: true,
+            followOutput,
+        });
+        flushPtyResize(term);
+        if (followOutput) {
+            // Fit/SIGWINCH can leave the viewport at y=0 until the next frame.
+            scrollTerminalToBottomNow(term);
+            requestAnimationFrame(() => {
+                scrollTerminalToBottomNow(term);
+                term.refresh(0, Math.max(0, term.rows - 1));
+            });
+        }
+    } finally {
+        if (element) {
+            element.style.visibility = '';
+        }
+    }
+}
+
+/** Skip layout syncs scheduled before a splitter drag ended (stale rAFs). */
+function shouldSkipTerminalLayoutSync(scheduledEpoch: number): boolean {
+    return isPanelResizeDragging() || scheduledEpoch !== getPanelResizeDragEpoch();
 }
 
 export function SessionView({ sessionId }: SessionViewProps) {
@@ -395,7 +447,6 @@ export function SessionView({ sessionId }: SessionViewProps) {
     const reviewPaneRef = useRef<HTMLDivElement | null>(null);
     const prevShellPaneVisibleRef = useRef(false);
     const prevReviewPaneVisibleRef = useRef(false);
-
     const onHasFilesChange = useCallback((hasFiles: boolean) => {
         setHasReviewFiles(hasFiles);
     }, []);
@@ -416,6 +467,53 @@ export function SessionView({ sessionId }: SessionViewProps) {
 
     const persistShellPaneHeight = useCallback(() => {
         setShellPaneHeightPct(shellPaneHeightPctRef.current);
+    }, []);
+
+    // Remember follow intent at drag start — by pointer-up the terminal has
+    // blurred into the handle, so an at-end check misses "was at the prompt".
+    const shellFollowAfterResizeRef = useRef(true);
+
+    useEffect(() => {
+        return onPanelResizeDragStart(() => {
+            const shellTerm = shellTermRef.current;
+            shellFollowAfterResizeRef.current = shellTerm
+                ? isTerminalFocused(shellTerm) || isScrolledToBottom(shellTerm)
+                : true;
+        });
+    }, []);
+
+    // Fit terminals once after any splitter drag (including the sessions panel).
+    // Mid-drag fits reflow scrollback and scrub/jump history.
+    useEffect(() => {
+        return onPanelResizeDragEnd(() => {
+            const shellFollow = shellFollowAfterResizeRef.current;
+            requestAnimationFrame(() => {
+                const agentTerm = termRef.current;
+                const agentFit = fitAddonRef.current;
+                if (agentTerm && agentFit) {
+                    syncTerminalLayoutAfterPanelResize({
+                        host: terminalRef.current,
+                        term: agentTerm,
+                        fitAddon: agentFit,
+                        socket: socketRef.current,
+                        // Agent pane is an input surface: always keep the prompt
+                        // in view after the viewport shrinks (fit can land at y=0).
+                        followOutput: true,
+                    });
+                }
+                const shellTerm = shellTermRef.current;
+                const shellFit = shellFitAddonRef.current;
+                if (shellTerm && shellFit) {
+                    syncTerminalLayoutAfterPanelResize({
+                        host: shellTerminalRef.current,
+                        term: shellTerm,
+                        fitAddon: shellFit,
+                        socket: shellSocketRef.current,
+                        followOutput: shellFollow,
+                    });
+                }
+            });
+        });
     }, []);
 
     function blurFocusInsideReview() {
@@ -708,7 +806,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
 
         const scrollToBottomAndFollow = () => {
             followOutput = true;
-            term.scrollToBottom();
+            scrollTerminalToBottomNow(term);
         };
 
         const sendInput = (data: string) => {
@@ -752,7 +850,12 @@ export function SessionView({ sessionId }: SessionViewProps) {
 
         const onResize = () => {
             // Wait a frame so bindSessionViewport has applied visualViewport layout.
+            const scheduledEpoch = getPanelResizeDragEpoch();
             requestAnimationFrame(() => {
+                // Panel drags update layout every pointer move; fitting each
+                // time reflows scrollback and paints a fast scrub through history.
+                // Also skip stale rAFs scheduled during a drag that just ended.
+                if (shouldSkipTerminalLayoutSync(scheduledEpoch)) return;
                 if (isTerminalFocused(term)) {
                     followOutput = true;
                 }
@@ -806,13 +909,10 @@ export function SessionView({ sessionId }: SessionViewProps) {
 
             if (parsed.type === 'history' || parsed.type === 'output') {
                 const isHistory = parsed.type === 'history';
-                const stickToBottom = isHistory || followOutput;
-                term.write(parsed.data, () => {
-                    if (!stickToBottom && !followOutput) return;
-                    if (isHistory) {
-                        // Session swap dumps a large buffer; scrollToBottom alone
-                        // can leave the viewport mid-history until fit+refresh
-                        // (the same path window resize already takes).
+                if (isHistory) {
+                    // Large history parses across frames while the viewport
+                    // follows the bottom — hide until done so we land instantly.
+                    writeTerminalHistory(term, parsed.data, () => {
                         followOutput = true;
                         requestAnimationFrame(() => {
                             syncTerminalLayout({
@@ -824,9 +924,13 @@ export function SessionView({ sessionId }: SessionViewProps) {
                                 followOutput: true,
                             });
                         });
-                        return;
-                    }
-                    term.scrollToBottom();
+                    });
+                    return;
+                }
+                const stickToBottom = followOutput;
+                term.write(parsed.data, () => {
+                    if (!stickToBottom && !followOutput) return;
+                    scrollTerminalToBottomNow(term);
                 });
             }
         });
@@ -853,6 +957,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
             }
             dataDisposable.dispose();
             scrollDisposable.dispose();
+            clearPtyResize(term);
             socket.close();
             socketRef.current = null;
             sendInputRef.current = () => {};
@@ -900,7 +1005,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
 
         const scrollToBottomAndFollow = () => {
             followOutput = true;
-            term.scrollToBottom();
+            scrollTerminalToBottomNow(term);
         };
 
         const sendInput = (data: string) => {
@@ -939,7 +1044,9 @@ export function SessionView({ sessionId }: SessionViewProps) {
         term.textarea?.addEventListener('focus', onTerminalFocus);
 
         const onResize = () => {
+            const scheduledEpoch = getPanelResizeDragEpoch();
             requestAnimationFrame(() => {
+                if (shouldSkipTerminalLayoutSync(scheduledEpoch)) return;
                 if (isTerminalFocused(term)) {
                     followOutput = true;
                 }
@@ -987,12 +1094,8 @@ export function SessionView({ sessionId }: SessionViewProps) {
 
             if (parsed.type === 'history' || parsed.type === 'output') {
                 const isHistory = parsed.type === 'history';
-                const stickToBottom = isHistory || followOutput;
-                term.write(parsed.data, () => {
-                    if (!stickToBottom && !followOutput) return;
-                    if (isHistory) {
-                        // Same as the agent terminal: history after attach needs
-                        // fit+refresh to land at the bottom, not only scrollToBottom.
+                if (isHistory) {
+                    writeTerminalHistory(term, parsed.data, () => {
                         followOutput = true;
                         requestAnimationFrame(() => {
                             syncTerminalLayout({
@@ -1004,9 +1107,13 @@ export function SessionView({ sessionId }: SessionViewProps) {
                                 followOutput: true,
                             });
                         });
-                        return;
-                    }
-                    term.scrollToBottom();
+                    });
+                    return;
+                }
+                const stickToBottom = followOutput;
+                term.write(parsed.data, () => {
+                    if (!stickToBottom && !followOutput) return;
+                    scrollTerminalToBottomNow(term);
                 });
             }
         });
@@ -1033,6 +1140,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
             }
             dataDisposable.dispose();
             scrollDisposable.dispose();
+            clearPtyResize(term);
             socket.close();
             shellSocketRef.current = null;
             term.dispose();
@@ -1204,7 +1312,11 @@ export function SessionView({ sessionId }: SessionViewProps) {
         const term = termRef.current;
         if (!fitAddon || !term) return;
 
+        // Width/height pct updates fire continuously while dragging; the
+        // resize-end handler fits once. Skip mid-drag and stale post-drag rAFs.
+        const scheduledEpoch = getPanelResizeDragEpoch();
         requestAnimationFrame(() => {
+            if (shouldSkipTerminalLayoutSync(scheduledEpoch)) return;
             const followOutput = isTerminalFocused(term) || isScrolledToBottom(term);
             syncTerminalLayout({
                 host: terminalRef.current,
@@ -1239,7 +1351,9 @@ export function SessionView({ sessionId }: SessionViewProps) {
         const term = shellTermRef.current;
         if (!fitAddon || !term) return;
 
+        const scheduledEpoch = getPanelResizeDragEpoch();
         requestAnimationFrame(() => {
+            if (shouldSkipTerminalLayoutSync(scheduledEpoch)) return;
             const followOutput = isTerminalFocused(term) || isScrolledToBottom(term);
             syncTerminalLayout({
                 host: shellTerminalRef.current,

@@ -13,6 +13,8 @@ export type PanelResizeHandleProps = {
     /** For edge placement. Horizontal: leading=left, trailing=right. Vertical: leading=top, trailing=bottom. */
     edge?: 'leading' | 'trailing';
     onResize: (deltaPx: number) => void;
+    /** Fires once when the pointer captures and a drag begins. */
+    onResizeStart?: () => void;
     onResizeEnd?: () => void;
     className?: string;
 };
