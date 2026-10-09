@@ -1839,7 +1839,9 @@ export function SessionCodeView({
                             >
                                 <BackIcon />
                             </button>
-                            <span className={styles.fileHeaderPath}>{selectedPath}</span>
+                            <span className={styles.fileHeaderPath} title={selectedPath}>
+                                {selectedPath}
+                            </span>
                             {showMarkdownToggle ? (
                                 <button
                                     type='button'

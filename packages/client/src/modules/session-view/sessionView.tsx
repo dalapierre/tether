@@ -160,6 +160,21 @@ function TerminalIcon({ className }: { className?: string }) {
     );
 }
 
+function CloseShellIcon() {
+    return (
+        <svg
+            className={styles.shellCloseIcon}
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='2'
+            aria-hidden='true'
+        >
+            <path strokeLinecap='round' strokeLinejoin='round' d='M6 18 18 6M6 6l12 12' />
+        </svg>
+    );
+}
+
 function ReviewIcon({ className }: { className?: string }) {
     return (
         <svg
@@ -1491,6 +1506,18 @@ export function SessionView({ sessionId }: SessionViewProps) {
                                 onResizeEnd={persistShellPaneHeight}
                             />
                         ) : null}
+                        <div className={styles.shellToolbar}>
+                            <p className={styles.shellToolbarTitle}>{intl.formatMessage(messages.terminalView)}</p>
+                            <button
+                                type='button'
+                                className={styles.shellCloseButton}
+                                title={intl.formatMessage(messages.closeTerminal)}
+                                aria-label={intl.formatMessage(messages.closeTerminal)}
+                                onClick={toggleShell}
+                            >
+                                <CloseShellIcon />
+                            </button>
+                        </div>
                         <div className={styles.shellTerminalWrap}>
                             <div ref={shellTerminalRef} className={styles.shellTerminal} />
                         </div>

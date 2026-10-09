@@ -41,15 +41,22 @@ export const styles = {
     // viewport chasing the cursor into the soft keyboard.
     terminal:
         'absolute inset-0 touch-pan-y overflow-hidden px-2 py-2 [&_.xterm-screen]:mx-auto [&_.xterm-helper-textarea]:!left-0 [&_.xterm-helper-textarea]:!top-0',
-    // Shell terminal: flush edges — no padding/centering (agent keeps the inset above).
     shellTerminal:
-        'absolute inset-0 touch-pan-y overflow-hidden [&_.xterm-helper-textarea]:!left-0 [&_.xterm-helper-textarea]:!top-0',
+        'absolute inset-0 touch-pan-y overflow-hidden px-2 py-2 [&_.xterm-helper-textarea]:!left-0 [&_.xterm-helper-textarea]:!top-0',
     shellPanelDesktop:
         'relative hidden min-h-0 shrink-0 flex-col overflow-hidden border-t border-zinc-800 bg-zinc-950 md:flex',
     shellPanelDesktopHidden: 'hidden',
     shellPanelMobile: 'absolute inset-0 z-20 flex flex-col bg-zinc-950 md:hidden',
     shellPanelMobileHidden: 'pointer-events-none absolute inset-0 z-0 flex flex-col invisible md:hidden',
-    shellTerminalWrap: 'relative min-h-0 flex-1 overflow-hidden pb-[env(safe-area-inset-bottom)]',
+    shellToolbar:
+        'relative z-10 flex h-7 shrink-0 items-center gap-2 border-b border-zinc-800 bg-zinc-900 px-2 md:px-3',
+    shellToolbarTitle: 'min-w-0 flex-1 truncate text-xs text-zinc-400',
+    shellCloseButton:
+        'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors active:bg-zinc-800 active:text-zinc-100 md:hover:bg-zinc-800/80 md:hover:text-zinc-100',
+    shellCloseIcon: 'h-3.5 w-3.5',
+    // Fill below the h-7 toolbar — absolute so the xterm host always has a
+    // non-zero box (flex-1 alone was collapsing with the new sibling).
+    shellTerminalWrap: 'absolute inset-x-0 top-7 bottom-0 overflow-hidden pb-[env(safe-area-inset-bottom)]',
     centered: 'flex flex-1 items-center justify-center px-4 text-sm text-zinc-500',
     mobileActions: 'flex items-center md:hidden',
     actionIcon: 'h-5 w-5',
