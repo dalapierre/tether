@@ -1,5 +1,5 @@
 export const styles = {
-    root: 'flex min-h-0 flex-1 flex-col bg-zinc-950 pb-[env(safe-area-inset-bottom)] md:flex-row',
+    root: 'flex min-h-0 flex-1 flex-col pb-[env(safe-area-inset-bottom)] md:flex-row',
     editorPanel: 'flex min-h-0 flex-1 flex-col md:min-w-0',
     editorPanelMobileHidden: 'hidden min-h-0 flex-1 flex-col md:flex md:min-w-0',
     listPanelWrap:
