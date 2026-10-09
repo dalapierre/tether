@@ -648,9 +648,13 @@ async function startWatchingHead(session: RuntimeSession): Promise<void> {
                         current.lastTipSha = nextTip;
                         const branchChanged = await syncSessionBranch(live);
                         // Branch switches already schedule a refresh inside syncSessionBranch.
-                        // Same-branch commits only advance the tip — refresh the review tree.
-                        if (!branchChanged && nextTip !== prevTip) {
-                            scheduleDiffRefresh(live.id, { immediate: true });
+                        // Tip advances (commits/resets) and index-only ops (stash, mixed
+                        // reset, etc.) both need a review-tree refresh — stash does not
+                        // move HEAD, so tip-only gating left the hierarchy stale.
+                        if (!branchChanged) {
+                            scheduleDiffRefresh(live.id, {
+                                immediate: nextTip !== prevTip,
+                            });
                         }
                     } catch (err: unknown) {
                         logger.error(`Failed to sync review base for session ${session.id}`, err);
