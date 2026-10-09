@@ -51,6 +51,7 @@ import {
     useState,
     useSyncExternalStore,
     type ReactNode,
+    type RefObject,
 } from 'react';
 import { useIntl } from 'react-intl';
 import { buildFileTree, type FileTreeDirNode, type FileTreeNode } from './buildFileTree';
@@ -652,6 +653,11 @@ function collectDirPaths(nodes: FileTreeNode[]): string[] {
     return paths;
 }
 
+/** Dir paths that contain `filePath` (including unary-collapsed keys like `src/components`). */
+function ancestorDirPathsForFile(filePath: string, dirPaths: readonly string[]): string[] {
+    return dirPaths.filter((dirPath) => filePath.startsWith(`${dirPath}/`));
+}
+
 function DiscardIcon() {
     return (
         <svg
@@ -706,6 +712,7 @@ function FileRow({
     depth,
     selected,
     reviewed,
+    selectedRowRef,
     onSelect,
     onDiscard,
 }: {
@@ -714,6 +721,7 @@ function FileRow({
     depth: number;
     selected: boolean;
     reviewed: boolean;
+    selectedRowRef: RefObject<HTMLDivElement | null>;
     onSelect: (path: string) => void;
     onDiscard: (path: string) => void;
 }) {
@@ -729,6 +737,7 @@ function FileRow({
 
     return (
         <div
+            ref={selected ? selectedRowRef : null}
             className={`${styles.treeRow} ${styles.fileRow}${rowTone ? ` ${rowTone}` : ''}`}
             style={{ paddingLeft: TREE_BASE_PAD_PX + depth * TREE_INDENT_PX }}
         >
@@ -797,6 +806,7 @@ function FileTree({
     selectedPath,
     reviewedPaths,
     collapsedPaths,
+    selectedRowRef,
     onToggle,
     onSelect,
     onDiscard,
@@ -806,6 +816,7 @@ function FileTree({
     selectedPath: string | null;
     reviewedPaths: ReadonlyMap<string, string>;
     collapsedPaths: Set<string>;
+    selectedRowRef: RefObject<HTMLDivElement | null>;
     onToggle: (path: string) => void;
     onSelect: (path: string) => void;
     onDiscard: (path: string) => void;
@@ -822,6 +833,7 @@ function FileTree({
                             depth={depth}
                             selected={selectedPath === node.file.path}
                             reviewed={reviewedPaths.has(node.file.path)}
+                            selectedRowRef={selectedRowRef}
                             onSelect={onSelect}
                             onDiscard={onDiscard}
                         />
@@ -839,6 +851,7 @@ function FileTree({
                                 selectedPath={selectedPath}
                                 reviewedPaths={reviewedPaths}
                                 collapsedPaths={collapsedPaths}
+                                selectedRowRef={selectedRowRef}
                                 onToggle={onToggle}
                                 onSelect={onSelect}
                                 onDiscard={onDiscard}
@@ -888,6 +901,7 @@ export function SessionCodeView({
     const selectionDisposablesRef = useRef<{ dispose: () => void }[]>([]);
     const previewScrollRef = useRef<HTMLDivElement | null>(null);
     const fileListRef = useRef<HTMLDivElement | null>(null);
+    const selectedFileRowRef = useRef<HTMLDivElement | null>(null);
     const reviewedCheckboxRef = useRef<HTMLInputElement | null>(null);
     const pendingScrollRatioRef = useRef<number | null>(null);
     /** Scroll position for the open file; survives desktop pane `display:none`. */
@@ -1331,10 +1345,30 @@ export function SessionCodeView({
                         ? 0
                         : files.length - 1
                     : (currentIndex + direction + files.length) % files.length;
-            selectPath(files[nextIndex]?.path ?? null);
+            const nextPath = files[nextIndex]?.path ?? null;
+            if (nextPath) {
+                // Ensure the target row is mounted (folders may be collapsed).
+                const ancestors = ancestorDirPathsForFile(nextPath, dirPaths);
+                if (ancestors.length > 0) {
+                    setCollapsedPaths((prev) => {
+                        let next: Set<string> | null = null;
+                        for (const dirPath of ancestors) {
+                            if (!prev.has(dirPath)) continue;
+                            if (!next) next = new Set(prev);
+                            next.delete(dirPath);
+                        }
+                        return next ?? prev;
+                    });
+                }
+            }
+            selectPath(nextPath);
         },
-        [files, selectedPath, selectPath],
+        [dirPaths, files, selectedPath, selectPath],
     );
+
+    useLayoutEffect(() => {
+        selectedFileRowRef.current?.scrollIntoView({ block: 'nearest' });
+    }, [selectedPath]);
 
     const scrollCurrentFile = useCallback(
         (deltaPx: number) => {
@@ -1808,6 +1842,7 @@ export function SessionCodeView({
                                 selectedPath={selectedPath}
                                 reviewedPaths={reviewedFingerprints}
                                 collapsedPaths={collapsedPaths}
+                                selectedRowRef={selectedFileRowRef}
                                 onToggle={toggleFolder}
                                 onSelect={selectPath}
                                 onDiscard={requestDiscard}
