@@ -189,6 +189,34 @@ function scheduleDiffRefresh(sessionId: string, options: { immediate?: boolean }
     }, DIFF_DEBOUNCE_MS);
 }
 
+function isTransientDiffError(err: unknown): boolean {
+    const message = err instanceof Error ? err.message : String(err);
+    return /index\.lock|Unable to create '|another git process|resource temporarily unavailable|try again/i.test(
+        message,
+    );
+}
+
+function abortIfNeeded(signal: AbortSignal): void {
+    if (signal.aborted) {
+        throw Object.assign(new Error('aborted'), { name: 'AbortError' });
+    }
+}
+
+/**
+ * Tip advanced: drop the pre-commit file list immediately so the hierarchy reflects
+ * uncommitted work only while the background refresh recomputes (may be slow on large repos).
+ */
+function publishEmptyDiffCache(sessionId: string, baseSha: string, options: { schedule?: boolean } = {}): void {
+    const entry = getOrCreateDiffCache(sessionId);
+    if (!entry.cache || entry.cache.baseSha !== baseSha || entry.cache.files.length > 0) {
+        entry.cache = { baseSha, files: [] };
+        broadcastSessionDiff(sessionId);
+    }
+    if (options.schedule !== false) {
+        scheduleDiffRefresh(sessionId, { immediate: true });
+    }
+}
+
 async function runDiffRefresh(sessionId: string): Promise<void> {
     const entry = diffCaches.get(sessionId);
     if (!entry) return;
@@ -199,6 +227,7 @@ async function runDiffRefresh(sessionId: string): Promise<void> {
     }
 
     entry.running = true;
+    let transientFailures = 0;
     try {
         while (entry.dirty) {
             const session = sessions.get(sessionId);
@@ -213,20 +242,24 @@ async function runDiffRefresh(sessionId: string): Promise<void> {
 
             try {
                 await withHeavyDiffSlot(async () => {
-                    if (controller.signal.aborted) {
-                        throw Object.assign(new Error('aborted'), { name: 'AbortError' });
-                    }
+                    abortIfNeeded(controller.signal);
                     const live = sessions.get(sessionId);
                     if (!live || live.type !== 'coding') return;
 
-                    const baseSha = await syncReviewBase(live);
-                    if (controller.signal.aborted) return;
+                    const previousBase = live.baseSha;
+                    // Already refreshing — publish empty on tip advance without scheduling ourselves.
+                    const baseSha = await syncReviewBase(live, { publishEmpty: false });
+                    abortIfNeeded(controller.signal);
+                    if (baseSha !== previousBase) {
+                        publishEmptyDiffCache(sessionId, baseSha, { schedule: false });
+                    }
 
                     const summary = await getSessionDiffSummary(live.worktreePath, baseSha, controller.signal);
-                    if (controller.signal.aborted) return;
+                    abortIfNeeded(controller.signal);
                     if (!sessions.has(sessionId)) return;
 
                     entry.cache = summary;
+                    transientFailures = 0;
                     broadcastSessionDiff(sessionId);
                 });
             } catch (err: unknown) {
@@ -238,6 +271,16 @@ async function runDiffRefresh(sessionId: string): Promise<void> {
                     continue;
                 }
                 logger.error(`Failed to refresh session diff for ${sessionId}`, err);
+                // Commits often race the refresh with index.lock; retry briefly instead of
+                // leaving the hierarchy stuck on a pre-commit (or empty) cache.
+                if (isTransientDiffError(err) && transientFailures < 5) {
+                    transientFailures += 1;
+                    entry.dirty = true;
+                    await new Promise<void>((resolve) => {
+                        setTimeout(resolve, 100 * transientFailures);
+                    });
+                    continue;
+                }
             } finally {
                 if (entry.controller === controller) {
                     entry.controller = null;
