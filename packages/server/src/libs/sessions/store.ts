@@ -659,10 +659,18 @@ async function startWatchingHead(session: RuntimeSession): Promise<void> {
                         if (branchChanged) {
                             return;
                         }
-                        // Tip advanced (commit/reset): drop the pre-tip file list immediately
-                        // so the hierarchy does not keep showing committed paths.
+                        // Tip advanced (commit/reset/pull): drop the pre-tip file list immediately
+                        // so the hierarchy does not keep showing committed paths, and push an
+                        // updated behind-default count (e.g. after merging origin/main).
                         if (nextTip !== prevTip) {
                             publishEmptyDiffCache(live.id, nextTip);
+                            const { behindDefault, defaultBranch } = await behindForSession(live);
+                            broadcastSessionBranch({
+                                sessionId: live.id,
+                                branch: live.branch,
+                                behindDefault,
+                                defaultBranch,
+                            });
                             return;
                         }
                         // Index-only changes (stash, mixed reset, etc.) — tip unchanged.
