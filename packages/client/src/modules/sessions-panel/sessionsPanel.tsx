@@ -16,7 +16,7 @@ import {
     setSessionsPanelWidthPx,
     SESSIONS_PANEL_COLLAPSED_WIDTH_PX,
 } from '@client/libs/layout/reviewLayoutPreferences';
-import { NewSession } from '@client/modules/new-session';
+import { panelLocationState } from '@client/libs/navigation/panelReturn';
 import {
     getSessionsSnapshot,
     hasSessionsSnapshot,
@@ -28,9 +28,8 @@ import {
 import { useSettings } from '@client/modules/settings';
 import { showToast } from '@client/modules/toast';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { createPortal } from 'react-dom';
 import { useIntl } from 'react-intl';
-import { useMatch, useNavigate } from 'react-router-dom';
+import { useLocation, useMatch, useNavigate } from 'react-router-dom';
 import { messages } from './sessionsPanel.messages';
 import { styles } from './sessionsPanel.styles';
 import type { SessionsPanelProps } from './sessionsPanel.types';
@@ -165,11 +164,11 @@ function sessionButtonClass(active: boolean, selected: boolean): string {
 export function SessionsPanel({ listInteractive = true }: SessionsPanelProps) {
     const intl = useIntl();
     const navigate = useNavigate();
+    const location = useLocation();
     const isDesktop = useIsDesktop();
     const sessionMatch = useMatch('/sessions/:sessionId');
     const activeSessionId = sessionMatch?.params.sessionId;
     const { openSettings } = useSettings();
-    const [creating, setCreating] = useState(false);
     const [repositories, setRepositories] = useState<Repository[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [pendingDelete, setPendingDelete] = useState<Session | null>(null);
@@ -230,9 +229,14 @@ export function SessionsPanel({ listInteractive = true }: SessionsPanelProps) {
 
     filteredSessionsRef.current = filteredSessions;
 
-    const keybindsEnabled = listInteractive && !creating && !pendingDelete;
+    const keybindsEnabled = listInteractive && !pendingDelete;
     const expandedKeybindsEnabled = keybindsEnabled && !effectivelyCollapsed;
     const navKeybindsEnabled = expandedKeybindsEnabled && !sessionsLoading && filteredSessions.length > 0;
+
+    const openNewSession = useCallback(() => {
+        if (location.pathname === '/new-session') return;
+        navigate('/new-session', { state: panelLocationState(location.pathname, location.search) });
+    }, [location.pathname, location.search, navigate]);
 
     function blurSearch() {
         if (document.activeElement === searchInputRef.current) {
@@ -240,7 +244,7 @@ export function SessionsPanel({ listInteractive = true }: SessionsPanelProps) {
         }
     }
 
-    useKeybind('home', 'newSession', () => setCreating(true), { enabled: keybindsEnabled });
+    useKeybind('home', 'newSession', openNewSession, { enabled: keybindsEnabled });
     useKeybind('home', 'openSettings', () => openSettings(), { enabled: keybindsEnabled });
     useKeybind(
         'home',
@@ -416,11 +420,7 @@ export function SessionsPanel({ listInteractive = true }: SessionsPanelProps) {
     return (
         <>
             <div className={styles.wrap} style={wrapStyle}>
-                <Panel
-                    className={styles.panel}
-                    aria-label={intl.formatMessage(messages.sessionsHeading)}
-                    inert={creating || undefined}
-                >
+                <Panel className={styles.panel} aria-label={intl.formatMessage(messages.sessionsHeading)}>
                     <div className={styles.header}>
                         <div className={effectivelyCollapsed ? styles.logoOffset : styles.logoOffsetInset}>
                             {effectivelyCollapsed ? (
@@ -462,7 +462,7 @@ export function SessionsPanel({ listInteractive = true }: SessionsPanelProps) {
                             aria-hidden={effectivelyCollapsed || undefined}
                         >
                             <div className={styles.mainStack}>
-                                <button type='button' className={styles.inlineButton} onClick={() => setCreating(true)}>
+                                <button type='button' className={styles.inlineButton} onClick={openNewSession}>
                                     <span className={styles.inlineButtonIcon}>
                                         <PlusIcon className={styles.settingsIcon} />
                                     </span>
@@ -658,7 +658,7 @@ export function SessionsPanel({ listInteractive = true }: SessionsPanelProps) {
                             <div className={styles.settings}>
                                 <button
                                     type='button'
-                                    className={styles.inlineButton}
+                                    className={styles.settingsButton}
                                     tabIndex={effectivelyCollapsed ? -1 : undefined}
                                     onClick={openSettings}
                                 >
@@ -680,7 +680,7 @@ export function SessionsPanel({ listInteractive = true }: SessionsPanelProps) {
                                 title={newSessionLabel}
                                 aria-label={newSessionLabel}
                                 tabIndex={effectivelyCollapsed ? undefined : -1}
-                                onClick={() => setCreating(true)}
+                                onClick={openNewSession}
                             >
                                 <PlusIcon />
                             </button>
@@ -695,7 +695,7 @@ export function SessionsPanel({ listInteractive = true }: SessionsPanelProps) {
                                 <ListIcon />
                             </button>
                             <div className={styles.railSpacer} />
-                            <div className={styles.settings}>
+                            <div className={styles.settingsRail}>
                                 <button
                                     type='button'
                                     className={styles.railIcon}
@@ -733,19 +733,6 @@ export function SessionsPanel({ listInteractive = true }: SessionsPanelProps) {
                     />
                 ) : null}
             </div>
-            {creating
-                ? createPortal(
-                      <NewSession
-                          onClose={() => setCreating(false)}
-                          onStarted={(session) => {
-                              upsertSession(session);
-                              setCreating(false);
-                              navigate(`/sessions/${session.id}`);
-                          }}
-                      />,
-                      document.body,
-                  )
-                : null}
         </>
     );
 }

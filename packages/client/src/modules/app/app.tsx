@@ -9,6 +9,10 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom';
 const WorkspacePage = lazy(() => import('@client/pages/workspace-page').then((m) => ({ default: m.WorkspacePage })));
 const LoginPage = lazy(() => import('@client/pages/login-page').then((m) => ({ default: m.LoginPage })));
 const SessionPage = lazy(() => import('@client/pages/session-page').then((m) => ({ default: m.SessionPage })));
+const SettingsPage = lazy(() => import('@client/pages/settings-page').then((m) => ({ default: m.SettingsPage })));
+const NewSessionPage = lazy(() =>
+    import('@client/pages/new-session-page').then((m) => ({ default: m.NewSessionPage })),
+);
 
 export function App() {
     return (
@@ -27,6 +31,8 @@ export function App() {
                             >
                                 <Route path='/' element={<WorkspacePage />} />
                                 <Route path='/sessions/:sessionId' element={<SessionPage />} />
+                                <Route path='/settings' element={<SettingsPage />} />
+                                <Route path='/new-session' element={<NewSessionPage />} />
                             </Route>
                         </Routes>
                     </Suspense>

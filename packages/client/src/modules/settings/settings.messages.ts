@@ -4,6 +4,7 @@ type Messages = {
     ariaLabel: NoMessageValues;
     crumb: NoMessageValues;
     close: NoMessageValues;
+    back: NoMessageValues;
     loading: NoMessageValues;
     loadFailed: NoMessageValues;
     saveFailed: NoMessageValues;
@@ -126,6 +127,10 @@ export const messages = defineMessages<Messages>(
         close: {
             id: 'settings.close',
             defaultMessage: 'Close',
+        },
+        back: {
+            id: 'settings.back',
+            defaultMessage: 'Back',
         },
         loading: {
             id: 'settings.loading',

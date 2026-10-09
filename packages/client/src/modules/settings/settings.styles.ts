@@ -1,10 +1,11 @@
 export const styles = {
-    root: 'fixed inset-0 z-30 flex flex-col bg-zinc-950 text-zinc-100',
-    shell: 'flex min-h-0 flex-1 flex-col bg-zinc-950',
-    body: 'flex min-h-0 flex-1 flex-col overflow-auto px-4 md:mx-auto md:w-full md:max-w-2xl',
-    sectionHeader: 'mt-6',
+    sectionHeader: 'flex flex-col',
+    sectionTitleRow: 'relative',
+    sectionBack:
+        'absolute top-1/2 right-full mr-1 -translate-y-1/2 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors md:hover:bg-zinc-800 md:hover:text-zinc-100 active:bg-zinc-800',
     sectionTitle: 'text-2xl font-semibold tracking-tight text-zinc-100',
     sectionDescription: 'mt-1.5 text-sm text-zinc-500',
+    backIcon: 'h-5 w-5',
     loading: 'mt-8 text-sm text-zinc-500',
     categories: 'mt-6 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900',
     categoryButton:
@@ -34,7 +35,7 @@ export const styles = {
     repositoryEmpty: 'text-sm text-zinc-500',
     repositoriesList: 'mt-3',
     actions: 'mt-auto pt-10 pb-6',
-    footer: 'px-4 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:mx-auto md:w-full md:max-w-2xl md:pb-4',
+    footer: 'px-4 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:mx-auto md:w-full md:max-w-2xl md:pl-11 md:pr-4 md:pb-4',
     footerActions: 'flex flex-row gap-2',
     footerAction: 'min-w-0 flex-1',
     keybindList: 'overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900',

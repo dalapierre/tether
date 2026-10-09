@@ -2,8 +2,6 @@ import { defineMessages, type NoMessageValues } from 'react-intl';
 
 type Messages = {
     ariaLabel: NoMessageValues;
-    sessionsCrumb: NoMessageValues;
-    crumb: NoMessageValues;
     close: NoMessageValues;
     loading: NoMessageValues;
     loadFailed: NoMessageValues;
@@ -36,14 +34,6 @@ export const messages = defineMessages<Messages>(
         ariaLabel: {
             id: 'newSession.ariaLabel',
             defaultMessage: 'New session',
-        },
-        sessionsCrumb: {
-            id: 'newSession.sessionsCrumb',
-            defaultMessage: 'sessions',
-        },
-        crumb: {
-            id: 'newSession.crumb',
-            defaultMessage: 'new session',
         },
         close: {
             id: 'newSession.close',

@@ -1,6 +1,5 @@
 import { Button } from '@client/components/button';
-import { IconButton } from '@client/components/icon-button';
-import { PageHeader } from '@client/components/page-header';
+import { RoutePanel } from '@client/components/route-panel';
 import { SearchSelect } from '@client/components/search-select';
 import { Spinner } from '@client/components/spinner';
 import {
@@ -232,173 +231,150 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
         (!usesWorktrees || branch.trim().length > 0);
 
     return (
-        <div
-            className={styles.root}
-            role='dialog'
-            aria-modal='true'
-            aria-label={intl.formatMessage(messages.ariaLabel)}
-            onClick={(event) => {
-                if (event.target === event.currentTarget && !starting) {
-                    onClose();
-                }
+        <form
+            className={styles.form}
+            onSubmit={(event) => {
+                event.preventDefault();
+                void handleStart();
             }}
         >
-            <div className={styles.shell} inert={starting || undefined}>
-                <PageHeader
-                    crumbs={[
-                        {
-                            label: intl.formatMessage(messages.sessionsCrumb),
-                            onClick: starting ? undefined : onClose,
-                        },
-                        { label: intl.formatMessage(messages.crumb) },
-                    ]}
-                    showSettings={false}
-                    actions={
-                        <IconButton label={intl.formatMessage(messages.close)} onClick={onClose} disabled={starting}>
-                            ×
-                        </IconButton>
-                    }
-                />
-                <form
-                    className={styles.form}
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        void handleStart();
-                    }}
-                >
-                    <div className={styles.body}>
-                        <div className={styles.sectionHeader}>
-                            <h2 className={styles.sectionTitle}>{intl.formatMessage(messages.title)}</h2>
-                            <p className={styles.sectionDescription}>{intl.formatMessage(messages.description)}</p>
-                        </div>
-
-                        {loading ? <p className={styles.loading}>{intl.formatMessage(messages.loading)}</p> : null}
-
-                        {!loading ? (
-                            <div className={styles.fields}>
-                                <label className={styles.label}>
-                                    {intl.formatMessage(messages.nameLabel)}
-                                    <input
-                                        className={styles.input}
-                                        type='text'
-                                        value={name}
-                                        onChange={(event) => setName(event.target.value)}
-                                        placeholder={intl.formatMessage(messages.namePlaceholder)}
-                                        autoComplete='off'
-                                        autoCapitalize='off'
-                                        autoCorrect='off'
-                                        spellCheck={false}
-                                        autoFocus
-                                        disabled={starting}
-                                    />
-                                </label>
-
-                                <div>
-                                    <p className={styles.label}>{intl.formatMessage(messages.profileLabel)}</p>
-                                    <SearchSelect
-                                        options={profileOptions}
-                                        value={profileId || null}
-                                        onSelect={(option) => setProfileId(option.value)}
-                                        placeholder={intl.formatMessage(messages.profilePlaceholder)}
-                                        emptyMessage={intl.formatMessage(messages.profilesEmpty)}
-                                        noResultsMessage={intl.formatMessage(messages.profileNoResults)}
-                                        disabled={starting}
-                                        ariaLabel={intl.formatMessage(messages.profileLabel)}
-                                    />
-                                </div>
-
-                                <div>
-                                    <p className={styles.label}>{intl.formatMessage(messages.projectLabel)}</p>
-                                    <SearchSelect
-                                        options={repositoryOptions}
-                                        value={repositoryId || null}
-                                        onSelect={(option) => {
-                                            setRepositoryId(option.value);
-                                            setBranch('');
-                                            setWorkingDirectory(DEFAULT_WORKING_DIRECTORY);
-                                        }}
-                                        placeholder={intl.formatMessage(messages.projectPlaceholder)}
-                                        emptyMessage={intl.formatMessage(messages.projectsEmpty)}
-                                        noResultsMessage={intl.formatMessage(messages.projectNoResults)}
-                                        disabled={starting}
-                                        ariaLabel={intl.formatMessage(messages.projectLabel)}
-                                    />
-                                </div>
-
-                                {usesWorktrees ? (
-                                    <div>
-                                        <p className={styles.label}>{intl.formatMessage(messages.branchLabel)}</p>
-                                        <SearchSelect
-                                            options={branchOptions}
-                                            value={branch}
-                                            allowCustom
-                                            onChange={setBranch}
-                                            onSelect={(option) => setBranch(option.value)}
-                                            placeholder={intl.formatMessage(messages.branchPlaceholder)}
-                                            disabled={starting || !repositoryId}
-                                            ariaLabel={intl.formatMessage(messages.branchLabel)}
-                                        />
-                                    </div>
-                                ) : null}
-
-                                <div className={styles.advanced}>
-                                    <button
-                                        type='button'
-                                        className={styles.advancedToggle}
-                                        aria-expanded={advancedOpen}
-                                        onClick={() => setAdvancedOpen((open) => !open)}
-                                        disabled={starting}
-                                    >
-                                        <span>{intl.formatMessage(messages.advancedToggle)}</span>
-                                        <AdvancedChevron open={advancedOpen} />
-                                    </button>
-
-                                    {advancedOpen ? (
-                                        <div className={styles.advancedFields}>
-                                            <div>
-                                                <p className={styles.label}>
-                                                    {intl.formatMessage(messages.workingDirectoryLabel)}
-                                                </p>
-                                                <SearchSelect
-                                                    options={directoryOptions}
-                                                    value={workingDirectory}
-                                                    allowCustom
-                                                    onChange={setWorkingDirectory}
-                                                    onSelect={(option) => setWorkingDirectory(option.value)}
-                                                    placeholder={intl.formatMessage(
-                                                        messages.workingDirectoryPlaceholder,
-                                                    )}
-                                                    emptyMessage={intl.formatMessage(messages.workingDirectoryEmpty)}
-                                                    noResultsMessage={intl.formatMessage(
-                                                        messages.workingDirectoryNoResults,
-                                                    )}
-                                                    disabled={starting || !repositoryId}
-                                                    ariaLabel={intl.formatMessage(messages.workingDirectoryLabel)}
-                                                />
-                                            </div>
-                                        </div>
-                                    ) : null}
-                                </div>
-                            </div>
-                        ) : null}
-                    </div>
+            <RoutePanel
+                title={intl.formatMessage(messages.title)}
+                onClose={onClose}
+                closeLabel={intl.formatMessage(messages.close)}
+                closeDisabled={starting}
+                aria-label={intl.formatMessage(messages.ariaLabel)}
+                footer={
                     <div className={styles.footer}>
                         <Button type='submit' disabled={!canStart}>
                             {intl.formatMessage(starting ? messages.starting : messages.start)}
                         </Button>
                     </div>
-                </form>
-            </div>
-            {starting ? (
-                <div className={styles.startingOverlay}>
-                    <Spinner
-                        size='lg'
-                        label={intl.formatMessage(messages.starting)}
-                        className={styles.startingSpinner}
-                    />
-                    <p className={styles.startingLabel}>{intl.formatMessage(messages.starting)}</p>
+                }
+                overlay={
+                    starting ? (
+                        <div className={styles.startingOverlay}>
+                            <Spinner
+                                size='lg'
+                                label={intl.formatMessage(messages.starting)}
+                                className={styles.startingSpinner}
+                            />
+                            <p className={styles.startingLabel}>{intl.formatMessage(messages.starting)}</p>
+                        </div>
+                    ) : null
+                }
+            >
+                <div>
+                    <h2 className={styles.sectionTitle}>{intl.formatMessage(messages.title)}</h2>
+                    <p className={styles.sectionDescription}>{intl.formatMessage(messages.description)}</p>
                 </div>
-            ) : null}
-        </div>
+
+                {loading ? <p className={styles.loading}>{intl.formatMessage(messages.loading)}</p> : null}
+
+                {!loading ? (
+                    <div className={styles.fields}>
+                        <label className={styles.label}>
+                            {intl.formatMessage(messages.nameLabel)}
+                            <input
+                                className={styles.input}
+                                type='text'
+                                value={name}
+                                onChange={(event) => setName(event.target.value)}
+                                placeholder={intl.formatMessage(messages.namePlaceholder)}
+                                autoComplete='off'
+                                autoCapitalize='off'
+                                autoCorrect='off'
+                                spellCheck={false}
+                                autoFocus
+                                disabled={starting}
+                            />
+                        </label>
+
+                        <div>
+                            <p className={styles.label}>{intl.formatMessage(messages.profileLabel)}</p>
+                            <SearchSelect
+                                options={profileOptions}
+                                value={profileId || null}
+                                onSelect={(option) => setProfileId(option.value)}
+                                placeholder={intl.formatMessage(messages.profilePlaceholder)}
+                                emptyMessage={intl.formatMessage(messages.profilesEmpty)}
+                                noResultsMessage={intl.formatMessage(messages.profileNoResults)}
+                                disabled={starting}
+                                ariaLabel={intl.formatMessage(messages.profileLabel)}
+                            />
+                        </div>
+
+                        <div>
+                            <p className={styles.label}>{intl.formatMessage(messages.projectLabel)}</p>
+                            <SearchSelect
+                                options={repositoryOptions}
+                                value={repositoryId || null}
+                                onSelect={(option) => {
+                                    setRepositoryId(option.value);
+                                    setBranch('');
+                                    setWorkingDirectory(DEFAULT_WORKING_DIRECTORY);
+                                }}
+                                placeholder={intl.formatMessage(messages.projectPlaceholder)}
+                                emptyMessage={intl.formatMessage(messages.projectsEmpty)}
+                                noResultsMessage={intl.formatMessage(messages.projectNoResults)}
+                                disabled={starting}
+                                ariaLabel={intl.formatMessage(messages.projectLabel)}
+                            />
+                        </div>
+
+                        {usesWorktrees ? (
+                            <div>
+                                <p className={styles.label}>{intl.formatMessage(messages.branchLabel)}</p>
+                                <SearchSelect
+                                    options={branchOptions}
+                                    value={branch}
+                                    allowCustom
+                                    onChange={setBranch}
+                                    onSelect={(option) => setBranch(option.value)}
+                                    placeholder={intl.formatMessage(messages.branchPlaceholder)}
+                                    disabled={starting || !repositoryId}
+                                    ariaLabel={intl.formatMessage(messages.branchLabel)}
+                                />
+                            </div>
+                        ) : null}
+
+                        <div className={styles.advanced}>
+                            <button
+                                type='button'
+                                className={styles.advancedToggle}
+                                aria-expanded={advancedOpen}
+                                onClick={() => setAdvancedOpen((open) => !open)}
+                                disabled={starting}
+                            >
+                                <span>{intl.formatMessage(messages.advancedToggle)}</span>
+                                <AdvancedChevron open={advancedOpen} />
+                            </button>
+
+                            {advancedOpen ? (
+                                <div className={styles.advancedFields}>
+                                    <div>
+                                        <p className={styles.label}>
+                                            {intl.formatMessage(messages.workingDirectoryLabel)}
+                                        </p>
+                                        <SearchSelect
+                                            options={directoryOptions}
+                                            value={workingDirectory}
+                                            allowCustom
+                                            onChange={setWorkingDirectory}
+                                            onSelect={(option) => setWorkingDirectory(option.value)}
+                                            placeholder={intl.formatMessage(messages.workingDirectoryPlaceholder)}
+                                            emptyMessage={intl.formatMessage(messages.workingDirectoryEmpty)}
+                                            noResultsMessage={intl.formatMessage(messages.workingDirectoryNoResults)}
+                                            disabled={starting || !repositoryId}
+                                            ariaLabel={intl.formatMessage(messages.workingDirectoryLabel)}
+                                        />
+                                    </div>
+                                </div>
+                            ) : null}
+                        </div>
+                    </div>
+                ) : null}
+            </RoutePanel>
+        </form>
     );
 }

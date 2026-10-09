@@ -1,7 +1,7 @@
 import { Button } from '@client/components/button';
 import { ConfirmDialog } from '@client/components/confirm-dialog';
 import { IconButton } from '@client/components/icon-button';
-import { PageHeader } from '@client/components/page-header';
+import { RoutePanel } from '@client/components/route-panel';
 import { SearchSelect } from '@client/components/search-select';
 import { Toggle } from '@client/components/toggle';
 import { agentLabelMessage, isAgentId, type AgentId } from '@client/libs/agents/agents';
@@ -18,6 +18,7 @@ import {
 import { getSettings, updateSettings, type AgentProfile } from '@client/libs/api/settings';
 import { DEFAULT_KEYBINDS, cloneKeybinds, keybindsEqual, type Keybinds } from '@client/libs/keybinds';
 import { clearAccessToken } from '@client/libs/auth/session';
+import { useIsDesktop } from '@client/libs/dom/useMediaQuery';
 import { DEFAULT_TOAST_DURATION_SECONDS, setToastDurationSeconds, showToast } from '@client/modules/toast';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useIntl } from 'react-intl';
@@ -34,11 +35,6 @@ const MIN_AUTH_TOKEN_EXPIRATION_MINUTES = 1;
 const MAX_AUTH_TOKEN_EXPIRATION_MINUTES = 1440;
 
 type SettingsView = 'root' | 'general' | 'repos' | 'agents' | 'profiles' | 'new-profile' | 'edit-profile' | 'keybinds';
-
-type HeaderCrumb = {
-    label: string;
-    onClick?: () => void;
-};
 
 type ProfileDraft = {
     name: string;
@@ -58,6 +54,21 @@ function CategoryChevron() {
             aria-hidden='true'
         >
             <path strokeLinecap='round' strokeLinejoin='round' d='m8.25 4.5 7.5 7.5-7.5 7.5' />
+        </svg>
+    );
+}
+
+function BackIcon() {
+    return (
+        <svg
+            className={styles.backIcon}
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='2'
+            aria-hidden='true'
+        >
+            <path strokeLinecap='round' strokeLinejoin='round' d='M15.75 19.5 8.25 12l7.5-7.5' />
         </svg>
     );
 }
@@ -118,6 +129,7 @@ function pickHarness(availableAgents: AvailableAgent[], preferred: AgentId): Age
 export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
     const intl = useIntl();
     const navigate = useNavigate();
+    const isDesktop = useIsDesktop();
     const [view, setView] = useState<SettingsView>('root');
     const [devDir, setDevDir] = useState('');
     const [toastDurationSeconds, setToastDurationSecondsState] = useState(DEFAULT_TOAST_DURATION_SECONDS);
@@ -277,8 +289,8 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
         [available],
     );
 
-    const crumbs = useMemo((): HeaderCrumb[] => {
-        const root: HeaderCrumb = {
+    const crumbs = useMemo(() => {
+        const root = {
             label: intl.formatMessage(messages.crumb),
             onClick: view === 'root' ? undefined : () => setView('root'),
         };
@@ -303,7 +315,7 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
             return [root, { label: intl.formatMessage(messages.categoryKeybindsCrumb) }];
         }
 
-        const agentsCrumb: HeaderCrumb = {
+        const agentsCrumb = {
             label: intl.formatMessage(messages.categoryAgentsCrumb),
             onClick: () => setView('agents'),
         };
@@ -312,7 +324,7 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
             return [root, agentsCrumb, { label: intl.formatMessage(messages.categoryProfilesCrumb) }];
         }
 
-        const profilesCrumb: HeaderCrumb = {
+        const profilesCrumb = {
             label: intl.formatMessage(messages.categoryProfilesCrumb),
             onClick: () => {
                 setView('profiles');
@@ -621,324 +633,262 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
         }
     }, [intl, view]);
 
+    const footer = showSaveButton ? (
+        <div className={styles.footer}>
+            <div className={styles.footerActions}>
+                <div className={styles.footerAction}>
+                    <Button type='button' variant='secondary' onClick={() => setPendingDiscard(true)} disabled={saving}>
+                        {intl.formatMessage(messages.cancel)}
+                    </Button>
+                </div>
+                <div className={styles.footerAction}>
+                    <Button type='button' onClick={() => void handleSave()} disabled={saving}>
+                        {saving ? intl.formatMessage(messages.saving) : intl.formatMessage(messages.save)}
+                    </Button>
+                </div>
+            </div>
+        </div>
+    ) : view === 'profiles' && !loading ? (
+        <div className={styles.footer}>
+            <Button
+                type='button'
+                onClick={() => {
+                    setEditingProfileId(null);
+                    setDraftProfile(emptyDraftProfile(pickHarness(availableAgents, defaultAgent)));
+                    setView('new-profile');
+                }}
+            >
+                {intl.formatMessage(messages.addProfile)}
+            </Button>
+        </div>
+    ) : view === 'new-profile' && !loading ? (
+        <div className={styles.footer}>
+            <Button type='button' onClick={() => void handleCreateProfile()} disabled={!canCreateProfile}>
+                {intl.formatMessage(creatingProfile ? messages.creatingProfile : messages.createProfile)}
+            </Button>
+        </div>
+    ) : view === 'edit-profile' && !loading && canSaveProfile ? (
+        <div className={styles.footer}>
+            <div className={styles.footerActions}>
+                <div className={styles.footerAction}>
+                    <Button
+                        type='button'
+                        variant='secondary'
+                        onClick={() => setPendingDiscard(true)}
+                        disabled={savingProfile}
+                    >
+                        {intl.formatMessage(messages.cancel)}
+                    </Button>
+                </div>
+                <div className={styles.footerAction}>
+                    <Button type='button' onClick={() => void handleSaveProfile()} disabled={savingProfile}>
+                        {savingProfile ? intl.formatMessage(messages.saving) : intl.formatMessage(messages.save)}
+                    </Button>
+                </div>
+            </div>
+        </div>
+    ) : null;
+
     return (
-        <div
-            className={styles.root}
-            role='dialog'
-            aria-modal='true'
-            aria-label={intl.formatMessage(messages.ariaLabel)}
-            onClick={(event) => {
-                if (event.target === event.currentTarget) {
-                    onClose();
-                }
-            }}
-        >
-            <div className={styles.shell}>
-                <PageHeader
-                    crumbs={crumbs}
-                    showSettings={false}
-                    onBack={view === 'root' ? undefined : goBack}
-                    actions={
-                        <IconButton label={intl.formatMessage(messages.close)} onClick={onClose}>
-                            ×
-                        </IconButton>
-                    }
-                />
-                <div className={styles.body}>
-                    {!loading || view === 'root' ? (
-                        <div className={styles.sectionHeader}>
+        <>
+            <RoutePanel
+                crumbs={crumbs}
+                onClose={onClose}
+                closeLabel={intl.formatMessage(messages.close)}
+                onBack={!isDesktop && view !== 'root' ? goBack : undefined}
+                backLabel={intl.formatMessage(messages.back)}
+                aria-label={intl.formatMessage(messages.ariaLabel)}
+                footer={footer}
+            >
+                {!loading || view === 'root' ? (
+                    <div className={styles.sectionHeader}>
+                        <div className={styles.sectionTitleRow}>
+                            {isDesktop && view !== 'root' ? (
+                                <button
+                                    type='button'
+                                    className={styles.sectionBack}
+                                    aria-label={intl.formatMessage(messages.back)}
+                                    onClick={goBack}
+                                >
+                                    <BackIcon />
+                                </button>
+                            ) : null}
                             <h2 className={styles.sectionTitle}>{sectionHeader.title}</h2>
-                            <p className={styles.sectionDescription}>{sectionHeader.description}</p>
                         </div>
-                    ) : null}
+                        <p className={styles.sectionDescription}>{sectionHeader.description}</p>
+                    </div>
+                ) : null}
 
-                    {view === 'root' ? (
-                        <>
-                            <div className={styles.categories}>
-                                <button
-                                    type='button'
-                                    className={styles.categoryButton}
-                                    onClick={() => setView('general')}
-                                >
-                                    <span className={styles.categoryText}>
-                                        <span className={styles.categoryLabel}>
-                                            {intl.formatMessage(messages.categoryGeneral)}
-                                        </span>
-                                        <span className={styles.categoryDescription}>
-                                            {intl.formatMessage(messages.categoryGeneralDescription)}
-                                        </span>
+                {view === 'root' ? (
+                    <>
+                        <div className={styles.categories}>
+                            <button type='button' className={styles.categoryButton} onClick={() => setView('general')}>
+                                <span className={styles.categoryText}>
+                                    <span className={styles.categoryLabel}>
+                                        {intl.formatMessage(messages.categoryGeneral)}
                                     </span>
-                                    <CategoryChevron />
-                                </button>
-                                <button
-                                    type='button'
-                                    className={styles.categoryButton}
-                                    onClick={() => setView('repos')}
-                                >
-                                    <span className={styles.categoryText}>
-                                        <span className={styles.categoryLabel}>
-                                            {intl.formatMessage(messages.categoryRepos)}
-                                        </span>
-                                        <span className={styles.categoryDescription}>
-                                            {intl.formatMessage(messages.categoryReposDescription)}
-                                        </span>
-                                    </span>
-                                    <CategoryChevron />
-                                </button>
-                                <button
-                                    type='button'
-                                    className={styles.categoryButton}
-                                    onClick={() => setView('agents')}
-                                >
-                                    <span className={styles.categoryText}>
-                                        <span className={styles.categoryLabel}>
-                                            {intl.formatMessage(messages.categoryAgents)}
-                                        </span>
-                                        <span className={styles.categoryDescription}>
-                                            {intl.formatMessage(messages.categoryAgentsDescription)}
-                                        </span>
-                                    </span>
-                                    <CategoryChevron />
-                                </button>
-                                <button
-                                    type='button'
-                                    className={styles.categoryButton}
-                                    onClick={() => setView('keybinds')}
-                                >
-                                    <span className={styles.categoryText}>
-                                        <span className={styles.categoryLabel}>
-                                            {intl.formatMessage(messages.categoryKeybinds)}
-                                        </span>
-                                        <span className={styles.categoryDescription}>
-                                            {intl.formatMessage(messages.categoryKeybindsDescription)}
-                                        </span>
-                                    </span>
-                                    <CategoryChevron />
-                                </button>
-                            </div>
-
-                            <div className={styles.actions}>
-                                <Button type='button' variant='secondary' onClick={onSignOut}>
-                                    {intl.formatMessage(messages.signOut)}
-                                </Button>
-                            </div>
-                        </>
-                    ) : null}
-
-                    {view !== 'root' && loading ? (
-                        <p className={styles.loading}>{intl.formatMessage(messages.loading)}</p>
-                    ) : null}
-
-                    {view === 'general' && !loading ? (
-                        <div className={styles.fields}>
-                            <label className={styles.label}>
-                                {intl.formatMessage(messages.devDirLabel)}
-                                <input
-                                    className={styles.input}
-                                    type='text'
-                                    value={devDir}
-                                    onChange={(event) => setDevDir(event.target.value)}
-                                    placeholder={intl.formatMessage(messages.devDirPlaceholder)}
-                                    autoComplete='off'
-                                    autoCapitalize='off'
-                                    autoCorrect='off'
-                                    spellCheck={false}
-                                />
-                            </label>
-                            <p className={styles.hint}>{intl.formatMessage(messages.devDirHint)}</p>
-
-                            <label className={styles.inlineField}>
-                                <span className={styles.inlineFieldText}>
-                                    <span className={styles.inlineFieldLabel}>
-                                        {intl.formatMessage(messages.toastDurationLabel)}
-                                    </span>
-                                    <span className={styles.inlineFieldHint}>
-                                        {intl.formatMessage(messages.toastDurationHint)}
+                                    <span className={styles.categoryDescription}>
+                                        {intl.formatMessage(messages.categoryGeneralDescription)}
                                     </span>
                                 </span>
-                                <input
-                                    className={styles.inlineFieldInput}
-                                    type='number'
-                                    min={MIN_TOAST_DURATION_SECONDS}
-                                    max={MAX_TOAST_DURATION_SECONDS}
-                                    step={1}
-                                    value={toastDurationSeconds}
-                                    onChange={(event) => {
-                                        const next = Number(event.target.value);
-                                        if (!Number.isFinite(next)) return;
-                                        setToastDurationSecondsState(
-                                            Math.min(
-                                                MAX_TOAST_DURATION_SECONDS,
-                                                Math.max(MIN_TOAST_DURATION_SECONDS, Math.round(next)),
-                                            ),
-                                        );
-                                    }}
-                                />
-                            </label>
-
-                            <label className={styles.inlineField}>
-                                <span className={styles.inlineFieldText}>
-                                    <span className={styles.inlineFieldLabel}>
-                                        {intl.formatMessage(messages.authTokenExpirationLabel)}
+                                <CategoryChevron />
+                            </button>
+                            <button type='button' className={styles.categoryButton} onClick={() => setView('repos')}>
+                                <span className={styles.categoryText}>
+                                    <span className={styles.categoryLabel}>
+                                        {intl.formatMessage(messages.categoryRepos)}
                                     </span>
-                                    <span className={styles.inlineFieldHint}>
-                                        {intl.formatMessage(messages.authTokenExpirationHint)}
+                                    <span className={styles.categoryDescription}>
+                                        {intl.formatMessage(messages.categoryReposDescription)}
                                     </span>
                                 </span>
-                                <input
-                                    className={styles.inlineFieldInput}
-                                    type='number'
-                                    min={MIN_AUTH_TOKEN_EXPIRATION_MINUTES}
-                                    max={MAX_AUTH_TOKEN_EXPIRATION_MINUTES}
-                                    step={1}
-                                    value={authTokenExpirationMinutes}
-                                    onChange={(event) => {
-                                        const next = Number(event.target.value);
-                                        if (!Number.isFinite(next)) return;
-                                        setAuthTokenExpirationMinutes(
-                                            Math.min(
-                                                MAX_AUTH_TOKEN_EXPIRATION_MINUTES,
-                                                Math.max(MIN_AUTH_TOKEN_EXPIRATION_MINUTES, Math.round(next)),
-                                            ),
-                                        );
-                                    }}
-                                />
-                            </label>
-                        </div>
-                    ) : null}
-
-                    {view === 'repos' && !loading ? (
-                        <div className={styles.fields}>
-                            <div>
-                                <p className={styles.label}>{intl.formatMessage(messages.addRepositoryLabel)}</p>
-                                <SearchSelect
-                                    options={availableOptions}
-                                    onSelect={(option) => {
-                                        void handleAdd(option.value);
-                                    }}
-                                    placeholder={intl.formatMessage(messages.addRepositoryPlaceholder)}
-                                    emptyMessage={intl.formatMessage(messages.addRepositoryEmpty)}
-                                    noResultsMessage={intl.formatMessage(messages.addRepositoryNoResults)}
-                                    disabled={Boolean(addingPath)}
-                                    ariaLabel={intl.formatMessage(messages.addRepositoryLabel)}
-                                />
-                            </div>
-                            <div className={styles.repositoriesList}>
-                                <p className={styles.label}>{intl.formatMessage(messages.repositoriesLabel)}</p>
-                                <div className={styles.repositories}>
-                                    {repositories.length === 0 ? (
-                                        <p className={styles.repositoryEmpty}>
-                                            {intl.formatMessage(messages.repositoriesEmpty)}
-                                        </p>
-                                    ) : (
-                                        repositories.map((repository) => (
-                                            <div key={repository.id} className={styles.repositoryRow}>
-                                                <span className={styles.repositoryName}>{repository.name}</span>
-                                                <IconButton
-                                                    label={intl.formatMessage(messages.removeRepository)}
-                                                    disabled={removingId === repository.id}
-                                                    onClick={() => setPendingRemoveRepo(repository)}
-                                                >
-                                                    ×
-                                                </IconButton>
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    ) : null}
-
-                    {view === 'agents' && !loading ? (
-                        <div className={styles.fields}>
-                            <label className={styles.label}>
-                                {intl.formatMessage(messages.defaultHarnessLabel)}
-                                <select
-                                    className={styles.select}
-                                    value={defaultAgent}
-                                    onChange={(event) => {
-                                        const next = event.target.value;
-                                        if (defaultHarnessOptions.includes(next as AgentId)) {
-                                            setDefaultAgent(next as AgentId);
-                                        }
-                                    }}
-                                    disabled={defaultHarnessOptions.length === 0}
-                                >
-                                    {defaultHarnessOptions.length === 0 ? (
-                                        <option value={defaultAgent}>
-                                            {intl.formatMessage(messages.harnessesEmpty)}
-                                        </option>
-                                    ) : (
-                                        defaultHarnessOptions.map((agentId) => (
-                                            <option key={agentId} value={agentId}>
-                                                {intl.formatMessage(agentLabelMessage(agentId))}
-                                            </option>
-                                        ))
-                                    )}
-                                </select>
-                            </label>
-
-                            <label className={styles.label}>
-                                {intl.formatMessage(messages.defaultProfileLabel)}
-                                <select
-                                    className={styles.select}
-                                    value={defaultProfileId}
-                                    onChange={(event) => setDefaultProfileId(event.target.value)}
-                                >
-                                    {profiles.map((profile) => (
-                                        <option key={profile.id} value={profile.id}>
-                                            {profile.name.trim() || profile.id}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
-
-                            <div className={styles.categories}>
-                                <button
-                                    type='button'
-                                    className={styles.categoryButton}
-                                    onClick={() => setView('profiles')}
-                                >
-                                    <span className={styles.categoryText}>
-                                        <span className={styles.categoryLabel}>
-                                            {intl.formatMessage(messages.categoryProfiles)}
-                                        </span>
-                                        <span className={styles.categoryDescription}>
-                                            {intl.formatMessage(messages.categoryProfilesDescription)}
-                                        </span>
+                                <CategoryChevron />
+                            </button>
+                            <button type='button' className={styles.categoryButton} onClick={() => setView('agents')}>
+                                <span className={styles.categoryText}>
+                                    <span className={styles.categoryLabel}>
+                                        {intl.formatMessage(messages.categoryAgents)}
                                     </span>
-                                    <CategoryChevron />
-                                </button>
-                            </div>
+                                    <span className={styles.categoryDescription}>
+                                        {intl.formatMessage(messages.categoryAgentsDescription)}
+                                    </span>
+                                </span>
+                                <CategoryChevron />
+                            </button>
+                            <button type='button' className={styles.categoryButton} onClick={() => setView('keybinds')}>
+                                <span className={styles.categoryText}>
+                                    <span className={styles.categoryLabel}>
+                                        {intl.formatMessage(messages.categoryKeybinds)}
+                                    </span>
+                                    <span className={styles.categoryDescription}>
+                                        {intl.formatMessage(messages.categoryKeybindsDescription)}
+                                    </span>
+                                </span>
+                                <CategoryChevron />
+                            </button>
                         </div>
-                    ) : null}
 
-                    {view === 'keybinds' && !loading ? (
-                        <KeybindsPanel keybinds={keybinds} onChange={setKeybinds} disabled={saving} />
-                    ) : null}
+                        <div className={styles.actions}>
+                            <Button type='button' variant='secondary' onClick={onSignOut}>
+                                {intl.formatMessage(messages.signOut)}
+                            </Button>
+                        </div>
+                    </>
+                ) : null}
 
-                    {view === 'profiles' && !loading ? (
-                        <div className={styles.fields}>
-                            <p className={styles.label}>{intl.formatMessage(messages.profilesLabel)}</p>
+                {view !== 'root' && loading ? (
+                    <p className={styles.loading}>{intl.formatMessage(messages.loading)}</p>
+                ) : null}
+
+                {view === 'general' && !loading ? (
+                    <div className={styles.fields}>
+                        <label className={styles.label}>
+                            {intl.formatMessage(messages.devDirLabel)}
+                            <input
+                                className={styles.input}
+                                type='text'
+                                value={devDir}
+                                onChange={(event) => setDevDir(event.target.value)}
+                                placeholder={intl.formatMessage(messages.devDirPlaceholder)}
+                                autoComplete='off'
+                                autoCapitalize='off'
+                                autoCorrect='off'
+                                spellCheck={false}
+                            />
+                        </label>
+                        <p className={styles.hint}>{intl.formatMessage(messages.devDirHint)}</p>
+
+                        <label className={styles.inlineField}>
+                            <span className={styles.inlineFieldText}>
+                                <span className={styles.inlineFieldLabel}>
+                                    {intl.formatMessage(messages.toastDurationLabel)}
+                                </span>
+                                <span className={styles.inlineFieldHint}>
+                                    {intl.formatMessage(messages.toastDurationHint)}
+                                </span>
+                            </span>
+                            <input
+                                className={styles.inlineFieldInput}
+                                type='number'
+                                min={MIN_TOAST_DURATION_SECONDS}
+                                max={MAX_TOAST_DURATION_SECONDS}
+                                step={1}
+                                value={toastDurationSeconds}
+                                onChange={(event) => {
+                                    const next = Number(event.target.value);
+                                    if (!Number.isFinite(next)) return;
+                                    setToastDurationSecondsState(
+                                        Math.min(
+                                            MAX_TOAST_DURATION_SECONDS,
+                                            Math.max(MIN_TOAST_DURATION_SECONDS, Math.round(next)),
+                                        ),
+                                    );
+                                }}
+                            />
+                        </label>
+
+                        <label className={styles.inlineField}>
+                            <span className={styles.inlineFieldText}>
+                                <span className={styles.inlineFieldLabel}>
+                                    {intl.formatMessage(messages.authTokenExpirationLabel)}
+                                </span>
+                                <span className={styles.inlineFieldHint}>
+                                    {intl.formatMessage(messages.authTokenExpirationHint)}
+                                </span>
+                            </span>
+                            <input
+                                className={styles.inlineFieldInput}
+                                type='number'
+                                min={MIN_AUTH_TOKEN_EXPIRATION_MINUTES}
+                                max={MAX_AUTH_TOKEN_EXPIRATION_MINUTES}
+                                step={1}
+                                value={authTokenExpirationMinutes}
+                                onChange={(event) => {
+                                    const next = Number(event.target.value);
+                                    if (!Number.isFinite(next)) return;
+                                    setAuthTokenExpirationMinutes(
+                                        Math.min(
+                                            MAX_AUTH_TOKEN_EXPIRATION_MINUTES,
+                                            Math.max(MIN_AUTH_TOKEN_EXPIRATION_MINUTES, Math.round(next)),
+                                        ),
+                                    );
+                                }}
+                            />
+                        </label>
+                    </div>
+                ) : null}
+
+                {view === 'repos' && !loading ? (
+                    <div className={styles.fields}>
+                        <div>
+                            <p className={styles.label}>{intl.formatMessage(messages.addRepositoryLabel)}</p>
+                            <SearchSelect
+                                options={availableOptions}
+                                onSelect={(option) => {
+                                    void handleAdd(option.value);
+                                }}
+                                placeholder={intl.formatMessage(messages.addRepositoryPlaceholder)}
+                                emptyMessage={intl.formatMessage(messages.addRepositoryEmpty)}
+                                noResultsMessage={intl.formatMessage(messages.addRepositoryNoResults)}
+                                disabled={Boolean(addingPath)}
+                                ariaLabel={intl.formatMessage(messages.addRepositoryLabel)}
+                            />
+                        </div>
+                        <div className={styles.repositoriesList}>
+                            <p className={styles.label}>{intl.formatMessage(messages.repositoriesLabel)}</p>
                             <div className={styles.repositories}>
-                                {profiles.length === 0 ? (
+                                {repositories.length === 0 ? (
                                     <p className={styles.repositoryEmpty}>
-                                        {intl.formatMessage(messages.profilesEmpty)}
+                                        {intl.formatMessage(messages.repositoriesEmpty)}
                                     </p>
                                 ) : (
-                                    profiles.map((profile) => (
-                                        <div key={profile.id} className={styles.profileRow}>
-                                            <button
-                                                type='button'
-                                                className={styles.profileRowButton}
-                                                onClick={() => openEditProfile(profile)}
-                                            >
-                                                {profile.name.trim() || profile.id}
-                                            </button>
+                                    repositories.map((repository) => (
+                                        <div key={repository.id} className={styles.repositoryRow}>
+                                            <span className={styles.repositoryName}>{repository.name}</span>
                                             <IconButton
-                                                label={intl.formatMessage(messages.removeProfile)}
-                                                disabled={profiles.length <= 1 || removingId === profile.id}
-                                                onClick={() => setPendingRemoveProfile(profile)}
+                                                label={intl.formatMessage(messages.removeRepository)}
+                                                disabled={removingId === repository.id}
+                                                onClick={() => setPendingRemoveRepo(repository)}
                                             >
                                                 ×
                                             </IconButton>
@@ -947,144 +897,169 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
                                 )}
                             </div>
                         </div>
-                    ) : null}
+                    </div>
+                ) : null}
 
-                    {showProfileForm ? (
-                        <div className={styles.fields}>
-                            <label className={styles.label}>
-                                {intl.formatMessage(messages.profileNameLabel)}
-                                <input
-                                    className={styles.input}
-                                    type='text'
-                                    value={draftProfile.name}
-                                    onChange={(event) =>
-                                        setDraftProfile((current) => ({ ...current, name: event.target.value }))
+                {view === 'agents' && !loading ? (
+                    <div className={styles.fields}>
+                        <label className={styles.label}>
+                            {intl.formatMessage(messages.defaultHarnessLabel)}
+                            <select
+                                className={styles.select}
+                                value={defaultAgent}
+                                onChange={(event) => {
+                                    const next = event.target.value;
+                                    if (defaultHarnessOptions.includes(next as AgentId)) {
+                                        setDefaultAgent(next as AgentId);
                                     }
-                                    placeholder={intl.formatMessage(messages.profileNamePlaceholder)}
-                                    autoComplete='off'
-                                    autoCapitalize='off'
-                                    autoCorrect='off'
-                                    spellCheck={false}
-                                    autoFocus
-                                    disabled={profileFormBusy}
-                                />
-                            </label>
-
-                            <label className={styles.label}>
-                                {intl.formatMessage(messages.profileHarnessLabel)}
-                                <select
-                                    className={styles.select}
-                                    value={draftProfile.agent}
-                                    disabled={profileFormBusy || harnessOptions.length === 0}
-                                    onChange={(event) => {
-                                        const next = event.target.value;
-                                        if (harnessOptions.includes(next as AgentId)) {
-                                            setDraftProfile((current) => ({ ...current, agent: next as AgentId }));
-                                        }
-                                    }}
-                                >
-                                    {harnessOptions.length === 0 ? (
-                                        <option value={draftProfile.agent}>
-                                            {intl.formatMessage(messages.harnessesEmpty)}
+                                }}
+                                disabled={defaultHarnessOptions.length === 0}
+                            >
+                                {defaultHarnessOptions.length === 0 ? (
+                                    <option value={defaultAgent}>{intl.formatMessage(messages.harnessesEmpty)}</option>
+                                ) : (
+                                    defaultHarnessOptions.map((agentId) => (
+                                        <option key={agentId} value={agentId}>
+                                            {intl.formatMessage(agentLabelMessage(agentId))}
                                         </option>
-                                    ) : (
-                                        harnessOptions.map((agentId) => (
-                                            <option key={agentId} value={agentId}>
-                                                {intl.formatMessage(agentLabelMessage(agentId))}
-                                            </option>
-                                        ))
-                                    )}
-                                </select>
-                            </label>
+                                    ))
+                                )}
+                            </select>
+                        </label>
 
-                            <Toggle
-                                label={intl.formatMessage(messages.profileYoloModeLabel)}
-                                description={intl.formatMessage(messages.profileYoloModeHint)}
-                                checked={draftProfile.yoloMode}
-                                disabled={profileFormBusy}
-                                onChange={(checked) =>
-                                    setDraftProfile((current) => ({ ...current, yoloMode: checked }))
-                                }
-                            />
+                        <label className={styles.label}>
+                            {intl.formatMessage(messages.defaultProfileLabel)}
+                            <select
+                                className={styles.select}
+                                value={defaultProfileId}
+                                onChange={(event) => setDefaultProfileId(event.target.value)}
+                            >
+                                {profiles.map((profile) => (
+                                    <option key={profile.id} value={profile.id}>
+                                        {profile.name.trim() || profile.id}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
 
-                            <Toggle
-                                label={intl.formatMessage(messages.profileUseWorktreesLabel)}
-                                description={intl.formatMessage(messages.profileUseWorktreesHint)}
-                                checked={draftProfile.useWorktrees}
-                                disabled={profileFormBusy}
-                                onChange={(checked) =>
-                                    setDraftProfile((current) => ({ ...current, useWorktrees: checked }))
-                                }
-                            />
-                        </div>
-                    ) : null}
-                </div>
-                {showSaveButton ? (
-                    <div className={styles.footer}>
-                        <div className={styles.footerActions}>
-                            <div className={styles.footerAction}>
-                                <Button
-                                    type='button'
-                                    variant='secondary'
-                                    onClick={() => setPendingDiscard(true)}
-                                    disabled={saving}
-                                >
-                                    {intl.formatMessage(messages.cancel)}
-                                </Button>
-                            </div>
-                            <div className={styles.footerAction}>
-                                <Button type='button' onClick={() => void handleSave()} disabled={saving}>
-                                    {saving ? intl.formatMessage(messages.saving) : intl.formatMessage(messages.save)}
-                                </Button>
-                            </div>
+                        <div className={styles.categories}>
+                            <button type='button' className={styles.categoryButton} onClick={() => setView('profiles')}>
+                                <span className={styles.categoryText}>
+                                    <span className={styles.categoryLabel}>
+                                        {intl.formatMessage(messages.categoryProfiles)}
+                                    </span>
+                                    <span className={styles.categoryDescription}>
+                                        {intl.formatMessage(messages.categoryProfilesDescription)}
+                                    </span>
+                                </span>
+                                <CategoryChevron />
+                            </button>
                         </div>
                     </div>
                 ) : null}
+
+                {view === 'keybinds' && !loading ? (
+                    <KeybindsPanel keybinds={keybinds} onChange={setKeybinds} disabled={saving} />
+                ) : null}
+
                 {view === 'profiles' && !loading ? (
-                    <div className={styles.footer}>
-                        <Button
-                            type='button'
-                            onClick={() => {
-                                setEditingProfileId(null);
-                                setDraftProfile(emptyDraftProfile(pickHarness(availableAgents, defaultAgent)));
-                                setView('new-profile');
-                            }}
-                        >
-                            {intl.formatMessage(messages.addProfile)}
-                        </Button>
-                    </div>
-                ) : null}
-                {view === 'new-profile' && !loading ? (
-                    <div className={styles.footer}>
-                        <Button type='button' onClick={() => void handleCreateProfile()} disabled={!canCreateProfile}>
-                            {intl.formatMessage(creatingProfile ? messages.creatingProfile : messages.createProfile)}
-                        </Button>
-                    </div>
-                ) : null}
-                {view === 'edit-profile' && !loading && canSaveProfile ? (
-                    <div className={styles.footer}>
-                        <div className={styles.footerActions}>
-                            <div className={styles.footerAction}>
-                                <Button
-                                    type='button'
-                                    variant='secondary'
-                                    onClick={() => setPendingDiscard(true)}
-                                    disabled={savingProfile}
-                                >
-                                    {intl.formatMessage(messages.cancel)}
-                                </Button>
-                            </div>
-                            <div className={styles.footerAction}>
-                                <Button type='button' onClick={() => void handleSaveProfile()} disabled={savingProfile}>
-                                    {savingProfile
-                                        ? intl.formatMessage(messages.saving)
-                                        : intl.formatMessage(messages.save)}
-                                </Button>
-                            </div>
+                    <div className={styles.fields}>
+                        <p className={styles.label}>{intl.formatMessage(messages.profilesLabel)}</p>
+                        <div className={styles.repositories}>
+                            {profiles.length === 0 ? (
+                                <p className={styles.repositoryEmpty}>{intl.formatMessage(messages.profilesEmpty)}</p>
+                            ) : (
+                                profiles.map((profile) => (
+                                    <div key={profile.id} className={styles.profileRow}>
+                                        <button
+                                            type='button'
+                                            className={styles.profileRowButton}
+                                            onClick={() => openEditProfile(profile)}
+                                        >
+                                            {profile.name.trim() || profile.id}
+                                        </button>
+                                        <IconButton
+                                            label={intl.formatMessage(messages.removeProfile)}
+                                            disabled={profiles.length <= 1 || removingId === profile.id}
+                                            onClick={() => setPendingRemoveProfile(profile)}
+                                        >
+                                            ×
+                                        </IconButton>
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </div>
                 ) : null}
-            </div>
+
+                {showProfileForm ? (
+                    <div className={styles.fields}>
+                        <label className={styles.label}>
+                            {intl.formatMessage(messages.profileNameLabel)}
+                            <input
+                                className={styles.input}
+                                type='text'
+                                value={draftProfile.name}
+                                onChange={(event) =>
+                                    setDraftProfile((current) => ({ ...current, name: event.target.value }))
+                                }
+                                placeholder={intl.formatMessage(messages.profileNamePlaceholder)}
+                                autoComplete='off'
+                                autoCapitalize='off'
+                                autoCorrect='off'
+                                spellCheck={false}
+                                autoFocus
+                                disabled={profileFormBusy}
+                            />
+                        </label>
+
+                        <label className={styles.label}>
+                            {intl.formatMessage(messages.profileHarnessLabel)}
+                            <select
+                                className={styles.select}
+                                value={draftProfile.agent}
+                                disabled={profileFormBusy || harnessOptions.length === 0}
+                                onChange={(event) => {
+                                    const next = event.target.value;
+                                    if (harnessOptions.includes(next as AgentId)) {
+                                        setDraftProfile((current) => ({ ...current, agent: next as AgentId }));
+                                    }
+                                }}
+                            >
+                                {harnessOptions.length === 0 ? (
+                                    <option value={draftProfile.agent}>
+                                        {intl.formatMessage(messages.harnessesEmpty)}
+                                    </option>
+                                ) : (
+                                    harnessOptions.map((agentId) => (
+                                        <option key={agentId} value={agentId}>
+                                            {intl.formatMessage(agentLabelMessage(agentId))}
+                                        </option>
+                                    ))
+                                )}
+                            </select>
+                        </label>
+
+                        <Toggle
+                            label={intl.formatMessage(messages.profileYoloModeLabel)}
+                            description={intl.formatMessage(messages.profileYoloModeHint)}
+                            checked={draftProfile.yoloMode}
+                            disabled={profileFormBusy}
+                            onChange={(checked) => setDraftProfile((current) => ({ ...current, yoloMode: checked }))}
+                        />
+
+                        <Toggle
+                            label={intl.formatMessage(messages.profileUseWorktreesLabel)}
+                            description={intl.formatMessage(messages.profileUseWorktreesHint)}
+                            checked={draftProfile.useWorktrees}
+                            disabled={profileFormBusy}
+                            onChange={(checked) =>
+                                setDraftProfile((current) => ({ ...current, useWorktrees: checked }))
+                            }
+                        />
+                    </div>
+                ) : null}
+            </RoutePanel>
             {pendingRemoveRepo ? (
                 <ConfirmDialog
                     message={intl.formatMessage(messages.removeRepositoryConfirm, {
@@ -1122,6 +1097,6 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
                     onConfirm={discardChanges}
                 />
             ) : null}
-        </div>
+        </>
     );
 }
