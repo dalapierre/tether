@@ -135,6 +135,7 @@ Tether is primarily accessed from a phone, but the client also supports desktop 
 - **Desktop (`md` / 768px and up)** — keep the same flows and visual language, but use the extra space: readable max-widths for lists and forms, and multi-pane layouts where they help (e.g. agent terminal beside code review, file tree beside diff). Settings, new session, and similar full-screen flows are route-level panels that render in place of the session/workspace main content (with matching URLs such as `/settings` and `/new-session`), not overlay modals or centered card dialogs; center their content with a max width so it does not stretch edge-to-edge.
 - Do not change phone behavior when adding desktop layouts — desktop enhancements are additive via responsive breakpoints (and `useIsDesktop` when JS must diverge).
 - Avoid hover-only affordances as the sole way to complete a task; desktop may add hover polish, but phone must remain fully usable.
+- **List item backgrounds must inset** — any selectable, hoverable, or otherwise highlighted element inside a list (rows, menu items, options, etc.) must not let its background touch the left or right edges of its parent. Use horizontal margin (and usually a small radius) so hover/active/selected fills leave a visible gap from the container borders.
 
 ### Network calls (auth by default)
 

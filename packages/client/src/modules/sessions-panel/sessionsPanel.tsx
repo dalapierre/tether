@@ -129,6 +129,14 @@ function RestartIcon() {
     );
 }
 
+function MoreIcon() {
+    return (
+        <svg className={styles.moreIcon} viewBox='0 0 24 24' fill='currentColor' aria-hidden='true'>
+            <path d='M6.75 12a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0ZM12.75 12a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0ZM18.75 12a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Z' />
+        </svg>
+    );
+}
+
 function usageClassName(percent: number): string {
     if (percent > 60) return styles.usageDanger;
     if (percent >= 30) return styles.usageWarning;
@@ -169,11 +177,17 @@ export function SessionsPanel({
     const [repositories, setRepositories] = useState<Repository[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [pendingDelete, setPendingDelete] = useState<Session | null>(null);
+    const [actionsMenu, setActionsMenu] = useState<{
+        session: Session;
+        top: number;
+        right: number;
+    } | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [restartingId, setRestartingId] = useState<string | null>(null);
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const selectedRowRef = useRef<HTMLDivElement | null>(null);
     const searchInputRef = useRef<HTMLInputElement | null>(null);
+    const actionsMenuRef = useRef<HTMLDivElement | null>(null);
     const filteredSessionsRef = useRef<Session[]>([]);
     const selectedIndexRef = useRef(selectedIndex);
     selectedIndexRef.current = selectedIndex;
@@ -216,9 +230,22 @@ export function SessionsPanel({
 
     filteredSessionsRef.current = filteredSessions;
 
-    const keybindsEnabled = listInteractive && !pendingDelete;
+    const keybindsEnabled = listInteractive && !pendingDelete && !actionsMenu;
     const expandedKeybindsEnabled = keybindsEnabled && !effectivelyCollapsed;
     const navKeybindsEnabled = expandedKeybindsEnabled && !sessionsLoading && filteredSessions.length > 0;
+
+    const closeActionsMenu = useCallback(() => {
+        setActionsMenu(null);
+    }, []);
+
+    const openActionsMenu = useCallback((session: Session, anchor: HTMLElement) => {
+        const rect = anchor.getBoundingClientRect();
+        setActionsMenu({
+            session,
+            top: rect.bottom + 4,
+            right: window.innerWidth - rect.right,
+        });
+    }, []);
 
     const openNewSession = useCallback(() => {
         if (location.pathname === '/new-session') return;
@@ -322,6 +349,54 @@ export function SessionsPanel({
             return Math.min(current, filteredSessions.length - 1);
         });
     }, [filteredSessions]);
+
+    useEffect(() => {
+        if (!actionsMenu) return;
+        if (!liveSessions.has(actionsMenu.session.id)) {
+            setActionsMenu(null);
+        }
+    }, [actionsMenu, liveSessions]);
+
+    useEffect(() => {
+        if (!actionsMenu) return;
+
+        function onPointerDown(event: PointerEvent) {
+            const target = event.target as Node | null;
+            if (!target) return;
+            if (actionsMenuRef.current?.contains(target)) return;
+            if (target instanceof Element && target.closest('[data-session-actions-trigger]')) return;
+            setActionsMenu(null);
+        }
+
+        function onKeyDown(event: KeyboardEvent) {
+            if (event.key !== 'Escape' || event.defaultPrevented || event.repeat) return;
+            event.preventDefault();
+            setActionsMenu(null);
+        }
+
+        function onScroll() {
+            setActionsMenu(null);
+        }
+
+        window.addEventListener('pointerdown', onPointerDown);
+        window.addEventListener('keydown', onKeyDown);
+        window.addEventListener('resize', onScroll);
+        // Close when the session list scrolls underneath a fixed menu.
+        document.addEventListener('scroll', onScroll, true);
+
+        return () => {
+            window.removeEventListener('pointerdown', onPointerDown);
+            window.removeEventListener('keydown', onKeyDown);
+            window.removeEventListener('resize', onScroll);
+            document.removeEventListener('scroll', onScroll, true);
+        };
+    }, [actionsMenu]);
+
+    useEffect(() => {
+        if (!actionsMenu) return;
+        const firstItem = actionsMenuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]');
+        firstItem?.focus();
+    }, [actionsMenu]);
 
     useEffect(() => {
         selectedRowRef.current?.scrollIntoView({ block: 'nearest' });
@@ -610,6 +685,40 @@ export function SessionsPanel({
                                                                       aria-hidden='true'
                                                                   />
                                                               </div>
+                                                              <div className={styles.moreActions}>
+                                                                  <button
+                                                                      type='button'
+                                                                      data-session-actions-trigger={session.id}
+                                                                      className={
+                                                                          actionsMenu?.session.id === session.id
+                                                                              ? styles.moreButtonOpen
+                                                                              : styles.moreButton
+                                                                      }
+                                                                      aria-label={intl.formatMessage(
+                                                                          messages.sessionActions,
+                                                                      )}
+                                                                      aria-haspopup='menu'
+                                                                      aria-expanded={
+                                                                          actionsMenu?.session.id === session.id
+                                                                      }
+                                                                      title={intl.formatMessage(
+                                                                          messages.sessionActions,
+                                                                      )}
+                                                                      disabled={deletingId === session.id}
+                                                                      tabIndex={effectivelyCollapsed ? -1 : undefined}
+                                                                      onClick={(event) => {
+                                                                          event.preventDefault();
+                                                                          event.stopPropagation();
+                                                                          if (actionsMenu?.session.id === session.id) {
+                                                                              closeActionsMenu();
+                                                                              return;
+                                                                          }
+                                                                          openActionsMenu(session, event.currentTarget);
+                                                                      }}
+                                                                  >
+                                                                      <MoreIcon />
+                                                                  </button>
+                                                              </div>
                                                           </div>
                                                       </SwipeToDelete>
                                                   </div>
@@ -674,6 +783,29 @@ export function SessionsPanel({
                         </div>
                     </div>
                 </div>
+
+                {actionsMenu ? (
+                    <div
+                        ref={actionsMenuRef}
+                        className={styles.actionsMenu}
+                        style={{ top: actionsMenu.top, right: actionsMenu.right }}
+                        role='menu'
+                        aria-label={intl.formatMessage(messages.sessionActions)}
+                    >
+                        <button
+                            type='button'
+                            role='menuitem'
+                            className={styles.actionsMenuItemDanger}
+                            onClick={() => {
+                                const session = actionsMenu.session;
+                                closeActionsMenu();
+                                setPendingDelete(session);
+                            }}
+                        >
+                            {intl.formatMessage(messages.deleteSession)}
+                        </button>
+                    </div>
+                ) : null}
 
                 {pendingDelete ? (
                     <ConfirmDialog

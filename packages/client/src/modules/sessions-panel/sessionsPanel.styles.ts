@@ -39,7 +39,7 @@ export const styles = {
     body: 'flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-2 pb-2',
     bodyEmpty: 'flex min-h-0 flex-1 flex-col items-center justify-center px-3 pb-2',
     placeholder: 'text-sm text-zinc-500',
-    sessionRow: 'relative',
+    sessionRow: 'group relative',
     sessionButton:
         'relative w-full rounded-md border border-zinc-800 bg-zinc-950/40 px-2.5 py-2 pr-8 text-left outline-none transition-colors active:bg-zinc-800 focus-visible:border-aura-green md:hover:bg-zinc-900',
     sessionButtonActive:
@@ -58,6 +58,16 @@ export const styles = {
     restartButton:
         'inline-flex h-5 w-5 items-center justify-center rounded text-zinc-400 transition-colors md:hover:bg-zinc-700 md:hover:text-zinc-100 active:bg-zinc-700 active:text-zinc-100 disabled:opacity-50',
     restartIcon: 'h-3 w-3',
+    moreActions: 'absolute right-1.5 bottom-1.5',
+    moreButton:
+        'inline-flex h-5 w-5 items-center justify-center rounded text-zinc-400 opacity-100 transition-opacity active:bg-zinc-700 active:text-zinc-100 disabled:opacity-50 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 md:hover:bg-zinc-700 md:hover:text-zinc-100',
+    moreButtonOpen:
+        'inline-flex h-5 w-5 items-center justify-center rounded bg-zinc-700 text-zinc-100 opacity-100 transition-opacity disabled:opacity-50',
+    moreIcon: 'h-3.5 w-3.5',
+    actionsMenu:
+        'fixed z-50 min-w-32 rounded-md border border-zinc-700 bg-zinc-900 px-1 py-1 shadow-lg shadow-black/40',
+    actionsMenuItemDanger:
+        'block w-full rounded-md px-2.5 py-1.5 text-left text-sm text-red-400 outline-none transition-colors hover:bg-zinc-800 focus-visible:bg-zinc-800',
     indicator: 'h-2 w-2 shrink-0 rounded-full',
     indicatorReady: 'bg-emerald-500',
     indicatorBusy: 'bg-amber-400',
