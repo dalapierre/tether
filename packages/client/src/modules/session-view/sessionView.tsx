@@ -10,6 +10,7 @@ import {
     connectSessionShell,
     connectSessionTerminal,
     getSession,
+    killSessionShell,
     sendTerminalMessage,
     type ServerTerminalMessage,
     type Session,
@@ -465,6 +466,21 @@ export function SessionView({ sessionId }: SessionViewProps) {
             }
             setShellVisited(true);
             return 'terminal';
+        });
+    }
+
+    /** Hide the shell pane and kill its PTY (agent terminal is untouched). */
+    function closeShell() {
+        if (isDesktop) {
+            setDesktopShellOpen(false);
+            setShellPanelOpen(sessionId, false);
+        } else {
+            setTab('agent');
+        }
+        setShellVisited(false);
+
+        void killSessionShell(sessionId).catch((err: unknown) => {
+            showToast('generic-error', err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed));
         });
     }
 
@@ -1265,7 +1281,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
     const statusLabel = sessionStatusLabelFor(connection, displaySession.status, intl.formatMessage);
     const statusDotClass = sessionStatusDotClassFor(connection, displaySession.status);
     const agentTitle = harnessLabel(displaySession.agent, intl.formatMessage);
-    const terminalToggleLabel = intl.formatMessage(shellPaneVisible ? messages.closeTerminal : messages.openTerminal);
+    const terminalToggleLabel = intl.formatMessage(messages.toggleTerminal);
     const reviewToggleLabel = intl.formatMessage(desktopReviewOpen ? messages.closeReview : messages.openReview);
 
     return (
@@ -1511,7 +1527,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                                 className={styles.shellCloseButton}
                                 title={intl.formatMessage(messages.closeTerminal)}
                                 aria-label={intl.formatMessage(messages.closeTerminal)}
-                                onClick={toggleShell}
+                                onClick={closeShell}
                             >
                                 <CloseShellIcon />
                             </button>

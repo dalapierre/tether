@@ -18,7 +18,7 @@ type Messages = {
     viewTabs: NoMessageValues;
     terminalView: NoMessageValues;
     reviewView: NoMessageValues;
-    openTerminal: NoMessageValues;
+    toggleTerminal: NoMessageValues;
     closeTerminal: NoMessageValues;
     openReview: NoMessageValues;
     closeReview: NoMessageValues;
@@ -102,9 +102,9 @@ export const messages = defineMessages<Messages>(
             id: 'sessionView.reviewView',
             defaultMessage: 'Review',
         },
-        openTerminal: {
-            id: 'sessionView.openTerminal',
-            defaultMessage: 'Open terminal',
+        toggleTerminal: {
+            id: 'sessionView.toggleTerminal',
+            defaultMessage: 'Toggle terminal',
         },
         closeTerminal: {
             id: 'sessionView.closeTerminal',

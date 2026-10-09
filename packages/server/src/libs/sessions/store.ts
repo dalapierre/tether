@@ -40,6 +40,7 @@ import {
     attachShellClient,
     attachTerminalClient,
     broadcastStatus,
+    clearShell,
     clearTerminal,
     parseClientMessage,
 } from '@server/libs/sessions/terminalHub.js';
@@ -1391,6 +1392,10 @@ function spawnUserShell(session: RuntimeSession): void {
         });
 
         term.onExit(() => {
+            // Only the live shell should announce exit. After an intentional kill,
+            // shellPty is already cleared (or replaced on reopen) so a late onExit
+            // must not write into a fresh session buffer.
+            if (session.shellPty !== term) return;
             session.shellPty = null;
             appendShellOutput(session.id, '\r\n[shell exited]\r\n');
         });
@@ -1457,6 +1462,28 @@ export function attachSessionTerminal(sessionId: string, socket: WebSocket): boo
             }
         }
     });
+
+    return true;
+}
+
+/** Kill the interactive user shell only; the agent PTY is left running. */
+export function killSessionShell(sessionId: string): boolean {
+    const session = sessions.get(sessionId);
+    if (!session) {
+        return false;
+    }
+
+    const term = session.shellPty;
+    session.shellPty = null;
+    clearShell(sessionId);
+
+    if (term) {
+        try {
+            term.kill();
+        } catch {
+            // ignore
+        }
+    }
 
     return true;
 }

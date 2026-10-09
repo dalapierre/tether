@@ -84,9 +84,24 @@ export function attachShellClient(sessionId: string, socket: WebSocket): void {
     });
 }
 
+/** Drop shell scrollback and disconnect shell clients. */
+export function clearShell(sessionId: string): void {
+    const state = shells.get(sessionId);
+    if (state) {
+        for (const client of [...state.clients]) {
+            try {
+                client.close();
+            } catch {
+                // ignore
+            }
+        }
+    }
+    shells.delete(sessionId);
+}
+
 export function clearTerminal(sessionId: string): void {
     terminals.delete(sessionId);
-    shells.delete(sessionId);
+    clearShell(sessionId);
 }
 
 export function parseClientMessage(raw: string): ClientTerminalMessage | null {

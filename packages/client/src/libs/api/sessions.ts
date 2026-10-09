@@ -303,6 +303,18 @@ export async function deleteSession(id: string): Promise<void> {
     clearSessionLocalStorage(id);
 }
 
+/** Kill the session's built-in user shell PTY (not the agent). */
+export async function killSessionShell(id: string): Promise<void> {
+    const res = await apiFetch(`/api/sessions/${encodeURIComponent(id)}/shell`, {
+        method: 'DELETE',
+    });
+
+    if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new ApiError(res.status, body?.error ?? `HTTP ${res.status}`);
+    }
+}
+
 export async function restartSession(id: string): Promise<Session> {
     const res = await apiFetch(`/api/sessions/${encodeURIComponent(id)}/restart`, {
         method: 'POST',

@@ -6,6 +6,7 @@ import {
     getSession,
     getSessionDiff,
     getSessionDiffFile,
+    killSessionShell,
     listSessions,
     restartSession,
 } from '@server/libs/sessions/store.js';
@@ -100,6 +101,15 @@ sessionsRouter.get('/:id', async (req, res) => {
         logger.error('Failed to get session', err);
         res.status(500).json({ error: 'Failed to get session' });
     }
+});
+
+sessionsRouter.delete('/:id/shell', (req, res) => {
+    const killed = killSessionShell(req.params.id);
+    if (!killed) {
+        res.status(404).json({ error: 'Session not found' });
+        return;
+    }
+    res.status(204).send();
 });
 
 sessionsRouter.delete('/:id', (req, res) => {

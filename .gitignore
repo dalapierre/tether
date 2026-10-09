@@ -9,3 +9,5 @@ build/
 *.tsbuildinfo
 .vite/
 packages/server/data/
+*.out
+*.bin
