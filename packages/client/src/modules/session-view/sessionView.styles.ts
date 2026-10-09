@@ -15,7 +15,7 @@ export const styles = {
     statusDotError: 'bg-red-500',
     // Mobile: under tabs. Desktop: pinned below the main panes (flex order-last).
     metaPanel: 'shrink-0 md:order-last md:mx-2 md:mb-2 [&>div]:flex-none',
-    meta: 'flex items-center gap-3 px-3 py-1.5 text-xs text-zinc-400',
+    meta: 'flex items-center gap-3 px-2 py-1.5 text-xs text-zinc-400 md:px-3',
     metaText: 'min-w-0 flex-1 truncate',
     metaRepo: 'font-bold text-zinc-200',
     metaBehindWarning: 'text-amber-400',
