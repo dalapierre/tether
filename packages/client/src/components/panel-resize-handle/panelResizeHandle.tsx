@@ -5,6 +5,7 @@ import type { PanelResizeHandleProps } from './panelResizeHandle.types';
 export function PanelResizeHandle({
     ariaLabel,
     orientation = 'horizontal',
+    placement = 'edge',
     edge,
     onResize,
     onResizeEnd,
@@ -13,6 +14,7 @@ export function PanelResizeHandle({
     const [dragging, setDragging] = useState(false);
     const lastPosRef = useRef(0);
     const vertical = orientation === 'vertical';
+    const gap = placement === 'gap';
 
     function onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
         if (event.button !== 0) {
@@ -53,21 +55,26 @@ export function PanelResizeHandle({
         onResizeEnd?.();
     }
 
-    const rootClass = vertical ? styles.rootVertical : styles.rootHorizontal;
-    const edgeClass = vertical
-        ? edge === 'leading'
-            ? styles.leadingVertical
-            : styles.trailingVertical
-        : edge === 'leading'
-          ? styles.leadingHorizontal
-          : styles.trailingHorizontal;
+    let rootClass: string;
+    if (gap) {
+        rootClass = vertical ? styles.gapVertical : styles.gapHorizontal;
+    } else {
+        const edgeClass = vertical
+            ? edge === 'trailing'
+                ? styles.trailingVertical
+                : styles.leadingVertical
+            : edge === 'trailing'
+              ? styles.trailingHorizontal
+              : styles.leadingHorizontal;
+        rootClass = `${vertical ? styles.rootVertical : styles.rootHorizontal} ${edgeClass}`;
+    }
 
     return (
         <div
             role='separator'
             aria-orientation={vertical ? 'horizontal' : 'vertical'}
             aria-label={ariaLabel}
-            className={`${rootClass} ${edgeClass}${dragging ? ' bg-zinc-600' : ''}${className ? ` ${className}` : ''}`}
+            className={`${rootClass}${dragging ? ' bg-zinc-600' : ''}${className ? ` ${className}` : ''}`}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={endDrag}

@@ -1,7 +1,7 @@
 import { Button } from '@client/components/button';
 import { IconButton } from '@client/components/icon-button';
 import { PageHeader } from '@client/components/page-header';
-import { PaneToolbar } from '@client/components/pane-toolbar';
+import { Panel } from '@client/components/panel';
 import { PanelResizeHandle, panelResizeHandleMessages } from '@client/components/panel-resize-handle';
 import { SegmentedControl } from '@client/components/segmented-control';
 import { agentLabelMessage, type AgentId } from '@client/libs/agents/agents';
@@ -1384,14 +1384,14 @@ export function SessionView({ sessionId }: SessionViewProps) {
                     ref={contentRef}
                     className={styles.content}
                     style={
-                        isDesktop && showDesktopReview && !showDesktopReviewFullscreen
-                            ? { gridTemplateColumns: `minmax(0, 1fr) ${reviewPaneWidthPct}%` }
-                            : isDesktop && showDesktopReviewFullscreen
+                        isDesktop && showDesktopReview && !showDesktopReviewFullscreen && reviewVisited
+                            ? { gridTemplateColumns: `minmax(0, 1fr) auto ${reviewPaneWidthPct}%` }
+                            : isDesktop
                               ? { gridTemplateColumns: 'minmax(0, 1fr)' }
                               : undefined
                     }
                 >
-                    <div
+                    <Panel
                         className={
                             showDesktopReviewFullscreen
                                 ? styles.paneInactive
@@ -1400,37 +1400,55 @@ export function SessionView({ sessionId }: SessionViewProps) {
                                   : styles.paneInactive
                         }
                         aria-hidden={showDesktopReviewFullscreen || (!isDesktop && tab !== 'agent')}
-                    >
-                        <PaneToolbar title={intl.formatMessage(messages.agentView)} className='max-md:hidden'>
-                            <button
-                                type='button'
-                                className={styles.paneToggle}
-                                title={terminalToggleLabel}
-                                aria-label={terminalToggleLabel}
-                                aria-pressed={shellPaneVisible}
-                                onClick={toggleShell}
-                            >
-                                <TerminalIcon className={styles.paneToggleIcon} />
-                            </button>
-                            {session.type === 'coding' ? (
+                        title={intl.formatMessage(messages.agentView)}
+                        toolbarClassName='max-md:hidden'
+                        toolbarActions={
+                            <>
                                 <button
                                     type='button'
                                     className={styles.paneToggle}
-                                    title={reviewToggleLabel}
-                                    aria-label={reviewToggleLabel}
-                                    aria-pressed={desktopReviewOpen}
-                                    onClick={toggleDesktopReview}
+                                    title={terminalToggleLabel}
+                                    aria-label={terminalToggleLabel}
+                                    aria-pressed={shellPaneVisible}
+                                    onClick={toggleShell}
                                 >
-                                    <ReviewIcon className={styles.paneToggleIcon} />
+                                    <TerminalIcon className={styles.paneToggleIcon} />
                                 </button>
-                            ) : null}
-                        </PaneToolbar>
+                                {session.type === 'coding' ? (
+                                    <button
+                                        type='button'
+                                        className={styles.paneToggle}
+                                        title={reviewToggleLabel}
+                                        aria-label={reviewToggleLabel}
+                                        aria-pressed={desktopReviewOpen}
+                                        onClick={toggleDesktopReview}
+                                    >
+                                        <ReviewIcon className={styles.paneToggleIcon} />
+                                    </button>
+                                ) : null}
+                            </>
+                        }
+                    >
                         <div className={styles.terminalWrap}>
                             <div ref={terminalRef} className={styles.terminal} />
                         </div>
-                    </div>
+                    </Panel>
+                    {isDesktop && showDesktopReview && !showDesktopReviewFullscreen && reviewVisited ? (
+                        <PanelResizeHandle
+                            placement='gap'
+                            ariaLabel={intl.formatMessage(panelResizeHandleMessages.resizeReviewPanel)}
+                            onResize={(delta) =>
+                                setReviewPaneWidthPctState((pct) =>
+                                    clampReviewPaneWidthPct(
+                                        pct - deltaPxToPct(delta, contentRef.current?.clientWidth ?? window.innerWidth),
+                                    ),
+                                )
+                            }
+                            onResizeEnd={persistReviewPaneWidth}
+                        />
+                    ) : null}
                     {session.type === 'coding' && reviewVisited ? (
-                        <div
+                        <Panel
                             ref={reviewPaneRef}
                             className={
                                 reviewPaneVisible
@@ -1441,24 +1459,6 @@ export function SessionView({ sessionId }: SessionViewProps) {
                             }
                             aria-hidden={!reviewPaneVisible}
                         >
-                            {isDesktop && showDesktopReview && !showDesktopReviewFullscreen ? (
-                                <PanelResizeHandle
-                                    edge='leading'
-                                    ariaLabel={intl.formatMessage(panelResizeHandleMessages.resizeReviewPanel)}
-                                    onResize={(delta) =>
-                                        setReviewPaneWidthPctState((pct) =>
-                                            clampReviewPaneWidthPct(
-                                                pct -
-                                                    deltaPxToPct(
-                                                        delta,
-                                                        contentRef.current?.clientWidth ?? window.innerWidth,
-                                                    ),
-                                            ),
-                                        )
-                                    }
-                                    onResizeEnd={persistReviewPaneWidth}
-                                />
-                            ) : null}
                             <div className={styles.reviewBody}>
                                 <Suspense fallback={<Spinner size='lg' label='Loading review' />}>
                                     <SessionCodeView
@@ -1471,11 +1471,26 @@ export function SessionView({ sessionId }: SessionViewProps) {
                                     />
                                 </Suspense>
                             </div>
-                        </div>
+                        </Panel>
                     ) : null}
                 </div>
+                {isDesktop && showDesktopShell && shellVisited ? (
+                    <PanelResizeHandle
+                        placement='gap'
+                        orientation='vertical'
+                        ariaLabel={intl.formatMessage(panelResizeHandleMessages.resizeShellPanel)}
+                        onResize={(delta) =>
+                            setShellPaneHeightPctState((pct) =>
+                                clampShellPaneHeightPct(
+                                    pct - deltaPxToPct(delta, mainRef.current?.clientHeight ?? window.innerHeight),
+                                ),
+                            )
+                        }
+                        onResizeEnd={persistShellPaneHeight}
+                    />
+                ) : null}
                 {shellVisited ? (
-                    <div
+                    <Panel
                         className={
                             isDesktop
                                 ? showDesktopShell
@@ -1487,27 +1502,9 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         }
                         style={isDesktop && showDesktopShell ? { height: `${shellPaneHeightPct}%` } : undefined}
                         aria-hidden={!shellPaneVisible}
-                    >
-                        {isDesktop && showDesktopShell ? (
-                            <PanelResizeHandle
-                                orientation='vertical'
-                                edge='leading'
-                                ariaLabel={intl.formatMessage(panelResizeHandleMessages.resizeShellPanel)}
-                                onResize={(delta) =>
-                                    setShellPaneHeightPctState((pct) =>
-                                        clampShellPaneHeightPct(
-                                            pct -
-                                                deltaPxToPct(
-                                                    delta,
-                                                    mainRef.current?.clientHeight ?? window.innerHeight,
-                                                ),
-                                        ),
-                                    )
-                                }
-                                onResizeEnd={persistShellPaneHeight}
-                            />
-                        ) : null}
-                        <PaneToolbar title={intl.formatMessage(messages.terminalView)} className='relative z-10'>
+                        title={intl.formatMessage(messages.terminalView)}
+                        toolbarClassName='relative z-10'
+                        toolbarActions={
                             <button
                                 type='button'
                                 className={styles.shellCloseButton}
@@ -1517,11 +1514,12 @@ export function SessionView({ sessionId }: SessionViewProps) {
                             >
                                 <CloseShellIcon />
                             </button>
-                        </PaneToolbar>
+                        }
+                    >
                         <div className={styles.shellTerminalWrap}>
                             <div ref={shellTerminalRef} className={styles.shellTerminal} />
                         </div>
-                    </div>
+                    </Panel>
                 ) : null}
             </div>
             {pasteOpen ? (

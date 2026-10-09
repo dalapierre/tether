@@ -5,8 +5,13 @@ export type PanelResizeHandleProps = {
      * `vertical` — top/bottom panel splitter.
      */
     orientation?: 'horizontal' | 'vertical';
-    /** For horizontal: leading=left, trailing=right. For vertical: leading=top, trailing=bottom. */
-    edge: 'leading' | 'trailing';
+    /**
+     * `edge` — absolutely positioned on a panel edge (default; used by nested splits).
+     * `gap` — in-flow gutter between panels; the handle itself is the visual gap.
+     */
+    placement?: 'edge' | 'gap';
+    /** For edge placement. Horizontal: leading=left, trailing=right. Vertical: leading=top, trailing=bottom. */
+    edge?: 'leading' | 'trailing';
     onResize: (deltaPx: number) => void;
     onResizeEnd?: () => void;
     className?: string;
