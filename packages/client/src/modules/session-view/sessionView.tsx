@@ -1,6 +1,7 @@
 import { Button } from '@client/components/button';
 import { IconButton } from '@client/components/icon-button';
 import { PageHeader } from '@client/components/page-header';
+import { PaneToolbar } from '@client/components/pane-toolbar';
 import { PanelResizeHandle, panelResizeHandleMessages } from '@client/components/panel-resize-handle';
 import { SegmentedControl } from '@client/components/segmented-control';
 import { agentLabelMessage, type AgentId } from '@client/libs/agents/agents';
@@ -1400,10 +1401,10 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         }
                         aria-hidden={showDesktopReviewFullscreen || (!isDesktop && tab !== 'agent')}
                     >
-                        <div className={styles.agentToolbar}>
+                        <PaneToolbar title={intl.formatMessage(messages.agentView)} className='max-md:hidden'>
                             <button
                                 type='button'
-                                className={`${styles.paneToggle}${shellPaneVisible ? ` ${styles.paneToggleActive}` : ''}`}
+                                className={styles.paneToggle}
                                 title={terminalToggleLabel}
                                 aria-label={terminalToggleLabel}
                                 aria-pressed={shellPaneVisible}
@@ -1414,7 +1415,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                             {session.type === 'coding' ? (
                                 <button
                                     type='button'
-                                    className={`${styles.paneToggle}${desktopReviewOpen ? ` ${styles.paneToggleActive}` : ''}`}
+                                    className={styles.paneToggle}
                                     title={reviewToggleLabel}
                                     aria-label={reviewToggleLabel}
                                     aria-pressed={desktopReviewOpen}
@@ -1423,7 +1424,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                                     <ReviewIcon className={styles.paneToggleIcon} />
                                 </button>
                             ) : null}
-                        </div>
+                        </PaneToolbar>
                         <div className={styles.terminalWrap}>
                             <div ref={terminalRef} className={styles.terminal} />
                         </div>
@@ -1506,8 +1507,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                                 onResizeEnd={persistShellPaneHeight}
                             />
                         ) : null}
-                        <div className={styles.shellToolbar}>
-                            <p className={styles.shellToolbarTitle}>{intl.formatMessage(messages.terminalView)}</p>
+                        <PaneToolbar title={intl.formatMessage(messages.terminalView)} className='relative z-10'>
                             <button
                                 type='button'
                                 className={styles.shellCloseButton}
@@ -1517,7 +1517,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                             >
                                 <CloseShellIcon />
                             </button>
-                        </div>
+                        </PaneToolbar>
                         <div className={styles.shellTerminalWrap}>
                             <div ref={shellTerminalRef} className={styles.shellTerminal} />
                         </div>

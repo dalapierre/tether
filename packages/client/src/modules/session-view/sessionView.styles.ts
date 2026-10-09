@@ -18,11 +18,8 @@ export const styles = {
     metaUsage: 'font-bold text-aura-green',
     metaUsageWarning: 'font-bold text-amber-400',
     metaUsageDanger: 'font-bold text-red-400',
-    agentToolbar:
-        'hidden h-7 shrink-0 items-center justify-end gap-1 border-b border-zinc-800 bg-zinc-900 px-2 md:flex',
     paneToggle:
-        'inline-flex shrink-0 items-center justify-center rounded-md border border-zinc-700 p-0.5 text-zinc-300 transition-colors md:hover:bg-zinc-800 md:hover:text-zinc-100',
-    paneToggleActive: 'bg-zinc-800 text-zinc-100',
+        'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors md:hover:bg-zinc-800/80 md:hover:text-zinc-100',
     paneToggleIcon: 'h-3.5 w-3.5',
     tabs: 'shrink-0 border-t border-b border-zinc-800 px-4 py-2 md:hidden',
     main: 'relative flex min-h-0 flex-1 flex-col md:border-t md:border-zinc-800',
@@ -48,9 +45,6 @@ export const styles = {
     shellPanelDesktopHidden: 'hidden',
     shellPanelMobile: 'absolute inset-0 z-20 flex flex-col bg-zinc-950 md:hidden',
     shellPanelMobileHidden: 'pointer-events-none absolute inset-0 z-0 flex flex-col invisible md:hidden',
-    shellToolbar:
-        'relative z-10 flex h-7 shrink-0 items-center gap-2 border-b border-zinc-800 bg-zinc-900 px-2 md:px-3',
-    shellToolbarTitle: 'min-w-0 flex-1 truncate text-xs text-zinc-400',
     shellCloseButton:
         'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors active:bg-zinc-800 active:text-zinc-100 md:hover:bg-zinc-800/80 md:hover:text-zinc-100',
     shellCloseIcon: 'h-3.5 w-3.5',

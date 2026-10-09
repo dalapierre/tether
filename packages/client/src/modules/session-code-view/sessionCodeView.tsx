@@ -7,6 +7,7 @@ import {
     type SessionFileDiff,
 } from '@client/libs/api/sessions';
 import { ConfirmDialog } from '@client/components/confirm-dialog';
+import { PaneToolbar } from '@client/components/pane-toolbar';
 import { PanelResizeHandle, panelResizeHandleMessages } from '@client/components/panel-resize-handle';
 import { Spinner } from '@client/components/spinner';
 import { useIsDesktop } from '@client/libs/dom/useMediaQuery';
@@ -1801,12 +1802,13 @@ export function SessionCodeView({
         <div className={styles.root}>
             <div className={listPanelWrapClass} style={listPanelWrapStyle}>
                 <div className={listPanelClass}>
-                    <div className={styles.toolbar}>
-                        <p className={styles.toolbarTitle}>
-                            {hasFiles
+                    <PaneToolbar
+                        title={
+                            hasFiles
                                 ? intl.formatMessage(messages.filesChanged, { count: files.length })
-                                : intl.formatMessage(messages.filesChangedTitle)}
-                        </p>
+                                : intl.formatMessage(messages.filesChangedTitle)
+                        }
+                    >
                         {reviewedFingerprints.size > 0 ? (
                             <button
                                 type='button'
@@ -1829,7 +1831,7 @@ export function SessionCodeView({
                                 <CollapseAllFoldersIcon />
                             </button>
                         ) : null}
-                    </div>
+                    </PaneToolbar>
                     {listLoading ? (
                         <Spinner label={loadingLabel} />
                     ) : files.length === 0 ? (
@@ -1864,19 +1866,24 @@ export function SessionCodeView({
             <div className={editorPanelClass}>
                 {selectedPath ? (
                     <>
-                        <div className={styles.fileHeader}>
-                            <button
-                                type='button'
-                                className={styles.backButton}
-                                title={intl.formatMessage(messages.backToFiles)}
-                                aria-label={intl.formatMessage(messages.backToFiles)}
-                                onClick={() => selectPath(null)}
-                            >
-                                <BackIcon />
-                            </button>
-                            <span className={styles.fileHeaderPath} title={selectedPath}>
-                                {selectedPath}
-                            </span>
+                        <PaneToolbar
+                            leading={
+                                <button
+                                    type='button'
+                                    className={styles.backButton}
+                                    title={intl.formatMessage(messages.backToFiles)}
+                                    aria-label={intl.formatMessage(messages.backToFiles)}
+                                    onClick={() => selectPath(null)}
+                                >
+                                    <BackIcon />
+                                </button>
+                            }
+                            title={
+                                <span className={styles.fileHeaderPath} title={selectedPath}>
+                                    {selectedPath}
+                                </span>
+                            }
+                        >
                             {showMarkdownToggle ? (
                                 <button
                                     type='button'
@@ -1936,7 +1943,7 @@ export function SessionCodeView({
                                 />
                                 {intl.formatMessage(messages.reviewed)}
                             </label>
-                        </div>
+                        </PaneToolbar>
                         {fileLoading || !fileDiff ? (
                             <Spinner label={loadingLabel} />
                         ) : fileDiff.binary ? (

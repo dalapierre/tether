@@ -9,8 +9,6 @@ export const styles = {
     listPanel: 'flex h-full min-h-0 w-full flex-1 flex-col',
     listPanelMobileHidden: 'hidden h-full min-h-0 w-full flex-col md:flex',
     fileTreeResize: 'z-30',
-    toolbar: 'flex h-7 shrink-0 items-center gap-2 border-b border-zinc-800 bg-zinc-900 px-2 md:px-3',
-    toolbarTitle: 'min-w-0 flex-1 truncate text-xs text-zinc-400',
     collapseAllButton:
         'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors active:bg-zinc-800 active:text-zinc-100 md:hover:bg-zinc-800/80 md:hover:text-zinc-100',
     collapseAllIcon: 'h-3.5 w-3.5',
@@ -47,11 +45,10 @@ export const styles = {
     fileStats: 'shrink-0 font-mono text-[10px]',
     additions: 'text-emerald-400',
     deletions: 'text-red-400',
-    fileHeader: 'flex h-7 shrink-0 items-center gap-2 border-b border-zinc-800 bg-zinc-900 px-2 md:px-4',
     backButton:
         'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-zinc-100 active:bg-zinc-800 md:hidden',
     backIcon: 'h-4 w-4 shrink-0',
-    fileHeaderPath: 'min-w-0 flex-1 truncate font-mono text-xs text-zinc-200',
+    fileHeaderPath: 'font-mono text-zinc-200',
     fileHeaderMode:
         'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors active:bg-zinc-800 active:text-zinc-100 md:hover:bg-zinc-800/80 md:hover:text-zinc-100',
     fileHeaderModeIcon: 'h-4 w-4',
