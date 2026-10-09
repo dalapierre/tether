@@ -78,6 +78,21 @@ const ARROW_DOWN = '\x1b[B';
 /** Readline unix-line-discard — clears the current prompt input. */
 const CLEAR_INPUT = '\x15';
 
+function BackIcon() {
+    return (
+        <svg
+            className={styles.actionIcon}
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='2'
+            aria-hidden='true'
+        >
+            <path strokeLinecap='round' strokeLinejoin='round' d='M15.75 19.5 8.25 12l7.5-7.5' />
+        </svg>
+    );
+}
+
 function ArrowUpIcon() {
     return (
         <svg
@@ -483,7 +498,11 @@ export function SessionView({ sessionId }: SessionViewProps) {
         });
     }
 
-    useKeybind('session', 'goBack', () => navigate('/', { replace: true }), { enabled: sessionReady });
+    const goBack = useCallback(() => {
+        navigate('/', { replace: true });
+    }, [navigate]);
+
+    useKeybind('session', 'goBack', goBack, { enabled: sessionReady });
     useKeybind(
         'session',
         'toggleReview',
@@ -1247,12 +1266,23 @@ export function SessionView({ sessionId }: SessionViewProps) {
         }
     }, [reviewPaneVisible]);
 
+    const backButton = (
+        <div className={styles.mobileBack}>
+            <IconButton label={intl.formatMessage(messages.goBack)} onClick={goBack}>
+                <BackIcon />
+            </IconButton>
+        </div>
+    );
+
     if (loading) {
         return (
             <div ref={rootRef} className={styles.root}>
                 <Panel className={styles.headerPanel}>
                     <div className={styles.header}>
-                        <h1 className={styles.headerTitle}>{intl.formatMessage(messages.loadingCrumb)}</h1>
+                        <div className={styles.headerStart}>
+                            {backButton}
+                            <h1 className={styles.headerTitle}>{intl.formatMessage(messages.loadingCrumb)}</h1>
+                        </div>
                     </div>
                 </Panel>
                 <p className={styles.centered}>{intl.formatMessage(messages.loading)}</p>
@@ -1265,7 +1295,10 @@ export function SessionView({ sessionId }: SessionViewProps) {
             <div ref={rootRef} className={styles.root}>
                 <Panel className={styles.headerPanel}>
                     <div className={styles.header}>
-                        <h1 className={styles.headerTitle}>{intl.formatMessage(messages.notFound)}</h1>
+                        <div className={styles.headerStart}>
+                            {backButton}
+                            <h1 className={styles.headerTitle}>{intl.formatMessage(messages.notFound)}</h1>
+                        </div>
                     </div>
                 </Panel>
                 <p className={styles.centered}>{intl.formatMessage(messages.notFound)}</p>
@@ -1283,7 +1316,10 @@ export function SessionView({ sessionId }: SessionViewProps) {
         <div ref={rootRef} className={styles.root}>
             <Panel className={styles.headerPanel}>
                 <div className={styles.header}>
-                    <h1 className={styles.headerTitle}>{session.name}</h1>
+                    <div className={styles.headerStart}>
+                        {backButton}
+                        <h1 className={styles.headerTitle}>{session.name}</h1>
+                    </div>
                     <div className={styles.headerActions}>
                         <div className={styles.mobileActions}>
                             <IconButton label={intl.formatMessage(messages.arrowUp)} onClick={sendArrowUp}>

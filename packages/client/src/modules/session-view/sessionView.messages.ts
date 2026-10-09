@@ -21,6 +21,7 @@ type Messages = {
     closeTerminal: NoMessageValues;
     openReview: NoMessageValues;
     closeReview: NoMessageValues;
+    goBack: NoMessageValues;
     arrowUp: NoMessageValues;
     arrowDown: NoMessageValues;
     clearInput: NoMessageValues;
@@ -112,6 +113,10 @@ export const messages = defineMessages<Messages>(
         closeReview: {
             id: 'sessionView.closeReview',
             defaultMessage: 'Close review',
+        },
+        goBack: {
+            id: 'sessionView.goBack',
+            defaultMessage: 'Back to sessions',
         },
         arrowUp: {
             id: 'sessionView.arrowUp',
