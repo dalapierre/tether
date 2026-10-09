@@ -422,21 +422,27 @@ export function SessionsPanel({ listInteractive = true }: SessionsPanelProps) {
                     inert={creating || undefined}
                 >
                     <div className={styles.header}>
-                        {effectivelyCollapsed ? (
-                            <button
-                                type='button'
-                                className={styles.logoButton}
-                                title={expandLabel}
-                                aria-label={expandLabel}
-                                onClick={expandSidebar}
-                            >
-                                <img className={styles.logoImage} src={logoLight} alt='' />
-                            </button>
-                        ) : (
-                            <div className={styles.iconSlot} aria-label={intl.formatMessage(messages.logo)} role='img'>
-                                <img className={styles.logoImage} src={logoLight} alt='' />
-                            </div>
-                        )}
+                        <div className={effectivelyCollapsed ? styles.logoOffset : styles.logoOffsetInset}>
+                            {effectivelyCollapsed ? (
+                                <button
+                                    type='button'
+                                    className={styles.logoButton}
+                                    title={expandLabel}
+                                    aria-label={expandLabel}
+                                    onClick={expandSidebar}
+                                >
+                                    <img className={styles.logoImage} src={logoLight} alt='' />
+                                </button>
+                            ) : (
+                                <div
+                                    className={styles.iconSlot}
+                                    aria-label={intl.formatMessage(messages.logo)}
+                                    role='img'
+                                >
+                                    <img className={styles.logoImage} src={logoLight} alt='' />
+                                </div>
+                            )}
+                        </div>
                         {isDesktop ? (
                             <div className={effectivelyCollapsed ? styles.headerActionsHidden : styles.headerActions}>
                                 <IconButton

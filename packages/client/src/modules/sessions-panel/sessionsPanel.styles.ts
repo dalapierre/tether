@@ -3,6 +3,8 @@ export const styles = {
     panel: 'box-border h-full min-h-0 min-w-0 flex-1 overflow-hidden',
     resize: 'z-30',
     header: 'relative flex h-11 shrink-0 items-center',
+    logoOffset: 'shrink-0 transition-[margin] duration-200 ease-in-out',
+    logoOffsetInset: 'ml-2 shrink-0 transition-[margin] duration-200 ease-in-out',
     iconSlot: 'inline-flex h-11 w-12 shrink-0 items-center justify-center',
     logoImage: 'h-7 w-7',
     logoButton:
@@ -61,7 +63,7 @@ export const styles = {
     indicatorBusy: 'bg-amber-400',
     indicatorError: 'bg-red-500',
     inlineButton:
-        'flex w-full shrink-0 items-center rounded-md text-sm text-zinc-400 outline-none transition-colors active:bg-zinc-800 active:text-zinc-100 focus-visible:ring-1 focus-visible:ring-aura-green md:hover:bg-zinc-800 md:hover:text-zinc-100',
+        'mx-2 flex shrink-0 items-center self-stretch rounded-md text-sm text-zinc-400 outline-none transition-colors active:bg-zinc-800 active:text-zinc-100 focus-visible:ring-1 focus-visible:ring-aura-green md:hover:bg-zinc-800 md:hover:text-zinc-100',
     inlineButtonIcon: 'inline-flex h-11 w-12 shrink-0 items-center justify-center',
     inlineButtonLabel: 'min-w-0 flex-1 truncate pr-2.5 text-left',
     settings: 'shrink-0 pb-[max(0.5rem,env(safe-area-inset-bottom))]',
