@@ -336,6 +336,17 @@ function setElementScrollBy(element: HTMLElement | null, delta: number): void {
     element.scrollTop += delta;
 }
 
+/** Scroll `element` into view inside `container` only — avoids `scrollIntoView` moving outer panes. */
+function scrollElementIntoContainer(element: HTMLElement, container: HTMLElement): void {
+    const containerRect = container.getBoundingClientRect();
+    const elementRect = element.getBoundingClientRect();
+    if (elementRect.top < containerRect.top) {
+        container.scrollTop -= containerRect.top - elementRect.top;
+    } else if (elementRect.bottom > containerRect.bottom) {
+        container.scrollTop += elementRect.bottom - containerRect.bottom;
+    }
+}
+
 function getElementScrollRatio(element: HTMLElement | null): number | null {
     if (!element || element.clientHeight <= 0) {
         return null;
@@ -1361,30 +1372,34 @@ export function SessionCodeView({
                         ? 0
                         : files.length - 1
                     : (currentIndex + direction + files.length) % files.length;
-            const nextPath = files[nextIndex]?.path ?? null;
-            if (nextPath) {
-                // Ensure the target row is mounted (folders may be collapsed).
-                const ancestors = ancestorDirPathsForFile(nextPath, dirPaths);
-                if (ancestors.length > 0) {
-                    setCollapsedPaths((prev) => {
-                        let next: Set<string> | null = null;
-                        for (const dirPath of ancestors) {
-                            if (!prev.has(dirPath)) continue;
-                            if (!next) next = new Set(prev);
-                            next.delete(dirPath);
-                        }
-                        return next ?? prev;
-                    });
-                }
-            }
-            selectPath(nextPath);
+            selectPath(files[nextIndex]?.path ?? null);
         },
-        [dirPaths, files, selectedPath, selectPath],
+        [files, selectedPath, selectPath],
     );
 
+    // Expand collapsed ancestors so the selected row can mount (keybind next/prev, restore, etc.).
     useLayoutEffect(() => {
-        selectedFileRowRef.current?.scrollIntoView({ block: 'nearest' });
-    }, [selectedPath]);
+        if (!selectedPath) return;
+        const ancestors = ancestorDirPathsForFile(selectedPath, dirPaths);
+        if (ancestors.length === 0) return;
+        setCollapsedPaths((prev) => {
+            let next: Set<string> | null = null;
+            for (const dirPath of ancestors) {
+                if (!prev.has(dirPath)) continue;
+                if (!next) next = new Set(prev);
+                next.delete(dirPath);
+            }
+            return next ?? prev;
+        });
+    }, [selectedPath, dirPaths]);
+
+    // Keep the highlighted file visible in the hierarchy when selection changes via z/x.
+    useLayoutEffect(() => {
+        const list = fileListRef.current;
+        const row = selectedFileRowRef.current;
+        if (!list || !row) return;
+        scrollElementIntoContainer(row, list);
+    }, [selectedPath, collapsedPaths]);
 
     const scrollCurrentFile = useCallback(
         (deltaPx: number) => {
