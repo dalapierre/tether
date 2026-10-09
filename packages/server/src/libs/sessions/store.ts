@@ -259,6 +259,13 @@ async function runDiffRefresh(sessionId: string): Promise<void> {
                     abortIfNeeded(controller.signal);
                     if (!sessions.has(sessionId)) return;
 
+                    // Index/worktree changed mid-refresh (common during `git add`): the
+                    // multi-command summary can omit paths that are still in the review.
+                    // Skip publishing the torn snapshot and recompute.
+                    if (entry.dirty) {
+                        return;
+                    }
+
                     entry.cache = summary;
                     transientFailures = 0;
                     broadcastSessionDiff(sessionId);

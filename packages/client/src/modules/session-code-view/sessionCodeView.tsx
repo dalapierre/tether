@@ -1037,7 +1037,7 @@ export function SessionCodeView({
     }, [sessionId, persistScrollPosition]);
 
     const applyDiffFiles = useCallback(
-        (nextFiles: SessionDiffFile[]) => {
+        (nextFiles: SessionDiffFile[], options?: { clearMissingSelection?: boolean }) => {
             const nextSignature = fileListSignature(nextFiles);
             // null means "must apply" (effect invalidated the signature). Empty list
             // also signs as '', so never reset the ref to '' or empty applies no-op.
@@ -1061,6 +1061,10 @@ export function SessionCodeView({
                 }
                 return changed ? next : prev;
             });
+            // Staging/index refreshes can briefly omit a path; only clear once settled.
+            if (options?.clearMissingSelection === false) {
+                return true;
+            }
             const selected = selectedPathRef.current;
             if (selected && !nextByPath.has(selected)) {
                 selectPath(null);
@@ -1097,7 +1101,9 @@ export function SessionCodeView({
                     return;
                 }
                 if (state.summary) {
-                    applyDiffFiles(state.summary.files);
+                    // While pending, update the tree but keep the open file — index-only
+                    // changes (git add) can transiently omit paths from torn snapshots.
+                    applyDiffFiles(state.summary.files, { clearMissingSelection: !state.pending });
                 }
             })
             .finally(() => {
@@ -1758,13 +1764,20 @@ export function SessionCodeView({
             })
             .catch((err: unknown) => {
                 if (abort.signal.aborted) return;
-                // File left the review diff (e.g. discarded); drop stale selection/content.
-                if (err instanceof ApiError && err.message === 'File not found in diff') {
-                    if (selectedPathRef.current === path) {
+                // Transient misses happen while the index refreshes (e.g. git add).
+                // Only drop selection once a settled summary confirms the path is gone.
+                if (!(err instanceof ApiError) || err.message !== 'File not found in diff') {
+                    // Other errors: best-effort refresh; keep the last good diff.
+                    return;
+                }
+                void ensureSessionDiff(sessionId, getDiffGeneration(sessionId)).then((state) => {
+                    if (abort.signal.aborted || selectedPathRef.current !== path) return;
+                    if (state.pending) return;
+                    const stillInDiff = state.summary?.files.some((file) => file.path === path);
+                    if (!stillInDiff) {
                         selectPath(null);
                     }
-                }
-                // Other errors: best-effort refresh; keep the last good diff.
+                });
             });
 
         return () => {
