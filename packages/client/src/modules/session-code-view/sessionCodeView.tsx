@@ -1657,21 +1657,30 @@ export function SessionCodeView({
     }, [keybindsEnabled, showingMarkdownPreview, fileDiff, rememberScrollRatio]);
 
     const isAddedFile = fileDiff?.status === 'added';
+    const isDeletedFile = fileDiff?.status === 'deleted';
     const editorContents = useMemo(() => {
         if (!fileDiff || fileDiff.binary) {
             return { original: '', modified: '' };
         }
         return applyDiffViewMode(fileDiff.original, fileDiff.modified, diffViewMode);
     }, [fileDiff, diffViewMode]);
-    const diffEditorOptions = useMemo(
-        () => ({
+    const diffEditorOptions = useMemo(() => {
+        // Monaco clamps splitViewDefaultRatio to [0.1, 0.9]. Bias the sash so
+        // one-sided files devote almost all width to the side with content.
+        let splitViewDefaultRatio = 0.5;
+        if (isDesktop && diffViewMode === 'split') {
+            if (isAddedFile) {
+                splitViewDefaultRatio = 0.1; // original empty → modified takes space
+            } else if (isDeletedFile) {
+                splitViewDefaultRatio = 0.9; // modified empty → original takes space
+            }
+        }
+        return {
             readOnly: true,
             // Split shows both sides; filtered modes stay unified so only +/- hunks read clearly.
             renderSideBySide: isDesktop && diffViewMode === 'split',
             useInlineViewWhenSpaceIsLimited: false,
-            // Monaco clamps splitViewDefaultRatio to [0.1, 0.9]; use the floor so added
-            // files devote almost all width to the new content (original pane is empty).
-            splitViewDefaultRatio: isDesktop && diffViewMode === 'split' && isAddedFile ? 0.1 : 0.5,
+            splitViewDefaultRatio,
             wordWrap: 'on' as const,
             wrappingIndent: 'same' as const,
             fontSize: isDesktop ? 13 : 11,
@@ -1697,9 +1706,8 @@ export function SessionCodeView({
             contextmenu: false,
             automaticLayout: true,
             originalEditable: false,
-        }),
-        [isDesktop, isAddedFile, diffViewMode],
-    );
+        };
+    }, [isDesktop, isAddedFile, isDeletedFile, diffViewMode]);
 
     // Reset content fingerprint when the selected path changes so a stale fileDiff
     // from the previous file cannot clear the new file's reviewed state.
