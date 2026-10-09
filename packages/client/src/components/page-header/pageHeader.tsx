@@ -43,34 +43,32 @@ function BackIcon() {
     );
 }
 
-export function PageHeader({ crumbs = [], actions, showSettings = true, onBack, onHomeClick }: PageHeaderProps) {
+export function PageHeader({
+    title,
+    crumbs = [],
+    actions,
+    showSettings = true,
+    showLogo = true,
+    onBack,
+}: PageHeaderProps) {
     const intl = useIntl();
     const { openSettings } = useSettings();
 
     return (
         <header className={styles.header}>
             <div className={styles.start}>
-                <Link
-                    to='/'
-                    className={styles.logoLink}
-                    aria-label={intl.formatMessage(messages.home)}
-                    onClick={
-                        onHomeClick
-                            ? (event) => {
-                                  event.preventDefault();
-                                  onHomeClick();
-                              }
-                            : undefined
-                    }
-                >
-                    <img className={styles.logo} src={logoLight} alt='' />
-                </Link>
+                {showLogo ? (
+                    <div className={styles.logo} aria-label={intl.formatMessage(messages.logo)} role='img'>
+                        <img className={styles.logoImage} src={logoLight} alt='' />
+                    </div>
+                ) : null}
                 {onBack ? (
                     <IconButton label={intl.formatMessage(messages.back)} onClick={onBack}>
                         <BackIcon />
                     </IconButton>
                 ) : null}
-                {crumbs.length > 0 ? (
+                {title != null ? <h1 className={styles.title}>{title}</h1> : null}
+                {title == null && crumbs.length > 0 ? (
                     <nav className={styles.crumbs} aria-label={intl.formatMessage(messages.breadcrumb)}>
                         {crumbs.map((crumb, index) => {
                             const isLast = index === crumbs.length - 1;

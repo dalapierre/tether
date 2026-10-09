@@ -237,7 +237,7 @@ export const messages = defineMessages<Messages>(
         },
         keybindsTabHome: {
             id: 'settings.keybindsTabHome',
-            defaultMessage: 'Home',
+            defaultMessage: 'Sessions',
         },
         keybindsTabSession: {
             id: 'settings.keybindsTabSession',

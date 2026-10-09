@@ -1,7 +1,6 @@
 import { defineMessages, type NoMessageValues } from 'react-intl';
 
 type Messages = {
-    sessionsCrumb: NoMessageValues;
     loadingCrumb: NoMessageValues;
     loading: NoMessageValues;
     loadFailed: NoMessageValues;
@@ -34,10 +33,6 @@ type Messages = {
 
 export const messages = defineMessages<Messages>(
     {
-        sessionsCrumb: {
-            id: 'sessionView.sessionsCrumb',
-            defaultMessage: 'sessions',
-        },
         loadingCrumb: {
             id: 'sessionView.loadingCrumb',
             defaultMessage: '…',

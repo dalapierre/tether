@@ -1,6 +1,5 @@
 import { Button } from '@client/components/button';
 import { IconButton } from '@client/components/icon-button';
-import { PageHeader } from '@client/components/page-header';
 import { Panel } from '@client/components/panel';
 import { PanelResizeHandle, panelResizeHandleMessages } from '@client/components/panel-resize-handle';
 import { SegmentedControl } from '@client/components/segmented-control';
@@ -1251,13 +1250,11 @@ export function SessionView({ sessionId }: SessionViewProps) {
     if (loading) {
         return (
             <div ref={rootRef} className={styles.root}>
-                <PageHeader
-                    crumbs={[
-                        { label: intl.formatMessage(messages.sessionsCrumb), to: '/' },
-                        { label: intl.formatMessage(messages.loadingCrumb) },
-                    ]}
-                    showSettings={false}
-                />
+                <Panel className={styles.headerPanel}>
+                    <div className={styles.header}>
+                        <h1 className={styles.headerTitle}>{intl.formatMessage(messages.loadingCrumb)}</h1>
+                    </div>
+                </Panel>
                 <p className={styles.centered}>{intl.formatMessage(messages.loading)}</p>
             </div>
         );
@@ -1266,13 +1263,11 @@ export function SessionView({ sessionId }: SessionViewProps) {
     if (failed || !session || !displaySession) {
         return (
             <div ref={rootRef} className={styles.root}>
-                <PageHeader
-                    crumbs={[
-                        { label: intl.formatMessage(messages.sessionsCrumb), to: '/' },
-                        { label: intl.formatMessage(messages.notFound) },
-                    ]}
-                    showSettings={false}
-                />
+                <Panel className={styles.headerPanel}>
+                    <div className={styles.header}>
+                        <h1 className={styles.headerTitle}>{intl.formatMessage(messages.notFound)}</h1>
+                    </div>
+                </Panel>
                 <p className={styles.centered}>{intl.formatMessage(messages.notFound)}</p>
             </div>
         );
@@ -1286,15 +1281,10 @@ export function SessionView({ sessionId }: SessionViewProps) {
 
     return (
         <div ref={rootRef} className={styles.root}>
-            <PageHeader
-                crumbs={[{ label: intl.formatMessage(messages.sessionsCrumb), to: '/' }, { label: session.name }]}
-                showSettings={false}
-                actions={
-                    <>
-                        <div className={styles.status} role='status'>
-                            <span className={`${styles.statusDot} ${statusDotClass}`} aria-hidden='true' />
-                            {statusLabel}
-                        </div>
+            <Panel className={styles.headerPanel}>
+                <div className={styles.header}>
+                    <h1 className={styles.headerTitle}>{session.name}</h1>
+                    <div className={styles.headerActions}>
                         <div className={styles.mobileActions}>
                             <IconButton label={intl.formatMessage(messages.arrowUp)} onClick={sendArrowUp}>
                                 <ArrowUpIcon />
@@ -1312,9 +1302,9 @@ export function SessionView({ sessionId }: SessionViewProps) {
                                 <ClearInputIcon />
                             </IconButton>
                         </div>
-                    </>
-                }
-            />
+                    </div>
+                </div>
+            </Panel>
             {!isDesktop ? (
                 <div className={styles.tabs}>
                     <SegmentedControl
@@ -1344,58 +1334,60 @@ export function SessionView({ sessionId }: SessionViewProps) {
                     />
                 </div>
             ) : null}
-            <div className={styles.meta}>
-                <p className={styles.metaText}>
-                    {displaySession.type === 'coding' ? (
-                        <>
-                            <span className={styles.metaRepo}>{repositoryName ?? displaySession.repositoryId}</span>
-                            {' > '}
-                            {displaySession.branch}
-                            {displaySession.behindDefault != null &&
-                            displaySession.behindDefault > 0 &&
-                            displaySession.defaultBranch ? (
-                                <>
-                                    {' · '}
-                                    <span
-                                        className={
-                                            displaySession.behindDefault >= 20
-                                                ? styles.metaBehindDanger
-                                                : styles.metaBehindWarning
-                                        }
-                                    >
-                                        {intl.formatMessage(messages.branchBehindDefault, {
-                                            count: displaySession.behindDefault,
-                                            defaultBranch: displaySession.defaultBranch,
-                                        })}
-                                    </span>
-                                </>
-                            ) : null}
-                        </>
-                    ) : (
-                        intl.formatMessage(messages.metaConversation, {
-                            harness: harnessLabel(displaySession.agent, intl.formatMessage),
-                        })
-                    )}
-                </p>
-                {displaySession.cpuPercent != null || displaySession.ramPercent != null ? (
-                    <p className={styles.metaUsageGroup}>
-                        {displaySession.cpuPercent != null ? (
-                            <span className={usageClassName(displaySession.cpuPercent)}>
-                                {intl.formatMessage(messages.metaCpu, {
-                                    percent: displaySession.cpuPercent,
-                                })}
-                            </span>
-                        ) : null}
-                        {displaySession.ramPercent != null ? (
-                            <span className={usageClassName(displaySession.ramPercent)}>
-                                {intl.formatMessage(messages.metaRam, {
-                                    percent: displaySession.ramPercent,
-                                })}
-                            </span>
-                        ) : null}
+            <Panel className={styles.metaPanel}>
+                <div className={styles.meta}>
+                    <p className={styles.metaText}>
+                        {displaySession.type === 'coding' ? (
+                            <>
+                                <span className={styles.metaRepo}>{repositoryName ?? displaySession.repositoryId}</span>
+                                {' > '}
+                                {displaySession.branch}
+                                {displaySession.behindDefault != null &&
+                                displaySession.behindDefault > 0 &&
+                                displaySession.defaultBranch ? (
+                                    <>
+                                        {' · '}
+                                        <span
+                                            className={
+                                                displaySession.behindDefault >= 20
+                                                    ? styles.metaBehindDanger
+                                                    : styles.metaBehindWarning
+                                            }
+                                        >
+                                            {intl.formatMessage(messages.branchBehindDefault, {
+                                                count: displaySession.behindDefault,
+                                                defaultBranch: displaySession.defaultBranch,
+                                            })}
+                                        </span>
+                                    </>
+                                ) : null}
+                            </>
+                        ) : (
+                            intl.formatMessage(messages.metaConversation, {
+                                harness: harnessLabel(displaySession.agent, intl.formatMessage),
+                            })
+                        )}
                     </p>
-                ) : null}
-            </div>
+                    {displaySession.cpuPercent != null || displaySession.ramPercent != null ? (
+                        <p className={styles.metaUsageGroup}>
+                            {displaySession.cpuPercent != null ? (
+                                <span className={usageClassName(displaySession.cpuPercent)}>
+                                    {intl.formatMessage(messages.metaCpu, {
+                                        percent: displaySession.cpuPercent,
+                                    })}
+                                </span>
+                            ) : null}
+                            {displaySession.ramPercent != null ? (
+                                <span className={usageClassName(displaySession.ramPercent)}>
+                                    {intl.formatMessage(messages.metaRam, {
+                                        percent: displaySession.ramPercent,
+                                    })}
+                                </span>
+                            ) : null}
+                        </p>
+                    ) : null}
+                </div>
+            </Panel>
             <div ref={mainRef} className={styles.main}>
                 <div
                     ref={contentRef}
@@ -1417,10 +1409,18 @@ export function SessionView({ sessionId }: SessionViewProps) {
                                   : styles.paneInactive
                         }
                         aria-hidden={showDesktopReviewFullscreen || (!isDesktop && tab !== 'agent')}
-                        title={agentTitle}
-                        toolbarClassName='max-md:hidden'
-                        toolbarActions={
+                        title={
                             <>
+                                <span className={styles.agentTitleName}>{agentTitle}</span>
+                                <span
+                                    className={`${styles.statusDot} ${statusDotClass}`}
+                                    role='status'
+                                    aria-label={statusLabel}
+                                />
+                            </>
+                        }
+                        toolbarActions={
+                            <div className={styles.paneToolbarActions}>
                                 <button
                                     type='button'
                                     className={styles.paneToggle}
@@ -1443,7 +1443,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                                         <ReviewIcon className={styles.paneToggleIcon} />
                                     </button>
                                 ) : null}
-                            </>
+                            </div>
                         }
                     >
                         <div className={styles.terminalWrap}>

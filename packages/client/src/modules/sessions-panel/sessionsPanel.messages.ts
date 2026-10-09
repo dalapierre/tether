@@ -1,14 +1,19 @@
 import { defineMessages, type NoMessageValues } from 'react-intl';
 
 type Messages = {
+    logo: NoMessageValues;
     searchPlaceholder: NoMessageValues;
     searchAriaLabel: NoMessageValues;
     clearSearch: NoMessageValues;
     noSessions: NoMessageValues;
     noMatchingSessions: NoMessageValues;
     loadingSessions: NoMessageValues;
-    sessionsLoadFailed: NoMessageValues;
     newSession: NoMessageValues;
+    settings: NoMessageValues;
+    sessionsHeading: NoMessageValues;
+    collapseSidebar: NoMessageValues;
+    expandSidebar: NoMessageValues;
+    showSessions: NoMessageValues;
     conversationSession: NoMessageValues;
     branchLabel: { branch: string };
     cpuLabel: { percent: number };
@@ -23,76 +28,96 @@ type Messages = {
 
 export const messages = defineMessages<Messages>(
     {
+        logo: {
+            id: 'sessionsPanel.logo',
+            defaultMessage: 'Tether',
+        },
         searchPlaceholder: {
-            id: 'sessionList.searchPlaceholder',
+            id: 'sessionsPanel.searchPlaceholder',
             defaultMessage: 'Search sessions…',
         },
         searchAriaLabel: {
-            id: 'sessionList.searchAriaLabel',
+            id: 'sessionsPanel.searchAriaLabel',
             defaultMessage: 'Search sessions',
         },
         clearSearch: {
-            id: 'sessionList.clearSearch',
+            id: 'sessionsPanel.clearSearch',
             defaultMessage: 'Clear search',
         },
         noSessions: {
-            id: 'sessionList.noSessions',
+            id: 'sessionsPanel.noSessions',
             defaultMessage: 'No sessions',
         },
         noMatchingSessions: {
-            id: 'sessionList.noMatchingSessions',
+            id: 'sessionsPanel.noMatchingSessions',
             defaultMessage: 'No matching sessions',
         },
         loadingSessions: {
-            id: 'sessionList.loadingSessions',
+            id: 'sessionsPanel.loadingSessions',
             defaultMessage: 'Loading sessions…',
         },
-        sessionsLoadFailed: {
-            id: 'sessionList.sessionsLoadFailed',
-            defaultMessage: 'Failed to load sessions',
-        },
         newSession: {
-            id: 'sessionList.newSession',
+            id: 'sessionsPanel.newSession',
             defaultMessage: 'New session',
         },
+        settings: {
+            id: 'sessionsPanel.settings',
+            defaultMessage: 'Settings',
+        },
+        sessionsHeading: {
+            id: 'sessionsPanel.sessionsHeading',
+            defaultMessage: 'Sessions',
+        },
+        collapseSidebar: {
+            id: 'sessionsPanel.collapseSidebar',
+            defaultMessage: 'Collapse sidebar',
+        },
+        expandSidebar: {
+            id: 'sessionsPanel.expandSidebar',
+            defaultMessage: 'Expand sidebar',
+        },
+        showSessions: {
+            id: 'sessionsPanel.showSessions',
+            defaultMessage: 'Show sessions',
+        },
         conversationSession: {
-            id: 'sessionList.conversationSession',
+            id: 'sessionsPanel.conversationSession',
             defaultMessage: 'Conversation',
         },
         branchLabel: {
-            id: 'sessionList.branchLabel',
+            id: 'sessionsPanel.branchLabel',
             defaultMessage: '{branch}',
         },
         cpuLabel: {
-            id: 'sessionList.cpuLabel',
+            id: 'sessionsPanel.cpuLabel',
             defaultMessage: 'CPU {percent}%',
         },
         ramLabel: {
-            id: 'sessionList.ramLabel',
+            id: 'sessionsPanel.ramLabel',
             defaultMessage: 'RAM {percent}%',
         },
         deleteConfirm: {
-            id: 'sessionList.deleteConfirm',
+            id: 'sessionsPanel.deleteConfirm',
             defaultMessage: 'Are you sure you want to delete {name}? All data related to this session will be lost.',
         },
         deleteConfirmContinue: {
-            id: 'sessionList.deleteConfirmContinue',
+            id: 'sessionsPanel.deleteConfirmContinue',
             defaultMessage: 'Continue',
         },
         deleteConfirmCancel: {
-            id: 'sessionList.deleteConfirmCancel',
+            id: 'sessionsPanel.deleteConfirmCancel',
             defaultMessage: 'Cancel',
         },
         deleteFailed: {
-            id: 'sessionList.deleteFailed',
+            id: 'sessionsPanel.deleteFailed',
             defaultMessage: 'Failed to delete session',
         },
         restartSession: {
-            id: 'sessionList.restartSession',
+            id: 'sessionsPanel.restartSession',
             defaultMessage: 'Restart session',
         },
         restartFailed: {
-            id: 'sessionList.restartFailed',
+            id: 'sessionsPanel.restartFailed',
             defaultMessage: 'Failed to restart session',
         },
     },

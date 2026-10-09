@@ -6,7 +6,7 @@ import { Suspense, lazy } from 'react';
 import { IntlProvider } from 'react-intl';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 
-const HomePage = lazy(() => import('@client/pages/home-page').then((m) => ({ default: m.HomePage })));
+const WorkspacePage = lazy(() => import('@client/pages/workspace-page').then((m) => ({ default: m.WorkspacePage })));
 const LoginPage = lazy(() => import('@client/pages/login-page').then((m) => ({ default: m.LoginPage })));
 const SessionPage = lazy(() => import('@client/pages/session-page').then((m) => ({ default: m.SessionPage })));
 
@@ -25,7 +25,7 @@ export function App() {
                                     </RequireAuth>
                                 }
                             >
-                                <Route path='/' element={<HomePage />} />
+                                <Route path='/' element={<WorkspacePage />} />
                                 <Route path='/sessions/:sessionId' element={<SessionPage />} />
                             </Route>
                         </Routes>

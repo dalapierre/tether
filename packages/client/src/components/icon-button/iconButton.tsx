@@ -16,6 +16,7 @@ export function IconButton({
             className={`${styles.button}${pressed ? ` ${styles.pressed}` : ''}${className ? ` ${className}` : ''}`}
             onClick={onClick}
             disabled={disabled}
+            title={label}
             aria-label={label}
             aria-pressed={pressed}
         >

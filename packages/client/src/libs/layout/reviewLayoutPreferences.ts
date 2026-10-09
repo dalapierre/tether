@@ -16,6 +16,8 @@ import {
 const REVIEW_PANE_WIDTH_PCT_KEY = 'tether.layout.reviewPaneWidthPct';
 const SHELL_PANE_HEIGHT_PCT_KEY = 'tether.layout.shellPaneHeightPct';
 const FILE_TREE_WIDTH_PX_KEY = 'tether.layout.fileTreeWidthPx';
+const SESSIONS_PANEL_WIDTH_PX_KEY = 'tether.layout.sessionsPanelWidthPx';
+const SESSIONS_PANEL_COLLAPSED_KEY = 'tether.layout.sessionsPanelCollapsed';
 const DIFF_VIEW_MODE_KEY = 'tether.layout.diffViewMode';
 
 export type DiffViewMode = 'split' | 'negative' | 'positive';
@@ -61,6 +63,9 @@ export type SelectedDiffFileState = {
 export const DEFAULT_REVIEW_PANE_WIDTH_PCT = 40;
 export const DEFAULT_SHELL_PANE_HEIGHT_PCT = 30;
 export const DEFAULT_FILE_TREE_WIDTH_PX = 176;
+export const DEFAULT_SESSIONS_PANEL_WIDTH_PX = 320;
+/** Icon rail width (3rem slot) + panel border (1px × 2). */
+export const SESSIONS_PANEL_COLLAPSED_WIDTH_PX = 50;
 
 const MIN_REVIEW_PANE_WIDTH_PCT = 15;
 const MAX_REVIEW_PANE_WIDTH_PCT = 90;
@@ -68,6 +73,8 @@ const MIN_SHELL_PANE_HEIGHT_PCT = 10;
 const MAX_SHELL_PANE_HEIGHT_PCT = 90;
 const MIN_FILE_TREE_WIDTH_PX = 120;
 const MAX_FILE_TREE_WIDTH_PX = 420;
+const MIN_SESSIONS_PANEL_WIDTH_PX = 300;
+const MAX_SESSIONS_PANEL_WIDTH_PX = 560;
 
 function viewportWidthPx(): number {
     if (typeof window === 'undefined') {
@@ -90,6 +97,10 @@ export function clampShellPaneHeightPct(pct: number): number {
 
 export function clampFileTreeWidthPx(width: number): number {
     return Math.min(MAX_FILE_TREE_WIDTH_PX, Math.max(MIN_FILE_TREE_WIDTH_PX, Math.round(width)));
+}
+
+export function clampSessionsPanelWidthPx(width: number): number {
+    return Math.min(MAX_SESSIONS_PANEL_WIDTH_PX, Math.max(MIN_SESSIONS_PANEL_WIDTH_PX, Math.round(width)));
 }
 
 /** Convert a horizontal pixel delta into a percentage of `basePx`. */
@@ -182,6 +193,26 @@ export function getFileTreeWidthPx(): number {
 
 export function setFileTreeWidthPx(width: number): void {
     setLocalStorageNumber(FILE_TREE_WIDTH_PX_KEY, clampFileTreeWidthPx(width));
+}
+
+export function getSessionsPanelWidthPx(): number {
+    const stored = getLocalStorageNumber(SESSIONS_PANEL_WIDTH_PX_KEY);
+    if (stored !== null) {
+        return clampSessionsPanelWidthPx(stored);
+    }
+    return DEFAULT_SESSIONS_PANEL_WIDTH_PX;
+}
+
+export function setSessionsPanelWidthPx(width: number): void {
+    setLocalStorageNumber(SESSIONS_PANEL_WIDTH_PX_KEY, clampSessionsPanelWidthPx(width));
+}
+
+export function getSessionsPanelCollapsed(): boolean {
+    return getLocalStorageItem(SESSIONS_PANEL_COLLAPSED_KEY) === '1';
+}
+
+export function setSessionsPanelCollapsed(collapsed: boolean): void {
+    setLocalStorageItem(SESSIONS_PANEL_COLLAPSED_KEY, collapsed ? '1' : '0');
 }
 
 function readLegacyReviewPanelOpenMap(): ReviewPanelOpenBySession {

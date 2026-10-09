@@ -1,15 +1,19 @@
 export const styles = {
     root: 'flex min-h-0 flex-1 flex-col bg-zinc-950 text-zinc-100',
-    status: 'flex items-center gap-1.5 px-2 text-xs leading-none text-zinc-400',
+    headerPanel: 'shrink-0 pt-[max(0.25rem,env(safe-area-inset-top))] md:mx-2 md:mt-2 md:pt-0 [&>div]:flex-none',
+    header: 'flex items-center gap-2 px-3 py-1.5',
+    headerTitle: 'min-w-0 flex-1 truncate text-sm font-bold text-zinc-100',
+    headerActions: 'flex shrink-0 items-center gap-1',
+    agentTitleName: 'min-w-0 truncate',
     statusDot: 'h-2 w-2 shrink-0 rounded-full',
     statusDotConnecting: 'bg-amber-400',
     statusDotDisconnected: 'bg-red-500',
     statusDotReady: 'bg-emerald-500',
     statusDotBusy: 'bg-amber-400',
     statusDotError: 'bg-red-500',
-    // Mobile: top meta strip under tabs. Desktop: VS Code–style status bar pinned
-    // below the main panes (flex order-last) with a top border instead of bottom.
-    meta: 'flex shrink-0 items-center gap-3 border-b border-zinc-800 px-4 py-2 text-xs text-zinc-400 md:order-last md:border-b-0 md:border-t md:bg-zinc-900 md:px-3 md:py-1',
+    // Mobile: under tabs. Desktop: pinned below the main panes (flex order-last).
+    metaPanel: 'shrink-0 md:order-last md:mx-2 md:mb-2 [&>div]:flex-none',
+    meta: 'flex items-center gap-3 px-3 py-1.5 text-xs text-zinc-400',
     metaText: 'min-w-0 flex-1 truncate',
     metaRepo: 'font-bold text-zinc-200',
     metaBehindWarning: 'text-amber-400',
@@ -18,6 +22,7 @@ export const styles = {
     metaUsage: 'font-bold text-aura-green',
     metaUsageWarning: 'font-bold text-amber-400',
     metaUsageDanger: 'font-bold text-red-400',
+    paneToolbarActions: 'hidden items-center gap-0.5 md:flex',
     paneToggle:
         'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors md:hover:bg-zinc-800/80 md:hover:text-zinc-100',
     paneToggleIcon: 'h-3.5 w-3.5',

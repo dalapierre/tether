@@ -253,9 +253,6 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                         { label: intl.formatMessage(messages.crumb) },
                     ]}
                     showSettings={false}
-                    onHomeClick={() => {
-                        if (!starting) onClose();
-                    }}
                     actions={
                         <IconButton label={intl.formatMessage(messages.close)} onClick={onClose} disabled={starting}>
                             ×

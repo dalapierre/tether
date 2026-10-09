@@ -638,7 +638,6 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
                     crumbs={crumbs}
                     showSettings={false}
                     onBack={view === 'root' ? undefined : goBack}
-                    onHomeClick={onClose}
                     actions={
                         <IconButton label={intl.formatMessage(messages.close)} onClick={onClose}>
                             ×

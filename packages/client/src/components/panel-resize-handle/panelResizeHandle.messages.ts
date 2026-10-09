@@ -4,6 +4,7 @@ type Messages = {
     resizeReviewPanel: NoMessageValues;
     resizeFileTree: NoMessageValues;
     resizeShellPanel: NoMessageValues;
+    resizeSessionsPanel: NoMessageValues;
 };
 
 export const messages = defineMessages<Messages>({
@@ -18,5 +19,9 @@ export const messages = defineMessages<Messages>({
     resizeShellPanel: {
         id: 'panelResizeHandle.resizeShellPanel',
         defaultMessage: 'Resize terminal panel',
+    },
+    resizeSessionsPanel: {
+        id: 'panelResizeHandle.resizeSessionsPanel',
+        defaultMessage: 'Resize sessions panel',
     },
 });
