@@ -2,20 +2,11 @@ import logoLight from '@client/assets/logo_light.svg';
 import { ConfirmDialog } from '@client/components/confirm-dialog';
 import { IconButton } from '@client/components/icon-button';
 import { Panel } from '@client/components/panel';
-import { PanelResizeHandle, panelResizeHandleMessages } from '@client/components/panel-resize-handle';
 import { SwipeToDelete } from '@client/components/swipe-to-delete';
 import { listRepositories, type Repository } from '@client/libs/api/repositories';
 import { deleteSession, restartSession, type Session, type SessionStatus } from '@client/libs/api/sessions';
 import { useIsDesktop } from '@client/libs/dom/useMediaQuery';
 import { useKeybind } from '@client/libs/keybinds';
-import {
-    clampSessionsPanelWidthPx,
-    getSessionsPanelCollapsed,
-    getSessionsPanelWidthPx,
-    setSessionsPanelCollapsed,
-    setSessionsPanelWidthPx,
-    SESSIONS_PANEL_COLLAPSED_WIDTH_PX,
-} from '@client/libs/layout/reviewLayoutPreferences';
 import { panelLocationState } from '@client/libs/navigation/panelReturn';
 import {
     getSessionsSnapshot,
@@ -161,7 +152,13 @@ function sessionButtonClass(active: boolean, selected: boolean): string {
     return styles.sessionButton;
 }
 
-export function SessionsPanel({ listInteractive = true }: SessionsPanelProps) {
+export function SessionsPanel({
+    listInteractive = true,
+    collapsed = false,
+    expandedWidth,
+    onCollapse,
+    onExpand,
+}: SessionsPanelProps) {
     const intl = useIntl();
     const navigate = useNavigate();
     const location = useLocation();
@@ -175,31 +172,21 @@ export function SessionsPanel({ listInteractive = true }: SessionsPanelProps) {
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [restartingId, setRestartingId] = useState<string | null>(null);
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-    const [panelWidth, setPanelWidth] = useState(getSessionsPanelWidthPx);
-    const [collapsed, setCollapsed] = useState(getSessionsPanelCollapsed);
     const selectedRowRef = useRef<HTMLDivElement | null>(null);
     const searchInputRef = useRef<HTMLInputElement | null>(null);
     const filteredSessionsRef = useRef<Session[]>([]);
     const selectedIndexRef = useRef(selectedIndex);
-    const panelWidthRef = useRef(panelWidth);
     selectedIndexRef.current = selectedIndex;
-    panelWidthRef.current = panelWidth;
 
     const effectivelyCollapsed = isDesktop && collapsed;
 
-    const persistPanelWidth = useCallback(() => {
-        setSessionsPanelWidthPx(panelWidthRef.current);
-    }, []);
-
     const collapseSidebar = useCallback(() => {
-        setCollapsed(true);
-        setSessionsPanelCollapsed(true);
-    }, []);
+        onCollapse?.();
+    }, [onCollapse]);
 
     const expandSidebar = useCallback(() => {
-        setCollapsed(false);
-        setSessionsPanelCollapsed(false);
-    }, []);
+        onExpand?.();
+    }, [onExpand]);
 
     const liveSessions = useSyncExternalStore(subscribe, getSessionsSnapshot, getSessionsSnapshot);
     const sessionsLoading = !useSyncExternalStore(subscribe, hasSessionsSnapshot, hasSessionsSnapshot);
@@ -413,326 +400,294 @@ export function SessionsPanel({ listInteractive = true }: SessionsPanelProps) {
     const expandLabel = intl.formatMessage(messages.expandSidebar);
     const showSessionsLabel = intl.formatMessage(messages.showSessions);
 
-    const wrapStyle = isDesktop
-        ? { width: effectivelyCollapsed ? SESSIONS_PANEL_COLLAPSED_WIDTH_PX : panelWidth }
-        : undefined;
-
     return (
-        <>
-            <div className={styles.wrap} style={wrapStyle}>
-                <Panel className={styles.panel} aria-label={intl.formatMessage(messages.sessionsHeading)}>
-                    <div className={styles.header}>
-                        <div className={effectivelyCollapsed ? styles.logoOffset : styles.logoOffsetInset}>
-                            {effectivelyCollapsed ? (
-                                <button
-                                    type='button'
-                                    className={styles.logoButton}
-                                    title={expandLabel}
-                                    aria-label={expandLabel}
-                                    onClick={expandSidebar}
-                                >
-                                    <img className={styles.logoImage} src={logoLight} alt='' />
-                                </button>
-                            ) : (
-                                <div
-                                    className={styles.iconSlot}
-                                    aria-label={intl.formatMessage(messages.logo)}
-                                    role='img'
-                                >
-                                    <img className={styles.logoImage} src={logoLight} alt='' />
-                                </div>
-                            )}
-                        </div>
-                        {isDesktop ? (
-                            <div className={effectivelyCollapsed ? styles.headerActionsHidden : styles.headerActions}>
-                                <IconButton
-                                    label={intl.formatMessage(messages.collapseSidebar)}
-                                    onClick={collapseSidebar}
-                                >
-                                    <CollapseIcon />
-                                </IconButton>
-                            </div>
-                        ) : null}
-                    </div>
-
-                    <div className={styles.contentStack}>
-                        <div
-                            className={effectivelyCollapsed ? styles.expandedHidden : styles.expanded}
-                            style={isDesktop ? { minWidth: panelWidth - 2 } : undefined}
-                            aria-hidden={effectivelyCollapsed || undefined}
-                        >
-                            <div className={styles.mainStack}>
-                                <button type='button' className={styles.inlineButton} onClick={openNewSession}>
-                                    <span className={styles.inlineButtonIcon}>
-                                        <PlusIcon className={styles.settingsIcon} />
-                                    </span>
-                                    <span className={styles.inlineButtonLabel}>{newSessionLabel}</span>
-                                </button>
-
-                                <div className={styles.sessionsSection}>
-                                    <div className={styles.search}>
-                                        <div className={styles.searchField}>
-                                            <input
-                                                ref={searchInputRef}
-                                                className={styles.searchInput}
-                                                type='search'
-                                                value={searchQuery}
-                                                placeholder={intl.formatMessage(messages.searchPlaceholder)}
-                                                aria-label={intl.formatMessage(messages.searchAriaLabel)}
-                                                disabled={sessionsLoading || effectivelyCollapsed}
-                                                tabIndex={effectivelyCollapsed ? -1 : undefined}
-                                                onChange={(event) => {
-                                                    setSearchQuery(event.target.value);
-                                                    setSelectedIndex(null);
-                                                }}
-                                                onKeyDown={(event) => {
-                                                    if (event.key !== 'Escape') return;
-                                                    event.preventDefault();
-                                                    if (searchQuery) {
-                                                        setSearchQuery('');
-                                                        setSelectedIndex(null);
-                                                        return;
-                                                    }
-                                                    event.currentTarget.blur();
-                                                }}
-                                            />
-                                            {searchQuery ? (
-                                                <button
-                                                    type='button'
-                                                    className={styles.searchClear}
-                                                    aria-label={intl.formatMessage(messages.clearSearch)}
-                                                    tabIndex={effectivelyCollapsed ? -1 : undefined}
-                                                    onClick={() => {
-                                                        setSearchQuery('');
-                                                        setSelectedIndex(null);
-                                                        searchInputRef.current?.focus();
-                                                    }}
-                                                >
-                                                    <ClearSearchIcon />
-                                                </button>
-                                            ) : null}
-                                        </div>
-                                    </div>
-
-                                    <p className={styles.sectionLabel}>
-                                        {intl.formatMessage(messages.sessionsHeading)}
-                                    </p>
-
-                                    <div className={bodyClass}>
-                                        {sessionsLoading ? (
-                                            <p className={styles.placeholder}>
-                                                {intl.formatMessage(messages.loadingSessions)}
-                                            </p>
-                                        ) : null}
-                                        {showNoMatches ? (
-                                            <p className={styles.placeholder}>
-                                                {intl.formatMessage(messages.noMatchingSessions)}
-                                            </p>
-                                        ) : null}
-                                        {!sessionsLoading
-                                            ? filteredSessions.map((session, index) => {
-                                                  const isActive = session.id === activeSessionId;
-                                                  const isSelected = index === selectedIndex;
-                                                  return (
-                                                      <div key={session.id} ref={isSelected ? selectedRowRef : null}>
-                                                          <SwipeToDelete
-                                                              disabled={
-                                                                  deletingId === session.id || effectivelyCollapsed
-                                                              }
-                                                              onDelete={() => {
-                                                                  setPendingDelete(session);
-                                                              }}
-                                                          >
-                                                              <div className={styles.sessionRow}>
-                                                                  <button
-                                                                      type='button'
-                                                                      className={sessionButtonClass(
-                                                                          isActive,
-                                                                          isSelected,
-                                                                      )}
-                                                                      tabIndex={effectivelyCollapsed ? -1 : undefined}
-                                                                      onClick={() =>
-                                                                          navigate(`/sessions/${session.id}`)
-                                                                      }
-                                                                  >
-                                                                      <span className={styles.sessionTitle}>
-                                                                          {session.name}
-                                                                      </span>
-                                                                      {session.type === 'coding' ? (
-                                                                          <p className={styles.sessionMeta}>
-                                                                              <span className={styles.sessionMetaRepo}>
-                                                                                  {projectNames.get(
-                                                                                      session.repositoryId ?? '',
-                                                                                  ) ?? session.repositoryId}
-                                                                              </span>
-                                                                              {' > '}
-                                                                              {intl.formatMessage(
-                                                                                  messages.branchLabel,
-                                                                                  {
-                                                                                      branch: session.branch ?? '',
-                                                                                  },
-                                                                              )}
-                                                                          </p>
-                                                                      ) : (
-                                                                          <p className={styles.sessionMetaMuted}>
-                                                                              {intl.formatMessage(
-                                                                                  messages.conversationSession,
-                                                                              )}
-                                                                          </p>
-                                                                      )}
-                                                                      {session.cpuPercent != null ||
-                                                                      session.ramPercent != null ? (
-                                                                          <p className={styles.usageRow}>
-                                                                              {session.cpuPercent != null ? (
-                                                                                  <span
-                                                                                      className={usageClassName(
-                                                                                          session.cpuPercent,
-                                                                                      )}
-                                                                                  >
-                                                                                      {intl.formatMessage(
-                                                                                          messages.cpuLabel,
-                                                                                          {
-                                                                                              percent:
-                                                                                                  session.cpuPercent,
-                                                                                          },
-                                                                                      )}
-                                                                                  </span>
-                                                                              ) : null}
-                                                                              {session.ramPercent != null ? (
-                                                                                  <span
-                                                                                      className={usageClassName(
-                                                                                          session.ramPercent,
-                                                                                      )}
-                                                                                  >
-                                                                                      {intl.formatMessage(
-                                                                                          messages.ramLabel,
-                                                                                          {
-                                                                                              percent:
-                                                                                                  session.ramPercent,
-                                                                                          },
-                                                                                      )}
-                                                                                  </span>
-                                                                              ) : null}
-                                                                          </p>
-                                                                      ) : null}
-                                                                  </button>
-                                                                  <div className={styles.trailing}>
-                                                                      {session.status === 'error' ? (
-                                                                          <button
-                                                                              type='button'
-                                                                              className={styles.restartButton}
-                                                                              aria-label={intl.formatMessage(
-                                                                                  messages.restartSession,
-                                                                              )}
-                                                                              title={intl.formatMessage(
-                                                                                  messages.restartSession,
-                                                                              )}
-                                                                              disabled={restartingId === session.id}
-                                                                              tabIndex={
-                                                                                  effectivelyCollapsed ? -1 : undefined
-                                                                              }
-                                                                              onClick={(event) => {
-                                                                                  event.preventDefault();
-                                                                                  event.stopPropagation();
-                                                                                  void handleRestart(session);
-                                                                              }}
-                                                                          >
-                                                                              <RestartIcon />
-                                                                          </button>
-                                                                      ) : null}
-                                                                      <span
-                                                                          className={`${styles.indicator} ${indicatorClass(session.status)}`}
-                                                                          aria-hidden='true'
-                                                                      />
-                                                                  </div>
-                                                              </div>
-                                                          </SwipeToDelete>
-                                                      </div>
-                                                  );
-                                              })
-                                            : null}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className={styles.settings}>
-                                <button
-                                    type='button'
-                                    className={styles.settingsButton}
-                                    tabIndex={effectivelyCollapsed ? -1 : undefined}
-                                    onClick={openSettings}
-                                >
-                                    <span className={styles.inlineButtonIcon}>
-                                        <SettingsIcon />
-                                    </span>
-                                    <span className={styles.inlineButtonLabel}>{settingsLabel}</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div
-                            className={effectivelyCollapsed ? styles.collapsedRail : styles.collapsedRailHidden}
-                            aria-hidden={!effectivelyCollapsed || undefined}
-                        >
+        <div className={styles.wrap}>
+            <Panel className={styles.panel} aria-label={intl.formatMessage(messages.sessionsHeading)}>
+                <div className={styles.header}>
+                    <div className={effectivelyCollapsed ? styles.logoOffset : styles.logoOffsetInset}>
+                        {effectivelyCollapsed ? (
                             <button
                                 type='button'
-                                className={styles.railIcon}
-                                title={newSessionLabel}
-                                aria-label={newSessionLabel}
-                                tabIndex={effectivelyCollapsed ? undefined : -1}
-                                onClick={openNewSession}
-                            >
-                                <PlusIcon />
-                            </button>
-                            <button
-                                type='button'
-                                className={styles.railIcon}
-                                title={showSessionsLabel}
-                                aria-label={showSessionsLabel}
-                                tabIndex={effectivelyCollapsed ? undefined : -1}
+                                className={styles.logoButton}
+                                title={expandLabel}
+                                aria-label={expandLabel}
                                 onClick={expandSidebar}
                             >
-                                <ListIcon />
+                                <img className={styles.logoImage} src={logoLight} alt='' />
                             </button>
-                            <div className={styles.railSpacer} />
-                            <div className={styles.settingsRail}>
-                                <button
-                                    type='button'
-                                    className={styles.railIcon}
-                                    title={settingsLabel}
-                                    aria-label={settingsLabel}
-                                    tabIndex={effectivelyCollapsed ? undefined : -1}
-                                    onClick={openSettings}
-                                >
-                                    <SettingsIcon />
-                                </button>
+                        ) : (
+                            <div className={styles.iconSlot} aria-label={intl.formatMessage(messages.logo)} role='img'>
+                                <img className={styles.logoImage} src={logoLight} alt='' />
                             </div>
+                        )}
+                    </div>
+                    {isDesktop ? (
+                        <div className={effectivelyCollapsed ? styles.headerActionsHidden : styles.headerActions}>
+                            <IconButton
+                                className={styles.collapseButton}
+                                label={intl.formatMessage(messages.collapseSidebar)}
+                                onClick={collapseSidebar}
+                            >
+                                <CollapseIcon />
+                            </IconButton>
+                        </div>
+                    ) : null}
+                </div>
+
+                <div className={styles.contentStack}>
+                    <div
+                        className={effectivelyCollapsed ? styles.expandedHidden : styles.expanded}
+                        style={isDesktop && expandedWidth != null ? { minWidth: expandedWidth - 2 } : undefined}
+                        aria-hidden={effectivelyCollapsed || undefined}
+                    >
+                        <div className={styles.mainStack}>
+                            <button type='button' className={styles.inlineButton} onClick={openNewSession}>
+                                <span className={styles.inlineButtonIcon}>
+                                    <PlusIcon className={styles.settingsIcon} />
+                                </span>
+                                <span className={styles.inlineButtonLabel}>{newSessionLabel}</span>
+                            </button>
+
+                            <div className={styles.sessionsSection}>
+                                <div className={styles.search}>
+                                    <div className={styles.searchField}>
+                                        <input
+                                            ref={searchInputRef}
+                                            className={styles.searchInput}
+                                            type='search'
+                                            value={searchQuery}
+                                            placeholder={intl.formatMessage(messages.searchPlaceholder)}
+                                            aria-label={intl.formatMessage(messages.searchAriaLabel)}
+                                            disabled={sessionsLoading || effectivelyCollapsed}
+                                            tabIndex={effectivelyCollapsed ? -1 : undefined}
+                                            onChange={(event) => {
+                                                setSearchQuery(event.target.value);
+                                                setSelectedIndex(null);
+                                            }}
+                                            onKeyDown={(event) => {
+                                                if (event.key !== 'Escape') return;
+                                                event.preventDefault();
+                                                if (searchQuery) {
+                                                    setSearchQuery('');
+                                                    setSelectedIndex(null);
+                                                    return;
+                                                }
+                                                event.currentTarget.blur();
+                                            }}
+                                        />
+                                        {searchQuery ? (
+                                            <button
+                                                type='button'
+                                                className={styles.searchClear}
+                                                aria-label={intl.formatMessage(messages.clearSearch)}
+                                                tabIndex={effectivelyCollapsed ? -1 : undefined}
+                                                onClick={() => {
+                                                    setSearchQuery('');
+                                                    setSelectedIndex(null);
+                                                    searchInputRef.current?.focus();
+                                                }}
+                                            >
+                                                <ClearSearchIcon />
+                                            </button>
+                                        ) : null}
+                                    </div>
+                                </div>
+
+                                <p className={styles.sectionLabel}>{intl.formatMessage(messages.sessionsHeading)}</p>
+
+                                <div className={bodyClass}>
+                                    {sessionsLoading ? (
+                                        <p className={styles.placeholder}>
+                                            {intl.formatMessage(messages.loadingSessions)}
+                                        </p>
+                                    ) : null}
+                                    {showNoMatches ? (
+                                        <p className={styles.placeholder}>
+                                            {intl.formatMessage(messages.noMatchingSessions)}
+                                        </p>
+                                    ) : null}
+                                    {!sessionsLoading
+                                        ? filteredSessions.map((session, index) => {
+                                              const isActive = session.id === activeSessionId;
+                                              const isSelected = index === selectedIndex;
+                                              return (
+                                                  <div key={session.id} ref={isSelected ? selectedRowRef : null}>
+                                                      <SwipeToDelete
+                                                          disabled={deletingId === session.id || effectivelyCollapsed}
+                                                          onDelete={() => {
+                                                              setPendingDelete(session);
+                                                          }}
+                                                      >
+                                                          <div className={styles.sessionRow}>
+                                                              <button
+                                                                  type='button'
+                                                                  className={sessionButtonClass(isActive, isSelected)}
+                                                                  tabIndex={effectivelyCollapsed ? -1 : undefined}
+                                                                  onClick={() => navigate(`/sessions/${session.id}`)}
+                                                              >
+                                                                  <span className={styles.sessionTitle}>
+                                                                      {session.name}
+                                                                  </span>
+                                                                  {session.type === 'coding' ? (
+                                                                      <p className={styles.sessionMeta}>
+                                                                          <span className={styles.sessionMetaRepo}>
+                                                                              {projectNames.get(
+                                                                                  session.repositoryId ?? '',
+                                                                              ) ?? session.repositoryId}
+                                                                          </span>
+                                                                          {' > '}
+                                                                          {intl.formatMessage(messages.branchLabel, {
+                                                                              branch: session.branch ?? '',
+                                                                          })}
+                                                                      </p>
+                                                                  ) : (
+                                                                      <p className={styles.sessionMetaMuted}>
+                                                                          {intl.formatMessage(
+                                                                              messages.conversationSession,
+                                                                          )}
+                                                                      </p>
+                                                                  )}
+                                                                  {session.cpuPercent != null ||
+                                                                  session.ramPercent != null ? (
+                                                                      <p className={styles.usageRow}>
+                                                                          {session.cpuPercent != null ? (
+                                                                              <span
+                                                                                  className={usageClassName(
+                                                                                      session.cpuPercent,
+                                                                                  )}
+                                                                              >
+                                                                                  {intl.formatMessage(
+                                                                                      messages.cpuLabel,
+                                                                                      {
+                                                                                          percent: session.cpuPercent,
+                                                                                      },
+                                                                                  )}
+                                                                              </span>
+                                                                          ) : null}
+                                                                          {session.ramPercent != null ? (
+                                                                              <span
+                                                                                  className={usageClassName(
+                                                                                      session.ramPercent,
+                                                                                  )}
+                                                                              >
+                                                                                  {intl.formatMessage(
+                                                                                      messages.ramLabel,
+                                                                                      {
+                                                                                          percent: session.ramPercent,
+                                                                                      },
+                                                                                  )}
+                                                                              </span>
+                                                                          ) : null}
+                                                                      </p>
+                                                                  ) : null}
+                                                              </button>
+                                                              <div className={styles.trailing}>
+                                                                  {session.status === 'error' ? (
+                                                                      <button
+                                                                          type='button'
+                                                                          className={styles.restartButton}
+                                                                          aria-label={intl.formatMessage(
+                                                                              messages.restartSession,
+                                                                          )}
+                                                                          title={intl.formatMessage(
+                                                                              messages.restartSession,
+                                                                          )}
+                                                                          disabled={restartingId === session.id}
+                                                                          tabIndex={
+                                                                              effectivelyCollapsed ? -1 : undefined
+                                                                          }
+                                                                          onClick={(event) => {
+                                                                              event.preventDefault();
+                                                                              event.stopPropagation();
+                                                                              void handleRestart(session);
+                                                                          }}
+                                                                      >
+                                                                          <RestartIcon />
+                                                                      </button>
+                                                                  ) : null}
+                                                                  <span
+                                                                      className={`${styles.indicator} ${indicatorClass(session.status)}`}
+                                                                      aria-hidden='true'
+                                                                  />
+                                                              </div>
+                                                          </div>
+                                                      </SwipeToDelete>
+                                                  </div>
+                                              );
+                                          })
+                                        : null}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className={styles.settings}>
+                            <button
+                                type='button'
+                                className={styles.settingsButton}
+                                tabIndex={effectivelyCollapsed ? -1 : undefined}
+                                onClick={openSettings}
+                            >
+                                <span className={styles.inlineButtonIcon}>
+                                    <SettingsIcon />
+                                </span>
+                                <span className={styles.inlineButtonLabel}>{settingsLabel}</span>
+                            </button>
                         </div>
                     </div>
 
-                    {pendingDelete ? (
-                        <ConfirmDialog
-                            message={intl.formatMessage(messages.deleteConfirm, { name: pendingDelete.name })}
-                            cancelLabel={intl.formatMessage(messages.deleteConfirmCancel)}
-                            confirmLabel={intl.formatMessage(messages.deleteConfirmContinue)}
-                            busy={deletingId === pendingDelete.id}
-                            onCancel={() => setPendingDelete(null)}
-                            onConfirm={() => {
-                                void confirmDelete();
-                            }}
-                        />
-                    ) : null}
-                </Panel>
-                {isDesktop && !effectivelyCollapsed ? (
-                    <PanelResizeHandle
-                        edge='trailing'
-                        className={styles.resize}
-                        ariaLabel={intl.formatMessage(panelResizeHandleMessages.resizeSessionsPanel)}
-                        onResize={(delta) => setPanelWidth((width) => clampSessionsPanelWidthPx(width + delta))}
-                        onResizeEnd={persistPanelWidth}
+                    <div
+                        className={effectivelyCollapsed ? styles.collapsedRail : styles.collapsedRailHidden}
+                        aria-hidden={!effectivelyCollapsed || undefined}
+                    >
+                        <button
+                            type='button'
+                            className={styles.railIcon}
+                            title={newSessionLabel}
+                            aria-label={newSessionLabel}
+                            tabIndex={effectivelyCollapsed ? undefined : -1}
+                            onClick={openNewSession}
+                        >
+                            <PlusIcon />
+                        </button>
+                        <button
+                            type='button'
+                            className={styles.railIcon}
+                            title={showSessionsLabel}
+                            aria-label={showSessionsLabel}
+                            tabIndex={effectivelyCollapsed ? undefined : -1}
+                            onClick={expandSidebar}
+                        >
+                            <ListIcon />
+                        </button>
+                        <div className={styles.railSpacer} />
+                        <div className={styles.settingsRail}>
+                            <button
+                                type='button'
+                                className={styles.railIcon}
+                                title={settingsLabel}
+                                aria-label={settingsLabel}
+                                tabIndex={effectivelyCollapsed ? undefined : -1}
+                                onClick={openSettings}
+                            >
+                                <SettingsIcon />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {pendingDelete ? (
+                    <ConfirmDialog
+                        message={intl.formatMessage(messages.deleteConfirm, { name: pendingDelete.name })}
+                        cancelLabel={intl.formatMessage(messages.deleteConfirmCancel)}
+                        confirmLabel={intl.formatMessage(messages.deleteConfirmContinue)}
+                        busy={deletingId === pendingDelete.id}
+                        onCancel={() => setPendingDelete(null)}
+                        onConfirm={() => {
+                            void confirmDelete();
+                        }}
                     />
                 ) : null}
-            </div>
-        </>
+            </Panel>
+        </div>
     );
 }

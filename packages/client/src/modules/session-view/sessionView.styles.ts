@@ -1,6 +1,6 @@
 export const styles = {
     root: 'flex min-h-0 flex-1 flex-col bg-zinc-950 text-zinc-100',
-    headerPanel: 'shrink-0 pt-[max(0.25rem,env(safe-area-inset-top))] md:mx-2 md:mt-2 md:pt-0 [&>div]:flex-none',
+    headerPanel: 'shrink-0 pt-[max(0.25rem,env(safe-area-inset-top))] md:mt-2 md:mr-2 md:pt-0 [&>div]:flex-none',
     header: 'flex items-center gap-2 px-3 py-1.5',
     headerStart: 'flex min-w-0 flex-1 items-center gap-0.5',
     headerTitle: 'min-w-0 flex-1 truncate text-sm font-bold text-zinc-100',
@@ -14,7 +14,7 @@ export const styles = {
     statusDotBusy: 'bg-amber-400',
     statusDotError: 'bg-red-500',
     // Mobile: under tabs. Desktop: pinned below the main panes (flex order-last).
-    metaPanel: 'shrink-0 md:order-last md:mx-2 md:mb-2 [&>div]:flex-none',
+    metaPanel: 'shrink-0 md:order-last md:mr-2 md:mb-2 [&>div]:flex-none',
     meta: 'flex items-center gap-3 px-2 py-1.5 text-xs text-zinc-400 md:px-3',
     metaText: 'min-w-0 flex-1 truncate',
     metaRepo: 'font-bold text-zinc-200',
@@ -29,7 +29,7 @@ export const styles = {
         'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors md:hover:bg-zinc-800/80 md:hover:text-zinc-100',
     paneToggleIcon: 'h-3.5 w-3.5',
     tabs: 'shrink-0 border-t border-b border-zinc-800 px-4 py-2 md:hidden',
-    main: 'relative flex min-h-0 flex-1 flex-col md:gap-0 md:p-2',
+    main: 'relative flex min-h-0 flex-1 flex-col md:gap-0 md:py-2 md:pr-2',
     content: 'relative min-h-0 flex-1 md:grid md:grid-cols-[minmax(0,1fr)]',
     pane: 'absolute inset-0 z-10 flex flex-col md:relative md:inset-auto md:z-auto md:min-h-0 md:min-w-0',
     paneReview: 'absolute inset-0 z-10 flex min-h-0 min-w-0 flex-col md:relative md:inset-auto md:z-auto',

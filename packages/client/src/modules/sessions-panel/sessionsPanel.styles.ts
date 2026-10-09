@@ -1,19 +1,19 @@
 export const styles = {
-    wrap: 'relative box-border flex h-full min-h-0 w-full flex-col overflow-hidden transition-[width] duration-200 ease-in-out md:my-2 md:ml-2 md:h-[calc(100%-1rem)] md:w-auto md:max-w-full md:shrink-0',
+    wrap: 'relative box-border flex h-full min-h-0 w-full flex-col overflow-hidden md:my-2 md:h-[calc(100%-1rem)]',
     panel: 'box-border h-full min-h-0 min-w-0 flex-1 overflow-hidden',
-    resize: 'z-30',
     header: 'relative flex h-11 shrink-0 items-center',
-    logoOffset: 'shrink-0 transition-[margin] duration-200 ease-in-out',
+    logoOffset: 'flex w-full items-center justify-center transition-[margin] duration-200 ease-in-out',
     logoOffsetInset: 'ml-2 shrink-0 transition-[margin] duration-200 ease-in-out',
     iconSlot: 'inline-flex h-11 w-12 shrink-0 items-center justify-center',
     logoImage: 'h-7 w-7',
     logoButton:
-        'inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-md outline-none transition-colors focus-visible:ring-1 focus-visible:ring-aura-green active:bg-zinc-800 md:hover:bg-zinc-800',
-    headerActions: 'absolute top-0 right-0 flex h-11 items-center pr-1 transition-opacity duration-200 ease-in-out',
+        'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md outline-none transition-colors focus-visible:ring-1 focus-visible:ring-aura-green active:bg-zinc-800 md:hover:bg-zinc-800',
+    headerActions: 'absolute top-1.5 right-1.5 flex items-center transition-opacity duration-200 ease-in-out',
     headerActionsHidden:
-        'pointer-events-none absolute top-0 right-0 flex h-11 items-center pr-1 opacity-0 transition-opacity duration-200 ease-in-out',
+        'pointer-events-none absolute top-1.5 right-1.5 flex items-center opacity-0 transition-opacity duration-200 ease-in-out',
+    collapseButton: '!h-8 !w-8',
     railIcon:
-        'inline-flex h-11 w-12 shrink-0 items-center justify-center rounded-md text-zinc-400 outline-none transition-colors focus-visible:ring-1 focus-visible:ring-aura-green active:bg-zinc-800 active:text-zinc-100 md:hover:bg-zinc-800 md:hover:text-zinc-100',
+        'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-zinc-400 outline-none transition-colors focus-visible:ring-1 focus-visible:ring-aura-green active:bg-zinc-800 active:text-zinc-100 md:hover:bg-zinc-800 md:hover:text-zinc-100',
     plusIcon: 'h-5 w-5',
     collapseIcon: 'h-5 w-5',
     listIcon: 'h-5 w-5',
@@ -23,9 +23,9 @@ export const styles = {
     expandedHidden:
         'pointer-events-none col-start-1 row-start-1 flex min-h-0 flex-col overflow-hidden opacity-0 transition-opacity duration-200 ease-in-out',
     collapsedRail:
-        'col-start-1 row-start-1 flex min-h-0 flex-col overflow-hidden transition-opacity duration-200 ease-in-out',
+        'col-start-1 row-start-1 flex min-h-0 flex-col items-center gap-0.5 overflow-hidden px-1 transition-opacity duration-200 ease-in-out',
     collapsedRailHidden:
-        'pointer-events-none col-start-1 row-start-1 flex min-h-0 flex-col overflow-hidden opacity-0 transition-opacity duration-200 ease-in-out',
+        'pointer-events-none col-start-1 row-start-1 flex min-h-0 flex-col items-center gap-0.5 overflow-hidden px-1 opacity-0 transition-opacity duration-200 ease-in-out',
     mainStack: 'flex min-h-0 flex-1 flex-col gap-3 overflow-hidden',
     sessionsSection: 'flex min-h-0 flex-1 flex-col overflow-hidden',
     search: 'shrink-0 px-2 pb-3',
@@ -69,7 +69,7 @@ export const styles = {
     settings: 'shrink-0 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]',
     settingsButton:
         'flex w-full shrink-0 items-center rounded-md text-sm text-zinc-400 outline-none transition-colors active:bg-zinc-800 active:text-zinc-100 focus-visible:ring-1 focus-visible:ring-aura-green md:hover:bg-zinc-800 md:hover:text-zinc-100',
-    settingsRail: 'shrink-0 pb-[max(0.5rem,env(safe-area-inset-bottom))]',
+    settingsRail: 'flex w-full shrink-0 flex-col items-center pb-[max(0.5rem,env(safe-area-inset-bottom))]',
     settingsIcon: 'h-5 w-5 shrink-0',
     railSpacer: 'min-h-0 flex-1',
 };
