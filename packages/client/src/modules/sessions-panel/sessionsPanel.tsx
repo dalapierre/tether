@@ -140,8 +140,8 @@ function RestartIcon() {
 }
 
 function usageClassName(percent: number): string {
-    if (percent >= 80) return styles.usageDanger;
-    if (percent >= 50) return styles.usageWarning;
+    if (percent > 60) return styles.usageDanger;
+    if (percent >= 30) return styles.usageWarning;
     return styles.usage;
 }
 

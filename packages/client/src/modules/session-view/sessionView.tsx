@@ -211,8 +211,8 @@ function ReviewIcon({ className }: { className?: string }) {
 }
 
 function usageClassName(percent: number): string {
-    if (percent >= 80) return styles.metaUsageDanger;
-    if (percent >= 50) return styles.metaUsageWarning;
+    if (percent > 60) return styles.metaUsageDanger;
+    if (percent >= 30) return styles.metaUsageWarning;
     return styles.metaUsage;
 }
 
@@ -1404,7 +1404,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                             })
                         )}
                     </p>
-                    {displaySession.cpuPercent != null || displaySession.ramPercent != null ? (
+                    {!isDesktop && (displaySession.cpuPercent != null || displaySession.ramPercent != null) ? (
                         <p className={styles.metaUsageGroup}>
                             {displaySession.cpuPercent != null ? (
                                 <span className={usageClassName(displaySession.cpuPercent)}>

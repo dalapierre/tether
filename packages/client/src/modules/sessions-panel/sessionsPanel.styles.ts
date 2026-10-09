@@ -51,7 +51,7 @@ export const styles = {
     sessionMetaRepo: 'font-bold text-zinc-300',
     sessionMetaMuted: 'mt-0.5 min-w-0 truncate text-xs text-zinc-500',
     usageRow: 'mt-1 flex items-center gap-1.5',
-    usage: 'text-[10px] font-bold text-aura-green',
+    usage: 'text-[10px] font-bold text-white',
     usageWarning: 'text-[10px] font-bold text-amber-400',
     usageDanger: 'text-[10px] font-bold text-red-400',
     trailing: 'absolute top-2 right-1.5 flex items-center gap-1',
