@@ -918,6 +918,13 @@ export function SessionCodeView({
 
     const tree = useMemo(() => buildFileTree(files), [files]);
     const dirPaths = useMemo(() => collectDirPaths(tree), [tree]);
+    const reviewedCount = useMemo(() => {
+        let count = 0;
+        for (const file of files) {
+            if (reviewedFingerprints.has(file.path)) count += 1;
+        }
+        return count;
+    }, [files, reviewedFingerprints]);
     fileTreeWidthRef.current = fileTreeWidth;
     const selectedPathRef = useRef(selectedPath);
     selectedPathRef.current = selectedPath;
@@ -1846,19 +1853,27 @@ export function SessionCodeView({
                     ) : files.length === 0 ? (
                         <p className={styles.centered}>{intl.formatMessage(messages.empty)}</p>
                     ) : (
-                        <div ref={fileListRef} className={styles.fileList}>
-                            <FileTree
-                                nodes={tree}
-                                depth={0}
-                                selectedPath={selectedPath}
-                                reviewedPaths={reviewedFingerprints}
-                                collapsedPaths={collapsedPaths}
-                                selectedRowRef={selectedFileRowRef}
-                                onToggle={toggleFolder}
-                                onSelect={selectPath}
-                                onDiscard={requestDiscard}
-                            />
-                        </div>
+                        <>
+                            <div ref={fileListRef} className={styles.fileList}>
+                                <FileTree
+                                    nodes={tree}
+                                    depth={0}
+                                    selectedPath={selectedPath}
+                                    reviewedPaths={reviewedFingerprints}
+                                    collapsedPaths={collapsedPaths}
+                                    selectedRowRef={selectedFileRowRef}
+                                    onToggle={toggleFolder}
+                                    onSelect={selectPath}
+                                    onDiscard={requestDiscard}
+                                />
+                            </div>
+                            <div className={styles.fileTreeFooter} aria-live='polite'>
+                                {intl.formatMessage(messages.filesReviewedProgress, {
+                                    reviewed: reviewedCount,
+                                    total: files.length,
+                                })}
+                            </div>
+                        </>
                     )}
                 </div>
                 {isDesktop ? (

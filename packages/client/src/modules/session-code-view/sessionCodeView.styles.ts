@@ -16,6 +16,8 @@ export const styles = {
     fullscreenIcon: 'h-4 w-4',
     centered: 'flex flex-1 items-center justify-center px-4 text-sm text-zinc-500',
     fileList: 'code-review-scroll min-h-0 flex-1 overflow-y-auto',
+    fileTreeFooter:
+        'flex h-7 shrink-0 items-center border-t border-zinc-800 bg-zinc-900 px-2 text-xs text-zinc-400 md:px-3',
     treeRow:
         'group flex w-full items-center gap-2 border-b border-zinc-900/80 py-2 pr-3 text-left md:hover:bg-zinc-900/80',
     treeRowSelected: 'bg-zinc-700/70',
