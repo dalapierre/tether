@@ -792,14 +792,19 @@ function FileRow({
                 >
                     <DiscardIcon />
                 </button>
-                {!file.binary && file.additions !== null && file.deletions !== null ? (
+                {!file.binary &&
+                file.additions !== null &&
+                file.deletions !== null &&
+                (file.additions > 0 || file.deletions > 0) ? (
                     <span className={styles.fileStats}>
-                        <span className={styles.additions}>
-                            {intl.formatMessage(messages.additions, { count: file.additions })}
-                        </span>
+                        {file.additions > 0 ? (
+                            <span className={styles.additions}>
+                                {intl.formatMessage(messages.additions, { count: file.additions })}
+                            </span>
+                        ) : null}
                         {file.deletions > 0 ? (
                             <>
-                                {' '}
+                                {file.additions > 0 ? ' ' : null}
                                 <span className={styles.deletions}>
                                     {intl.formatMessage(messages.deletions, { count: file.deletions })}
                                 </span>
