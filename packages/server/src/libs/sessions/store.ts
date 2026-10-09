@@ -248,7 +248,7 @@ async function runDiffRefresh(sessionId: string): Promise<void> {
 
                     const previousBase = live.baseSha;
                     // Already refreshing — publish empty on tip advance without scheduling ourselves.
-                    const baseSha = await syncReviewBase(live, { publishEmpty: false });
+                    const baseSha = await syncReviewBase(live);
                     abortIfNeeded(controller.signal);
                     if (baseSha !== previousBase) {
                         publishEmptyDiffCache(sessionId, baseSha, { schedule: false });
@@ -648,14 +648,17 @@ async function startWatchingHead(session: RuntimeSession): Promise<void> {
                         current.lastTipSha = nextTip;
                         const branchChanged = await syncSessionBranch(live);
                         // Branch switches already schedule a refresh inside syncSessionBranch.
-                        // Tip advances (commits/resets) and index-only ops (stash, mixed
-                        // reset, etc.) both need a review-tree refresh — stash does not
-                        // move HEAD, so tip-only gating left the hierarchy stale.
-                        if (!branchChanged) {
-                            scheduleDiffRefresh(live.id, {
-                                immediate: nextTip !== prevTip,
-                            });
+                        if (branchChanged) {
+                            return;
                         }
+                        // Tip advanced (commit/reset): drop the pre-tip file list immediately
+                        // so the hierarchy does not keep showing committed paths.
+                        if (nextTip !== prevTip) {
+                            publishEmptyDiffCache(live.id, nextTip);
+                            return;
+                        }
+                        // Index-only changes (stash, mixed reset, etc.) — tip unchanged.
+                        scheduleDiffRefresh(live.id);
                     } catch (err: unknown) {
                         logger.error(`Failed to sync review base for session ${session.id}`, err);
                     }
@@ -1311,11 +1314,13 @@ export async function getSessionDiff(id: string): Promise<SessionDiffResult | nu
     }
 
     // Missing or base-mismatched cache: kick a refresh and return without waiting.
+    // Never serve a pre-tip file list after HEAD moved — that kept committed/stashed
+    // paths visible in the hierarchy until the client signature bug compounded it.
     scheduleDiffRefresh(id, { immediate: true });
-    if (entry.cache) {
-        return { diff: entry.cache, pending: true };
+    if (entry.cache && entry.cache.baseSha !== baseSha) {
+        entry.cache = { baseSha, files: [] };
     }
-    return { diff: { baseSha, files: [] }, pending: true };
+    return { diff: entry.cache ?? { baseSha, files: [] }, pending: true };
 }
 
 export async function getSessionDiffFile(id: string, filePath: string): Promise<SessionFileDiff | null> {

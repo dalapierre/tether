@@ -921,7 +921,8 @@ export function SessionCodeView({
     fileTreeWidthRef.current = fileTreeWidth;
     const selectedPathRef = useRef(selectedPath);
     selectedPathRef.current = selectedPath;
-    const filesSignatureRef = useRef(fileListSignature(files));
+    /** null = force next apply (distinct from empty-list signature ''). */
+    const filesSignatureRef = useRef<string | null>(fileListSignature(files));
     /** Bumped to drop in-flight summary responses that must not overwrite newer state (e.g. after discard). */
     const diffFilesRequestIdRef = useRef(0);
     const fileContentFingerprintRef = useRef<string | null>(null);
@@ -1015,7 +1016,9 @@ export function SessionCodeView({
     const applyDiffFiles = useCallback(
         (nextFiles: SessionDiffFile[]) => {
             const nextSignature = fileListSignature(nextFiles);
-            if (nextSignature === filesSignatureRef.current) {
+            // null means "must apply" (effect invalidated the signature). Empty list
+            // also signs as '', so never reset the ref to '' or empty applies no-op.
+            if (filesSignatureRef.current !== null && nextSignature === filesSignatureRef.current) {
                 return false;
             }
             filesSignatureRef.current = nextSignature;
@@ -1046,8 +1049,11 @@ export function SessionCodeView({
 
     useEffect(() => {
         let cancelled = false;
-        const hadFiles = filesSignatureRef.current !== '';
-        filesSignatureRef.current = '';
+        const previousSignature = filesSignatureRef.current;
+        const hadFiles = previousSignature !== null && previousSignature !== '';
+        // Force the next successful apply; do not use '' here — that collides with
+        // fileListSignature([]) and leaves a stale hierarchy after commits/stashes.
+        filesSignatureRef.current = null;
         // Invalidate any in-flight summary from a previous session/effect.
         const requestId = ++diffFilesRequestIdRef.current;
         if (!hadFiles) {
@@ -1063,6 +1069,8 @@ export function SessionCodeView({
                 }
                 // Keep prior files while a cold refresh is still pending with an empty placeholder.
                 if (state.pending && (!state.summary || state.summary.files.length === 0) && hadFiles) {
+                    // Restore signature so a later empty apply is not confused with "never had files".
+                    filesSignatureRef.current = previousSignature;
                     return;
                 }
                 if (state.summary) {
@@ -1761,7 +1769,8 @@ export function SessionCodeView({
             bumpDiffGeneration(sessionId);
             const state = await ensureSessionDiff(sessionId, getDiffGeneration(sessionId));
             // Force apply even if the signature somehow matches the previous list.
-            filesSignatureRef.current = '';
+            // Use null (not '') — '' is the empty-tree signature and would no-op.
+            filesSignatureRef.current = null;
             applyDiffFiles(state.summary?.files ?? []);
             setPendingDiscardPath(null);
         } catch (err: unknown) {

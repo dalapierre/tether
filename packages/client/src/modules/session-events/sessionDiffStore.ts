@@ -95,7 +95,9 @@ export function ensureSessionDiff(sessionId: string, generation: number): Promis
                     error: entry.error,
                 };
             }
-            // Don't clobber a known file list with a cold empty/pending placeholder.
+            // Don't clobber a known file list with a cold empty/pending placeholder,
+            // but do accept an empty list once the server says the refresh finished
+            // (pending=false) so commits/stashes can clear the hierarchy.
             if (result.pending && result.diff.files.length === 0 && entry.summary && entry.summary.files.length > 0) {
                 entry.pending = true;
             } else {
