@@ -455,171 +455,203 @@ export function SessionsPanel({ listInteractive = true }: SessionsPanelProps) {
                             style={isDesktop ? { minWidth: panelWidth - 2 } : undefined}
                             aria-hidden={effectivelyCollapsed || undefined}
                         >
-                            <button type='button' className={styles.inlineButton} onClick={() => setCreating(true)}>
-                                <span className={styles.inlineButtonIcon}>
-                                    <PlusIcon className={styles.settingsIcon} />
-                                </span>
-                                <span className={styles.inlineButtonLabel}>{newSessionLabel}</span>
-                            </button>
+                            <div className={styles.mainStack}>
+                                <button type='button' className={styles.inlineButton} onClick={() => setCreating(true)}>
+                                    <span className={styles.inlineButtonIcon}>
+                                        <PlusIcon className={styles.settingsIcon} />
+                                    </span>
+                                    <span className={styles.inlineButtonLabel}>{newSessionLabel}</span>
+                                </button>
 
-                            <div className={styles.search}>
-                                <div className={styles.searchField}>
-                                    <input
-                                        ref={searchInputRef}
-                                        className={styles.searchInput}
-                                        type='search'
-                                        value={searchQuery}
-                                        placeholder={intl.formatMessage(messages.searchPlaceholder)}
-                                        aria-label={intl.formatMessage(messages.searchAriaLabel)}
-                                        disabled={sessionsLoading || effectivelyCollapsed}
-                                        tabIndex={effectivelyCollapsed ? -1 : undefined}
-                                        onChange={(event) => {
-                                            setSearchQuery(event.target.value);
-                                            setSelectedIndex(null);
-                                        }}
-                                        onKeyDown={(event) => {
-                                            if (event.key !== 'Escape') return;
-                                            event.preventDefault();
-                                            if (searchQuery) {
-                                                setSearchQuery('');
-                                                setSelectedIndex(null);
-                                                return;
-                                            }
-                                            event.currentTarget.blur();
-                                        }}
-                                    />
-                                    {searchQuery ? (
-                                        <button
-                                            type='button'
-                                            className={styles.searchClear}
-                                            aria-label={intl.formatMessage(messages.clearSearch)}
-                                            tabIndex={effectivelyCollapsed ? -1 : undefined}
-                                            onClick={() => {
-                                                setSearchQuery('');
-                                                setSelectedIndex(null);
-                                                searchInputRef.current?.focus();
-                                            }}
-                                        >
-                                            <ClearSearchIcon />
-                                        </button>
-                                    ) : null}
-                                </div>
-                            </div>
+                                <div className={styles.sessionsSection}>
+                                    <div className={styles.search}>
+                                        <div className={styles.searchField}>
+                                            <input
+                                                ref={searchInputRef}
+                                                className={styles.searchInput}
+                                                type='search'
+                                                value={searchQuery}
+                                                placeholder={intl.formatMessage(messages.searchPlaceholder)}
+                                                aria-label={intl.formatMessage(messages.searchAriaLabel)}
+                                                disabled={sessionsLoading || effectivelyCollapsed}
+                                                tabIndex={effectivelyCollapsed ? -1 : undefined}
+                                                onChange={(event) => {
+                                                    setSearchQuery(event.target.value);
+                                                    setSelectedIndex(null);
+                                                }}
+                                                onKeyDown={(event) => {
+                                                    if (event.key !== 'Escape') return;
+                                                    event.preventDefault();
+                                                    if (searchQuery) {
+                                                        setSearchQuery('');
+                                                        setSelectedIndex(null);
+                                                        return;
+                                                    }
+                                                    event.currentTarget.blur();
+                                                }}
+                                            />
+                                            {searchQuery ? (
+                                                <button
+                                                    type='button'
+                                                    className={styles.searchClear}
+                                                    aria-label={intl.formatMessage(messages.clearSearch)}
+                                                    tabIndex={effectivelyCollapsed ? -1 : undefined}
+                                                    onClick={() => {
+                                                        setSearchQuery('');
+                                                        setSelectedIndex(null);
+                                                        searchInputRef.current?.focus();
+                                                    }}
+                                                >
+                                                    <ClearSearchIcon />
+                                                </button>
+                                            ) : null}
+                                        </div>
+                                    </div>
 
-                            <p className={styles.sectionLabel}>{intl.formatMessage(messages.sessionsHeading)}</p>
-
-                            <div className={bodyClass}>
-                                {sessionsLoading ? (
-                                    <p className={styles.placeholder}>{intl.formatMessage(messages.loadingSessions)}</p>
-                                ) : null}
-                                {showEmpty ? (
-                                    <p className={styles.placeholder}>{intl.formatMessage(messages.noSessions)}</p>
-                                ) : null}
-                                {showNoMatches ? (
-                                    <p className={styles.placeholder}>
-                                        {intl.formatMessage(messages.noMatchingSessions)}
+                                    <p className={styles.sectionLabel}>
+                                        {intl.formatMessage(messages.sessionsHeading)}
                                     </p>
-                                ) : null}
-                                {!sessionsLoading
-                                    ? filteredSessions.map((session, index) => {
-                                          const isActive = session.id === activeSessionId;
-                                          const isSelected = index === selectedIndex;
-                                          return (
-                                              <div key={session.id} ref={isSelected ? selectedRowRef : null}>
-                                                  <SwipeToDelete
-                                                      disabled={deletingId === session.id || effectivelyCollapsed}
-                                                      onDelete={() => {
-                                                          setPendingDelete(session);
-                                                      }}
-                                                  >
-                                                      <div className={styles.sessionRow}>
-                                                          <button
-                                                              type='button'
-                                                              className={sessionButtonClass(isActive, isSelected)}
-                                                              tabIndex={effectivelyCollapsed ? -1 : undefined}
-                                                              onClick={() => navigate(`/sessions/${session.id}`)}
+
+                                    <div className={bodyClass}>
+                                        {sessionsLoading ? (
+                                            <p className={styles.placeholder}>
+                                                {intl.formatMessage(messages.loadingSessions)}
+                                            </p>
+                                        ) : null}
+                                        {showEmpty ? (
+                                            <p className={styles.placeholder}>
+                                                {intl.formatMessage(messages.noSessions)}
+                                            </p>
+                                        ) : null}
+                                        {showNoMatches ? (
+                                            <p className={styles.placeholder}>
+                                                {intl.formatMessage(messages.noMatchingSessions)}
+                                            </p>
+                                        ) : null}
+                                        {!sessionsLoading
+                                            ? filteredSessions.map((session, index) => {
+                                                  const isActive = session.id === activeSessionId;
+                                                  const isSelected = index === selectedIndex;
+                                                  return (
+                                                      <div key={session.id} ref={isSelected ? selectedRowRef : null}>
+                                                          <SwipeToDelete
+                                                              disabled={
+                                                                  deletingId === session.id || effectivelyCollapsed
+                                                              }
+                                                              onDelete={() => {
+                                                                  setPendingDelete(session);
+                                                              }}
                                                           >
-                                                              <span className={styles.sessionTitle}>
-                                                                  {session.name}
-                                                              </span>
-                                                              {session.type === 'coding' ? (
-                                                                  <p className={styles.sessionMeta}>
-                                                                      <span className={styles.sessionMetaRepo}>
-                                                                          {projectNames.get(
-                                                                              session.repositoryId ?? '',
-                                                                          ) ?? session.repositoryId}
-                                                                      </span>
-                                                                      {' > '}
-                                                                      {intl.formatMessage(messages.branchLabel, {
-                                                                          branch: session.branch ?? '',
-                                                                      })}
-                                                                  </p>
-                                                              ) : (
-                                                                  <p className={styles.sessionMetaMuted}>
-                                                                      {intl.formatMessage(messages.conversationSession)}
-                                                                  </p>
-                                                              )}
-                                                              {session.cpuPercent != null ||
-                                                              session.ramPercent != null ? (
-                                                                  <p className={styles.usageRow}>
-                                                                      {session.cpuPercent != null ? (
-                                                                          <span
-                                                                              className={usageClassName(
-                                                                                  session.cpuPercent,
-                                                                              )}
-                                                                          >
-                                                                              {intl.formatMessage(messages.cpuLabel, {
-                                                                                  percent: session.cpuPercent,
-                                                                              })}
-                                                                          </span>
-                                                                      ) : null}
-                                                                      {session.ramPercent != null ? (
-                                                                          <span
-                                                                              className={usageClassName(
-                                                                                  session.ramPercent,
-                                                                              )}
-                                                                          >
-                                                                              {intl.formatMessage(messages.ramLabel, {
-                                                                                  percent: session.ramPercent,
-                                                                              })}
-                                                                          </span>
-                                                                      ) : null}
-                                                                  </p>
-                                                              ) : null}
-                                                          </button>
-                                                          <div className={styles.trailing}>
-                                                              {session.status === 'error' ? (
+                                                              <div className={styles.sessionRow}>
                                                                   <button
                                                                       type='button'
-                                                                      className={styles.restartButton}
-                                                                      aria-label={intl.formatMessage(
-                                                                          messages.restartSession,
+                                                                      className={sessionButtonClass(
+                                                                          isActive,
+                                                                          isSelected,
                                                                       )}
-                                                                      title={intl.formatMessage(
-                                                                          messages.restartSession,
-                                                                      )}
-                                                                      disabled={restartingId === session.id}
                                                                       tabIndex={effectivelyCollapsed ? -1 : undefined}
-                                                                      onClick={(event) => {
-                                                                          event.preventDefault();
-                                                                          event.stopPropagation();
-                                                                          void handleRestart(session);
-                                                                      }}
+                                                                      onClick={() =>
+                                                                          navigate(`/sessions/${session.id}`)
+                                                                      }
                                                                   >
-                                                                      <RestartIcon />
+                                                                      <span className={styles.sessionTitle}>
+                                                                          {session.name}
+                                                                      </span>
+                                                                      {session.type === 'coding' ? (
+                                                                          <p className={styles.sessionMeta}>
+                                                                              <span className={styles.sessionMetaRepo}>
+                                                                                  {projectNames.get(
+                                                                                      session.repositoryId ?? '',
+                                                                                  ) ?? session.repositoryId}
+                                                                              </span>
+                                                                              {' > '}
+                                                                              {intl.formatMessage(
+                                                                                  messages.branchLabel,
+                                                                                  {
+                                                                                      branch: session.branch ?? '',
+                                                                                  },
+                                                                              )}
+                                                                          </p>
+                                                                      ) : (
+                                                                          <p className={styles.sessionMetaMuted}>
+                                                                              {intl.formatMessage(
+                                                                                  messages.conversationSession,
+                                                                              )}
+                                                                          </p>
+                                                                      )}
+                                                                      {session.cpuPercent != null ||
+                                                                      session.ramPercent != null ? (
+                                                                          <p className={styles.usageRow}>
+                                                                              {session.cpuPercent != null ? (
+                                                                                  <span
+                                                                                      className={usageClassName(
+                                                                                          session.cpuPercent,
+                                                                                      )}
+                                                                                  >
+                                                                                      {intl.formatMessage(
+                                                                                          messages.cpuLabel,
+                                                                                          {
+                                                                                              percent:
+                                                                                                  session.cpuPercent,
+                                                                                          },
+                                                                                      )}
+                                                                                  </span>
+                                                                              ) : null}
+                                                                              {session.ramPercent != null ? (
+                                                                                  <span
+                                                                                      className={usageClassName(
+                                                                                          session.ramPercent,
+                                                                                      )}
+                                                                                  >
+                                                                                      {intl.formatMessage(
+                                                                                          messages.ramLabel,
+                                                                                          {
+                                                                                              percent:
+                                                                                                  session.ramPercent,
+                                                                                          },
+                                                                                      )}
+                                                                                  </span>
+                                                                              ) : null}
+                                                                          </p>
+                                                                      ) : null}
                                                                   </button>
-                                                              ) : null}
-                                                              <span
-                                                                  className={`${styles.indicator} ${indicatorClass(session.status)}`}
-                                                                  aria-hidden='true'
-                                                              />
-                                                          </div>
+                                                                  <div className={styles.trailing}>
+                                                                      {session.status === 'error' ? (
+                                                                          <button
+                                                                              type='button'
+                                                                              className={styles.restartButton}
+                                                                              aria-label={intl.formatMessage(
+                                                                                  messages.restartSession,
+                                                                              )}
+                                                                              title={intl.formatMessage(
+                                                                                  messages.restartSession,
+                                                                              )}
+                                                                              disabled={restartingId === session.id}
+                                                                              tabIndex={
+                                                                                  effectivelyCollapsed ? -1 : undefined
+                                                                              }
+                                                                              onClick={(event) => {
+                                                                                  event.preventDefault();
+                                                                                  event.stopPropagation();
+                                                                                  void handleRestart(session);
+                                                                              }}
+                                                                          >
+                                                                              <RestartIcon />
+                                                                          </button>
+                                                                      ) : null}
+                                                                      <span
+                                                                          className={`${styles.indicator} ${indicatorClass(session.status)}`}
+                                                                          aria-hidden='true'
+                                                                      />
+                                                                  </div>
+                                                              </div>
+                                                          </SwipeToDelete>
                                                       </div>
-                                                  </SwipeToDelete>
-                                              </div>
-                                          );
-                                      })
-                                    : null}
+                                                  );
+                                              })
+                                            : null}
+                                    </div>
+                                </div>
                             </div>
 
                             <div className={styles.settings}>

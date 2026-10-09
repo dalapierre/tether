@@ -24,15 +24,17 @@ export const styles = {
         'col-start-1 row-start-1 flex min-h-0 flex-col overflow-hidden transition-opacity duration-200 ease-in-out',
     collapsedRailHidden:
         'pointer-events-none col-start-1 row-start-1 flex min-h-0 flex-col overflow-hidden opacity-0 transition-opacity duration-200 ease-in-out',
-    search: 'shrink-0 px-2 pb-2',
+    mainStack: 'flex min-h-0 flex-1 flex-col gap-3 overflow-hidden',
+    sessionsSection: 'flex min-h-0 flex-1 flex-col overflow-hidden',
+    search: 'shrink-0 px-2 pb-3',
     searchField: 'relative',
     searchInput:
         'w-full rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-2 pr-9 text-sm text-zinc-100 outline-none focus:border-aura-green [&::-webkit-search-cancel-button]:hidden',
     searchClear:
         'absolute right-1 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-zinc-400 transition-colors hover:text-zinc-100 active:bg-zinc-800',
     searchClearIcon: 'h-3.5 w-3.5',
-    sectionLabel: 'px-3 pb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-500',
-    body: 'flex min-h-0 flex-1 flex-col gap-1.5 overflow-auto px-2 pb-2',
+    sectionLabel: 'shrink-0 px-3 pb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-500',
+    body: 'flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-2 pb-2',
     bodyEmpty: 'flex min-h-0 flex-1 flex-col items-center justify-center px-3 pb-2',
     placeholder: 'text-sm text-zinc-500',
     sessionRow: 'relative',
@@ -59,10 +61,10 @@ export const styles = {
     indicatorBusy: 'bg-amber-400',
     indicatorError: 'bg-red-500',
     inlineButton:
-        'flex w-full items-center rounded-md text-sm text-zinc-400 outline-none transition-colors active:bg-zinc-800 active:text-zinc-100 focus-visible:ring-1 focus-visible:ring-aura-green md:hover:bg-zinc-800 md:hover:text-zinc-100',
+        'flex w-full shrink-0 items-center rounded-md text-sm text-zinc-400 outline-none transition-colors active:bg-zinc-800 active:text-zinc-100 focus-visible:ring-1 focus-visible:ring-aura-green md:hover:bg-zinc-800 md:hover:text-zinc-100',
     inlineButtonIcon: 'inline-flex h-11 w-12 shrink-0 items-center justify-center',
     inlineButtonLabel: 'min-w-0 flex-1 truncate pr-2.5 text-left',
-    settings: 'mt-auto shrink-0 pb-[max(0.5rem,env(safe-area-inset-bottom))]',
+    settings: 'shrink-0 pb-[max(0.5rem,env(safe-area-inset-bottom))]',
     settingsIcon: 'h-5 w-5 shrink-0',
     railSpacer: 'min-h-0 flex-1',
 };
