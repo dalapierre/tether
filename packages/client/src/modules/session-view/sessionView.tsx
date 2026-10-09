@@ -1264,6 +1264,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
 
     const statusLabel = sessionStatusLabelFor(connection, displaySession.status, intl.formatMessage);
     const statusDotClass = sessionStatusDotClassFor(connection, displaySession.status);
+    const agentTitle = harnessLabel(displaySession.agent, intl.formatMessage);
     const terminalToggleLabel = intl.formatMessage(shellPaneVisible ? messages.closeTerminal : messages.openTerminal);
     const reviewToggleLabel = intl.formatMessage(desktopReviewOpen ? messages.closeReview : messages.openReview);
 
@@ -1313,7 +1314,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                             }
                         }}
                         options={[
-                            { value: 'agent', label: intl.formatMessage(messages.agentView) },
+                            { value: 'agent', label: agentTitle },
                             { value: 'terminal', label: intl.formatMessage(messages.terminalView) },
                             ...(session.type === 'coding'
                                 ? [
@@ -1400,7 +1401,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                                   : styles.paneInactive
                         }
                         aria-hidden={showDesktopReviewFullscreen || (!isDesktop && tab !== 'agent')}
-                        title={intl.formatMessage(messages.agentView)}
+                        title={agentTitle}
                         toolbarClassName='max-md:hidden'
                         toolbarActions={
                             <>

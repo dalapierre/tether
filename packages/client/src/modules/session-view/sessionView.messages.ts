@@ -16,7 +16,6 @@ type Messages = {
     metaCpu: { percent: number };
     metaRam: { percent: number };
     viewTabs: NoMessageValues;
-    agentView: NoMessageValues;
     terminalView: NoMessageValues;
     reviewView: NoMessageValues;
     openTerminal: NoMessageValues;
@@ -94,10 +93,6 @@ export const messages = defineMessages<Messages>(
         viewTabs: {
             id: 'sessionView.viewTabs',
             defaultMessage: 'Session view',
-        },
-        agentView: {
-            id: 'sessionView.agentView',
-            defaultMessage: 'Agent',
         },
         terminalView: {
             id: 'sessionView.terminalView',
