@@ -524,11 +524,6 @@ export function SessionsPanel({ listInteractive = true }: SessionsPanelProps) {
                                                 {intl.formatMessage(messages.loadingSessions)}
                                             </p>
                                         ) : null}
-                                        {showEmpty ? (
-                                            <p className={styles.placeholder}>
-                                                {intl.formatMessage(messages.noSessions)}
-                                            </p>
-                                        ) : null}
                                         {showNoMatches ? (
                                             <p className={styles.placeholder}>
                                                 {intl.formatMessage(messages.noMatchingSessions)}

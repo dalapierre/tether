@@ -5,7 +5,6 @@ type Messages = {
     searchPlaceholder: NoMessageValues;
     searchAriaLabel: NoMessageValues;
     clearSearch: NoMessageValues;
-    noSessions: NoMessageValues;
     noMatchingSessions: NoMessageValues;
     loadingSessions: NoMessageValues;
     newSession: NoMessageValues;
@@ -43,10 +42,6 @@ export const messages = defineMessages<Messages>(
         clearSearch: {
             id: 'sessionsPanel.clearSearch',
             defaultMessage: 'Clear search',
-        },
-        noSessions: {
-            id: 'sessionsPanel.noSessions',
-            defaultMessage: 'No sessions',
         },
         noMatchingSessions: {
             id: 'sessionsPanel.noMatchingSessions',
