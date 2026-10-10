@@ -2,19 +2,10 @@ import { Button } from '@client/components/button';
 import { ConfirmDialog } from '@client/components/confirm-dialog';
 import { IconButton } from '@client/components/icon-button';
 import { RoutePanel } from '@client/components/route-panel';
-import { SearchSelect } from '@client/components/search-select';
 import { Toggle } from '@client/components/toggle';
 import { agentLabelMessage, isAgentId, type AgentId } from '@client/libs/agents/agents';
 import { listAvailableAgents, type AvailableAgent } from '@client/libs/api/agents';
 import { ApiError } from '@client/libs/api/client';
-import {
-    addRepository,
-    deleteRepository,
-    listAvailableRepositories,
-    listRepositories,
-    type AvailableRepository,
-    type Repository,
-} from '@client/libs/api/repositories';
 import { getSettings, updateSettings, type AgentProfile } from '@client/libs/api/settings';
 import { DEFAULT_KEYBINDS, cloneKeybinds, keybindsEqual, type Keybinds } from '@client/libs/keybinds';
 import { clearAccessToken } from '@client/libs/auth/session';
@@ -34,7 +25,7 @@ const DEFAULT_AUTH_TOKEN_EXPIRATION_MINUTES = 60;
 const MIN_AUTH_TOKEN_EXPIRATION_MINUTES = 1;
 const MAX_AUTH_TOKEN_EXPIRATION_MINUTES = 1440;
 
-type SettingsView = 'root' | 'general' | 'repos' | 'agents' | 'profiles' | 'new-profile' | 'edit-profile' | 'keybinds';
+type SettingsView = 'root' | 'general' | 'agents' | 'profiles' | 'new-profile' | 'edit-profile' | 'keybinds';
 
 type ProfileDraft = {
     name: string;
@@ -146,8 +137,6 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
     const [savedDefaultAgent, setSavedDefaultAgent] = useState<AgentId>('cursor');
     const [savedDefaultProfileId, setSavedDefaultProfileId] = useState('');
     const [savedKeybinds, setSavedKeybinds] = useState<Keybinds>(() => cloneKeybinds(DEFAULT_KEYBINDS));
-    const [repositories, setRepositories] = useState<Repository[]>([]);
-    const [available, setAvailable] = useState<AvailableRepository[]>([]);
     const [availableAgents, setAvailableAgents] = useState<AvailableAgent[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -155,8 +144,6 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
     const [savingProfile, setSavingProfile] = useState(false);
     const [draftProfile, setDraftProfile] = useState(() => emptyDraftProfile());
     const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
-    const [addingPath, setAddingPath] = useState<string | null>(null);
-    const [pendingRemoveRepo, setPendingRemoveRepo] = useState<Repository | null>(null);
     const [pendingRemoveProfile, setPendingRemoveProfile] = useState<AgentProfile | null>(null);
     const [pendingDiscard, setPendingDiscard] = useState(false);
     const [removingId, setRemovingId] = useState<string | null>(null);
@@ -164,8 +151,8 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
     useEffect(() => {
         let cancelled = false;
 
-        Promise.all([getSettings(), listRepositories(), listAvailableAgents()])
-            .then(async ([settings, items, agents]) => {
+        Promise.all([getSettings(), listAvailableAgents()])
+            .then(([settings, agents]) => {
                 if (cancelled) return;
                 setDevDir(settings.devDir);
                 setToastDurationSecondsState(settings.toastDurationSeconds);
@@ -181,19 +168,7 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
                 setSavedDefaultProfileId(settings.defaultProfileId);
                 setSavedKeybinds(cloneKeybinds(settings.keybinds));
                 setToastDurationSeconds(settings.toastDurationSeconds);
-                setRepositories(items);
                 setAvailableAgents(agents);
-
-                try {
-                    const availableItems = await listAvailableRepositories();
-                    if (!cancelled) {
-                        setAvailable(availableItems);
-                    }
-                } catch {
-                    if (!cancelled) {
-                        setAvailable([]);
-                    }
-                }
             })
             .catch((err: unknown) => {
                 if (!cancelled) {
@@ -269,7 +244,7 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
         function onKeyDown(event: KeyboardEvent) {
             if (event.key !== 'Escape') return;
             // Open confirm dialogs handle Escape themselves (closes / toggles off).
-            if (pendingRemoveRepo || pendingRemoveProfile || pendingDiscard) return;
+            if (pendingRemoveProfile || pendingDiscard) return;
             if (hasUnsavedChanges) {
                 event.preventDefault();
                 setPendingDiscard(true);
@@ -282,12 +257,7 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
         return () => {
             window.removeEventListener('keydown', onKeyDown);
         };
-    }, [goBack, hasUnsavedChanges, pendingDiscard, pendingRemoveProfile, pendingRemoveRepo]);
-
-    const availableOptions = useMemo(
-        () => available.map((repository) => ({ value: repository.path, label: repository.name })),
-        [available],
-    );
+    }, [goBack, hasUnsavedChanges, pendingDiscard, pendingRemoveProfile]);
 
     const crumbs = useMemo(() => {
         const root = {
@@ -301,10 +271,6 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
 
         if (view === 'general') {
             return [root, { label: intl.formatMessage(messages.categoryGeneralCrumb) }];
-        }
-
-        if (view === 'repos') {
-            return [root, { label: intl.formatMessage(messages.categoryReposCrumb) }];
         }
 
         if (view === 'agents') {
@@ -418,14 +384,10 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
             showToast('settings-saved');
 
             try {
-                const [availableItems, agents] = await Promise.all([
-                    listAvailableRepositories(),
-                    listAvailableAgents(),
-                ]);
-                setAvailable(availableItems);
+                const agents = await listAvailableAgents();
                 setAvailableAgents(agents);
             } catch {
-                // Keep the current lists if refresh fails.
+                // Keep the current list if refresh fails.
             }
         } catch (err: unknown) {
             if (err instanceof ApiError) {
@@ -524,51 +486,6 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
         navigate('/login', { replace: true });
     }
 
-    async function handleAdd(path: string) {
-        if (addingPath) return;
-
-        setAddingPath(path);
-
-        try {
-            const repository = await addRepository(path);
-            setRepositories((current) => [...current, repository].sort((a, b) => a.name.localeCompare(b.name)));
-            setAvailable((current) => current.filter((item) => item.path !== path));
-        } catch (err: unknown) {
-            showToast(
-                'generic-error',
-                err instanceof Error ? err.message : intl.formatMessage(messages.addRepositoryFailed),
-            );
-        } finally {
-            setAddingPath(null);
-        }
-    }
-
-    async function confirmRemoveRepo() {
-        const repository = pendingRemoveRepo;
-        if (!repository || removingId) return;
-
-        setRemovingId(repository.id);
-        setPendingRemoveRepo(null);
-        setRepositories((current) => current.filter((item) => item.id !== repository.id));
-
-        try {
-            await deleteRepository(repository.id);
-            setAvailable((current) =>
-                [...current, { name: repository.name, path: repository.path }].sort((a, b) =>
-                    a.name.localeCompare(b.name),
-                ),
-            );
-        } catch (err: unknown) {
-            setRepositories((current) => [...current, repository].sort((a, b) => a.name.localeCompare(b.name)));
-            showToast(
-                'generic-error',
-                err instanceof Error ? err.message : intl.formatMessage(messages.removeRepositoryFailed),
-            );
-        } finally {
-            setRemovingId(null);
-        }
-    }
-
     const showSaveButton =
         !loading &&
         ((view === 'general' && generalDirty) ||
@@ -599,11 +516,6 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
                 return {
                     title: intl.formatMessage(messages.categoryGeneral),
                     description: intl.formatMessage(messages.categoryGeneralDescription),
-                };
-            case 'repos':
-                return {
-                    title: intl.formatMessage(messages.categoryRepos),
-                    description: intl.formatMessage(messages.categoryReposDescription),
                 };
             case 'agents':
                 return {
@@ -733,17 +645,6 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
                                 </span>
                                 <CategoryChevron />
                             </button>
-                            <button type='button' className={styles.categoryButton} onClick={() => setView('repos')}>
-                                <span className={styles.categoryText}>
-                                    <span className={styles.categoryLabel}>
-                                        {intl.formatMessage(messages.categoryRepos)}
-                                    </span>
-                                    <span className={styles.categoryDescription}>
-                                        {intl.formatMessage(messages.categoryReposDescription)}
-                                    </span>
-                                </span>
-                                <CategoryChevron />
-                            </button>
                             <button type='button' className={styles.categoryButton} onClick={() => setView('agents')}>
                                 <span className={styles.categoryText}>
                                     <span className={styles.categoryLabel}>
@@ -855,48 +756,6 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
                                 }}
                             />
                         </label>
-                    </div>
-                ) : null}
-
-                {view === 'repos' && !loading ? (
-                    <div className={styles.fields}>
-                        <div>
-                            <p className={styles.label}>{intl.formatMessage(messages.addRepositoryLabel)}</p>
-                            <SearchSelect
-                                options={availableOptions}
-                                onSelect={(option) => {
-                                    void handleAdd(option.value);
-                                }}
-                                placeholder={intl.formatMessage(messages.addRepositoryPlaceholder)}
-                                emptyMessage={intl.formatMessage(messages.addRepositoryEmpty)}
-                                noResultsMessage={intl.formatMessage(messages.addRepositoryNoResults)}
-                                disabled={Boolean(addingPath)}
-                                ariaLabel={intl.formatMessage(messages.addRepositoryLabel)}
-                            />
-                        </div>
-                        <div className={styles.repositoriesList}>
-                            <p className={styles.label}>{intl.formatMessage(messages.repositoriesLabel)}</p>
-                            <div className={styles.repositories}>
-                                {repositories.length === 0 ? (
-                                    <p className={styles.repositoryEmpty}>
-                                        {intl.formatMessage(messages.repositoriesEmpty)}
-                                    </p>
-                                ) : (
-                                    repositories.map((repository) => (
-                                        <div key={repository.id} className={styles.repositoryRow}>
-                                            <span className={styles.repositoryName}>{repository.name}</span>
-                                            <IconButton
-                                                label={intl.formatMessage(messages.removeRepository)}
-                                                disabled={removingId === repository.id}
-                                                onClick={() => setPendingRemoveRepo(repository)}
-                                            >
-                                                ×
-                                            </IconButton>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        </div>
                     </div>
                 ) : null}
 
@@ -1060,20 +919,6 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
                     </div>
                 ) : null}
             </RoutePanel>
-            {pendingRemoveRepo ? (
-                <ConfirmDialog
-                    message={intl.formatMessage(messages.removeRepositoryConfirm, {
-                        name: pendingRemoveRepo.name,
-                    })}
-                    cancelLabel={intl.formatMessage(messages.removeRepositoryConfirmCancel)}
-                    confirmLabel={intl.formatMessage(messages.removeRepositoryConfirmContinue)}
-                    busy={removingId === pendingRemoveRepo.id}
-                    onCancel={() => setPendingRemoveRepo(null)}
-                    onConfirm={() => {
-                        void confirmRemoveRepo();
-                    }}
-                />
-            ) : null}
             {pendingRemoveProfile ? (
                 <ConfirmDialog
                     message={intl.formatMessage(messages.removeProfileConfirm, {

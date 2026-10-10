@@ -13,9 +13,6 @@ type Messages = {
     categoryGeneral: NoMessageValues;
     categoryGeneralCrumb: NoMessageValues;
     categoryGeneralDescription: NoMessageValues;
-    categoryRepos: NoMessageValues;
-    categoryReposCrumb: NoMessageValues;
-    categoryReposDescription: NoMessageValues;
     categoryAgents: NoMessageValues;
     categoryAgentsCrumb: NoMessageValues;
     categoryAgentsDescription: NoMessageValues;
@@ -71,19 +68,6 @@ type Messages = {
     toastDurationHint: NoMessageValues;
     authTokenExpirationLabel: NoMessageValues;
     authTokenExpirationHint: NoMessageValues;
-    repositoriesLabel: NoMessageValues;
-    repositoriesEmpty: NoMessageValues;
-    repositoriesLoadFailed: NoMessageValues;
-    addRepositoryLabel: NoMessageValues;
-    addRepositoryPlaceholder: NoMessageValues;
-    addRepositoryEmpty: NoMessageValues;
-    addRepositoryNoResults: NoMessageValues;
-    addRepositoryFailed: NoMessageValues;
-    removeRepository: NoMessageValues;
-    removeRepositoryConfirm: { name: string };
-    removeRepositoryConfirmContinue: NoMessageValues;
-    removeRepositoryConfirmCancel: NoMessageValues;
-    removeRepositoryFailed: NoMessageValues;
     defaultProfileLabel: NoMessageValues;
     defaultHarnessLabel: NoMessageValues;
     harnessesEmpty: NoMessageValues;
@@ -162,19 +146,7 @@ export const messages = defineMessages<Messages>(
         },
         categoryGeneralDescription: {
             id: 'settings.categoryGeneralDescription',
-            defaultMessage: 'Development directory and workspace defaults.',
-        },
-        categoryRepos: {
-            id: 'settings.categoryRepos',
-            defaultMessage: 'Repositories',
-        },
-        categoryReposCrumb: {
-            id: 'settings.categoryReposCrumb',
-            defaultMessage: 'repositories',
-        },
-        categoryReposDescription: {
-            id: 'settings.categoryReposDescription',
-            defaultMessage: 'Choose which git repositories appear in Tether.',
+            defaultMessage: 'Workspace directory and app defaults.',
         },
         categoryAgents: {
             id: 'settings.categoryAgents',
@@ -370,7 +342,7 @@ export const messages = defineMessages<Messages>(
         },
         devDirLabel: {
             id: 'settings.devDirLabel',
-            defaultMessage: 'Development directory',
+            defaultMessage: 'Workspace directory',
         },
         devDirPlaceholder: {
             id: 'settings.devDirPlaceholder',
@@ -378,7 +350,8 @@ export const messages = defineMessages<Messages>(
         },
         devDirHint: {
             id: 'settings.devDirHint',
-            defaultMessage: 'Absolute path to the folder that contains your git repositories.',
+            defaultMessage:
+                'Absolute path to the folder that contains your git repositories. New sessions list every repository found under this path.',
         },
         toastDurationLabel: {
             id: 'settings.toastDurationLabel',
@@ -395,58 +368,6 @@ export const messages = defineMessages<Messages>(
         authTokenExpirationHint: {
             id: 'settings.authTokenExpirationHint',
             defaultMessage: 'Minutes before a login session expires and you must sign in again (1–1440).',
-        },
-        repositoriesLabel: {
-            id: 'settings.repositoriesLabel',
-            defaultMessage: 'Repositories',
-        },
-        repositoriesEmpty: {
-            id: 'settings.repositoriesEmpty',
-            defaultMessage: 'No repositories yet. Add one from your development directory.',
-        },
-        repositoriesLoadFailed: {
-            id: 'settings.repositoriesLoadFailed',
-            defaultMessage: 'Failed to load repositories',
-        },
-        addRepositoryLabel: {
-            id: 'settings.addRepositoryLabel',
-            defaultMessage: 'Add repository',
-        },
-        addRepositoryPlaceholder: {
-            id: 'settings.addRepositoryPlaceholder',
-            defaultMessage: 'Search repositories…',
-        },
-        addRepositoryEmpty: {
-            id: 'settings.addRepositoryEmpty',
-            defaultMessage: 'No new repositories found in the development directory.',
-        },
-        addRepositoryNoResults: {
-            id: 'settings.addRepositoryNoResults',
-            defaultMessage: 'No matching repositories.',
-        },
-        addRepositoryFailed: {
-            id: 'settings.addRepositoryFailed',
-            defaultMessage: 'Failed to add repository',
-        },
-        removeRepository: {
-            id: 'settings.removeRepository',
-            defaultMessage: 'Remove',
-        },
-        removeRepositoryConfirm: {
-            id: 'settings.removeRepositoryConfirm',
-            defaultMessage: 'Remove {name} from Tether? All existing sessions for this repository will be deleted.',
-        },
-        removeRepositoryConfirmContinue: {
-            id: 'settings.removeRepositoryConfirmContinue',
-            defaultMessage: 'Remove',
-        },
-        removeRepositoryConfirmCancel: {
-            id: 'settings.removeRepositoryConfirmCancel',
-            defaultMessage: 'Cancel',
-        },
-        removeRepositoryFailed: {
-            id: 'settings.removeRepositoryFailed',
-            defaultMessage: 'Failed to remove repository',
         },
         defaultHarnessLabel: {
             id: 'settings.defaultHarnessLabel',

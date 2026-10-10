@@ -26,14 +26,10 @@ export const styles = {
     inlineFieldInput:
         'w-20 shrink-0 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-center text-base text-zinc-100 outline-none focus:border-aura-green',
     repositories: 'mt-1 flex flex-col gap-2',
-    repositoryRow:
-        'flex items-center justify-between gap-1 rounded-md border border-zinc-800 bg-zinc-900 py-0.5 pl-3 pr-0.5',
-    repositoryName: 'min-w-0 truncate text-sm text-zinc-100',
     profileRow:
         'flex items-center justify-between gap-1 rounded-md border border-zinc-800 bg-zinc-900 py-0.5 pl-0.5 pr-0.5 transition-colors active:bg-zinc-800 md:hover:bg-zinc-800',
     profileRowButton: 'min-w-0 flex-1 truncate rounded-md px-2.5 py-2 text-left text-sm text-zinc-100',
     repositoryEmpty: 'text-sm text-zinc-500',
-    repositoriesList: 'mt-3',
     actions: 'mt-auto pt-10 pb-6',
     footer: 'px-4 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:mx-auto md:w-full md:max-w-2xl md:pl-11 md:pr-4 md:pb-4',
     footerActions: 'flex flex-row gap-2',

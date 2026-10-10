@@ -89,7 +89,7 @@ export const messages = defineMessages<Messages>(
         },
         projectsEmpty: {
             id: 'newSession.projectsEmpty',
-            defaultMessage: 'No repositories available. Add one in Settings.',
+            defaultMessage: 'No repositories found. Set your workspace directory in Settings.',
         },
         projectNoResults: {
             id: 'newSession.projectNoResults',

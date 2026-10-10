@@ -128,8 +128,8 @@ function shouldSkipDirectory(name: string): boolean {
 async function collectGitRepositories(
     dirPath: string,
     rootPath: string,
-    addedPaths: Set<string>,
     available: AvailableRepository[],
+    excludePaths?: Set<string>,
 ): Promise<void> {
     let entries;
     try {
@@ -150,23 +150,106 @@ async function collectGitRepositories(
         if (!entry.isDirectory() || shouldSkipDirectory(entry.name)) continue;
 
         const repoPath = path.resolve(path.join(dirPath, entry.name));
-        if (addedPaths.has(repoPath)) continue;
+        if (excludePaths?.has(repoPath)) continue;
 
         if (await isGitRepository(repoPath)) {
             available.push({
-                name: path.relative(rootPath, repoPath),
+                name: path.relative(rootPath, repoPath) || path.basename(repoPath),
                 path: repoPath,
             });
             continue;
         }
 
-        await collectGitRepositories(repoPath, rootPath, addedPaths, available);
+        await collectGitRepositories(repoPath, rootPath, available, excludePaths);
     }
 }
 
+const DISCOVER_TTL_MS = 30_000;
+let discoverCache: { at: number; rootPath: string; items: AvailableRepository[] } | null = null;
+
+/** All git repositories under the configured development directory. */
+async function discoverWorkspaceRepositories(): Promise<AvailableRepository[]> {
+    const { devDir } = await getSettings();
+    const trimmed = devDir.trim();
+    if (!trimmed) {
+        return [];
+    }
+
+    const rootPath = path.resolve(trimmed);
+    const cached = discoverCache;
+    if (cached && cached.rootPath === rootPath && Date.now() - cached.at < DISCOVER_TTL_MS) {
+        return cached.items.map((item) => ({ ...item }));
+    }
+
+    const available: AvailableRepository[] = [];
+
+    if (await isGitRepository(rootPath)) {
+        available.push({
+            name: path.basename(rootPath),
+            path: rootPath,
+        });
+    } else {
+        await collectGitRepositories(rootPath, rootPath, available);
+    }
+
+    available.sort((a, b) => a.name.localeCompare(b.name));
+    discoverCache = { at: Date.now(), rootPath, items: available };
+    return available.map((item) => ({ ...item }));
+}
+
+/**
+ * Repositories available for sessions: every git repo under the development directory.
+ * Newly discovered paths are registered so session APIs can resolve a stable id.
+ */
 export async function listRepositories(): Promise<Repository[]> {
-    const repositories = await readAll();
-    return [...repositories].sort((a, b) => a.name.localeCompare(b.name));
+    const discovered = await discoverWorkspaceRepositories();
+    if (discovered.length === 0) {
+        return [];
+    }
+
+    const stored = await readAll();
+    const byPath = new Map(stored.map((repository) => [path.resolve(repository.path), repository]));
+    const taken = new Set(stored.map((repository) => repository.id));
+    let dirty = false;
+
+    const repositories: Repository[] = [];
+    for (const item of discovered) {
+        const resolved = path.resolve(item.path);
+        const existing = byPath.get(resolved);
+        if (existing) {
+            if (existing.name !== item.name) {
+                const updated = { ...existing, name: item.name };
+                byPath.set(resolved, updated);
+                dirty = true;
+                repositories.push(updated);
+            } else {
+                repositories.push(existing);
+            }
+            continue;
+        }
+
+        const repository: Repository = {
+            id: uniqueSlug(slugify(path.basename(resolved)), taken),
+            name: item.name,
+            path: resolved,
+        };
+        taken.add(repository.id);
+        byPath.set(resolved, repository);
+        dirty = true;
+        repositories.push(repository);
+    }
+
+    if (dirty) {
+        const discoveredPaths = new Set(discovered.map((item) => path.resolve(item.path)));
+        const next = [
+            ...repositories,
+            ...stored.filter((repository) => !discoveredPaths.has(path.resolve(repository.path))),
+        ];
+        await writeAll(next);
+        discoverCache = null;
+    }
+
+    return repositories.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export async function getRepository(id: string): Promise<Repository | null> {
@@ -398,21 +481,10 @@ export async function listRepositoryDirectories(id: string): Promise<string[] | 
 }
 
 export async function listAvailableRepositories(): Promise<AvailableRepository[]> {
-    const { devDir } = await getSettings();
-    const trimmed = devDir.trim();
-    if (!trimmed) {
-        return [];
-    }
-
-    const rootPath = path.resolve(trimmed);
+    const discovered = await discoverWorkspaceRepositories();
     const added = await readAll();
     const addedPaths = new Set(added.map((repository) => path.resolve(repository.path)));
-    const available: AvailableRepository[] = [];
-
-    await collectGitRepositories(rootPath, rootPath, addedPaths, available);
-
-    available.sort((a, b) => a.name.localeCompare(b.name));
-    return available;
+    return discovered.filter((repository) => !addedPaths.has(path.resolve(repository.path)));
 }
 
 export async function addRepository(repoPath: string): Promise<Repository> {
@@ -449,6 +521,7 @@ export async function addRepository(repoPath: string): Promise<Repository> {
     };
     repositories.push(repository);
     await writeAll(repositories);
+    discoverCache = null;
     return repository;
 }
 
@@ -462,5 +535,6 @@ export async function removeRepository(id: string): Promise<boolean> {
     const { deleteSessionsForRepository } = await import('@server/libs/sessions/store.js');
     deleteSessionsForRepository(id);
     await writeAll(next);
+    discoverCache = null;
     return true;
 }
