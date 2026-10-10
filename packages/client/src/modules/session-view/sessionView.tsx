@@ -33,11 +33,13 @@ import {
     getReviewPanelOpen,
     getSelectedDiffPath,
     getShellPaneHeightPct,
+    getShellPanelFullscreen,
     getShellPanelOpen,
     setReviewPanelFullscreen,
     setReviewPanelOpen,
     setReviewPaneWidthPct,
     setShellPaneHeightPct,
+    setShellPanelFullscreen,
     setShellPanelOpen,
 } from '@client/libs/layout/reviewLayoutPreferences';
 import { clearPtyResize, flushPtyResize, schedulePtyResize } from '@client/libs/terminal/ptyResize';
@@ -187,7 +189,7 @@ function TerminalIcon({ className }: { className?: string }) {
 function CloseShellIcon() {
     return (
         <svg
-            className={styles.shellCloseIcon}
+            className={styles.shellToolbarIcon}
             viewBox='0 0 24 24'
             fill='none'
             stroke='currentColor'
@@ -195,6 +197,44 @@ function CloseShellIcon() {
             aria-hidden='true'
         >
             <path strokeLinecap='round' strokeLinejoin='round' d='M6 18 18 6M6 6l12 12' />
+        </svg>
+    );
+}
+
+function FullscreenShellIcon() {
+    return (
+        <svg
+            className={styles.shellToolbarIcon}
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='1.75'
+            aria-hidden='true'
+        >
+            <path
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                d='M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15'
+            />
+        </svg>
+    );
+}
+
+function ExitFullscreenShellIcon() {
+    return (
+        <svg
+            className={styles.shellToolbarIcon}
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='1.75'
+            aria-hidden='true'
+        >
+            <path
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                d='M9 9V4.5M9 9H4.5M9 9 3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5 5.25 5.25'
+            />
         </svg>
     );
 }
@@ -425,6 +465,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
     const [desktopReviewOpen, setDesktopReviewOpen] = useState(false);
     const [desktopReviewFullscreen, setDesktopReviewFullscreen] = useState(false);
     const [desktopShellOpen, setDesktopShellOpen] = useState(false);
+    const [desktopShellFullscreen, setDesktopShellFullscreen] = useState(false);
     const [reviewPaneWidthPct, setReviewPaneWidthPctState] = useState(getReviewPaneWidthPct);
     const [shellPaneHeightPct, setShellPaneHeightPctState] = useState(getShellPaneHeightPct);
     const [repositoryName, setRepositoryName] = useState<string | null>(null);
@@ -457,6 +498,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
     const showDesktopReview = isDesktop && desktopReviewOpen;
     const showDesktopReviewFullscreen = showDesktopReview && desktopReviewFullscreen;
     const showDesktopShell = isDesktop && desktopShellOpen;
+    const showDesktopShellFullscreen = showDesktopShell && desktopShellFullscreen;
     const reviewPaneVisible = isDesktop ? showDesktopReview : tab === 'review';
     const shellPaneVisible = isDesktop ? showDesktopShell : tab === 'terminal';
     const sessionReady = Boolean(session && !loading && !failed);
@@ -548,6 +590,11 @@ export function SessionView({ sessionId }: SessionViewProps) {
         setDesktopReviewOpen(true);
         setReviewPanelOpen(sessionId, true);
         setReviewVisited(true);
+        // Shell and review fullscreen both claim the main area.
+        if (desktopShellFullscreen) {
+            setDesktopShellFullscreen(false);
+            setShellPanelFullscreen(sessionId, false);
+        }
     }
 
     function toggleDesktopReviewFullscreen() {
@@ -560,6 +607,29 @@ export function SessionView({ sessionId }: SessionViewProps) {
             return;
         }
         enterDesktopReviewFullscreen();
+    }
+
+    function enterDesktopShellFullscreen() {
+        setDesktopShellFullscreen(true);
+        setShellPanelFullscreen(sessionId, true);
+        setDesktopShellOpen(true);
+        setShellPanelOpen(sessionId, true);
+        setShellVisited(true);
+        if (desktopReviewFullscreen) {
+            setDesktopReviewFullscreen(false);
+            setReviewPanelFullscreen(sessionId, false);
+        }
+    }
+
+    function toggleDesktopShellFullscreen() {
+        // Sticky like review: closing the shell leaves the fullscreen preference
+        // for the next open; this control only exits when already fullscreen.
+        if (desktopShellOpen && desktopShellFullscreen) {
+            setDesktopShellFullscreen(false);
+            setShellPanelFullscreen(sessionId, false);
+            return;
+        }
+        enterDesktopShellFullscreen();
     }
 
     function toggleShell() {
@@ -701,6 +771,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
 
         const storedShellOpen = getShellPanelOpen(sessionId);
         setDesktopShellOpen(storedShellOpen === true);
+        setDesktopShellFullscreen(getShellPanelFullscreen(sessionId));
         setShellVisited(storedShellOpen === true);
         setTab('agent');
     }, [sessionId]);
@@ -1345,6 +1416,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
         showDesktopReview,
         showDesktopReviewFullscreen,
         showDesktopShell,
+        showDesktopShellFullscreen,
         reviewPaneWidthPct,
         shellPaneHeightPct,
     ]);
@@ -1379,7 +1451,16 @@ export function SessionView({ sessionId }: SessionViewProps) {
                 term.focus();
             }
         });
-    }, [tab, isDesktop, desktopShellOpen, shellVisited, shellPaneVisible, shellPaneHeightPct, showDesktopReview]);
+    }, [
+        tab,
+        isDesktop,
+        desktopShellOpen,
+        shellVisited,
+        shellPaneVisible,
+        shellPaneHeightPct,
+        showDesktopReview,
+        showDesktopShellFullscreen,
+    ]);
 
     // If focus was inside the review pane when it hid, the browser may move it
     // onto a nearby xterm textarea. Undo that so closing review doesn't enter insert mode.
@@ -1553,24 +1634,29 @@ export function SessionView({ sessionId }: SessionViewProps) {
             <div ref={mainRef} className={styles.main}>
                 <div
                     ref={contentRef}
-                    className={styles.content}
+                    className={showDesktopShellFullscreen ? styles.contentShellFullscreenHidden : styles.content}
+                    aria-hidden={showDesktopShellFullscreen}
                     style={
-                        isDesktop && showDesktopReview && !showDesktopReviewFullscreen && reviewVisited
-                            ? { gridTemplateColumns: `minmax(0, 1fr) auto ${reviewPaneWidthPct}%` }
-                            : isDesktop
-                              ? { gridTemplateColumns: 'minmax(0, 1fr)' }
-                              : undefined
+                        showDesktopShellFullscreen
+                            ? undefined
+                            : isDesktop && showDesktopReview && !showDesktopReviewFullscreen && reviewVisited
+                              ? { gridTemplateColumns: `minmax(0, 1fr) auto ${reviewPaneWidthPct}%` }
+                              : isDesktop
+                                ? { gridTemplateColumns: 'minmax(0, 1fr)' }
+                                : undefined
                     }
                 >
                     <Panel
                         className={
-                            showDesktopReviewFullscreen
+                            showDesktopShellFullscreen || showDesktopReviewFullscreen
                                 ? styles.paneInactive
                                 : isDesktop || tab === 'agent'
                                   ? styles.pane
                                   : styles.paneInactive
                         }
-                        aria-hidden={showDesktopReviewFullscreen || (!isDesktop && tab !== 'agent')}
+                        aria-hidden={
+                            showDesktopShellFullscreen || showDesktopReviewFullscreen || (!isDesktop && tab !== 'agent')
+                        }
                         title={
                             <>
                                 <span className={styles.agentTitleName}>{agentTitle}</span>
@@ -1630,13 +1716,13 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         <Panel
                             ref={reviewPaneRef}
                             className={
-                                reviewPaneVisible
-                                    ? showDesktopReviewFullscreen
-                                        ? styles.paneReviewFullscreen
-                                        : styles.paneReview
-                                    : styles.paneInactive
+                                showDesktopShellFullscreen || !reviewPaneVisible
+                                    ? styles.paneInactive
+                                    : showDesktopReviewFullscreen
+                                      ? styles.paneReviewFullscreen
+                                      : styles.paneReview
                             }
-                            aria-hidden={!reviewPaneVisible}
+                            aria-hidden={showDesktopShellFullscreen || !reviewPaneVisible}
                         >
                             <div className={styles.reviewBody}>
                                 <Suspense fallback={<Spinner size='lg' label='Loading review' />}>
@@ -1653,7 +1739,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         </Panel>
                     ) : null}
                 </div>
-                {isDesktop && showDesktopShell && shellVisited ? (
+                {isDesktop && showDesktopShell && !showDesktopShellFullscreen && shellVisited ? (
                     <PanelResizeHandle
                         placement='gap'
                         orientation='vertical'
@@ -1673,26 +1759,60 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         className={
                             isDesktop
                                 ? showDesktopShell
-                                    ? styles.shellPanelDesktop
+                                    ? showDesktopShellFullscreen
+                                        ? styles.shellPanelDesktopFullscreen
+                                        : styles.shellPanelDesktop
                                     : styles.shellPanelDesktopHidden
                                 : tab === 'terminal'
                                   ? styles.shellPanelMobile
                                   : styles.shellPanelMobileHidden
                         }
-                        style={isDesktop && showDesktopShell ? { height: `${shellPaneHeightPct}%` } : undefined}
+                        style={
+                            isDesktop && showDesktopShell && !showDesktopShellFullscreen
+                                ? { height: `${shellPaneHeightPct}%` }
+                                : undefined
+                        }
                         aria-hidden={!shellPaneVisible}
                         title={intl.formatMessage(messages.terminalView)}
                         toolbarClassName='relative z-10'
                         toolbarActions={
-                            <button
-                                type='button'
-                                className={styles.shellCloseButton}
-                                title={intl.formatMessage(messages.closeTerminal)}
-                                aria-label={intl.formatMessage(messages.closeTerminal)}
-                                onClick={closeShell}
-                            >
-                                <CloseShellIcon />
-                            </button>
+                            <div className={styles.shellToolbarActions}>
+                                {isDesktop ? (
+                                    <button
+                                        type='button'
+                                        className={`${styles.shellToolbarButton}${
+                                            showDesktopShellFullscreen ? ` ${styles.shellToolbarButtonActive}` : ''
+                                        }`}
+                                        title={intl.formatMessage(
+                                            showDesktopShellFullscreen
+                                                ? messages.exitFullscreenTerminal
+                                                : messages.enterFullscreenTerminal,
+                                        )}
+                                        aria-label={intl.formatMessage(
+                                            showDesktopShellFullscreen
+                                                ? messages.exitFullscreenTerminal
+                                                : messages.enterFullscreenTerminal,
+                                        )}
+                                        aria-pressed={showDesktopShellFullscreen}
+                                        onClick={toggleDesktopShellFullscreen}
+                                    >
+                                        {showDesktopShellFullscreen ? (
+                                            <ExitFullscreenShellIcon />
+                                        ) : (
+                                            <FullscreenShellIcon />
+                                        )}
+                                    </button>
+                                ) : null}
+                                <button
+                                    type='button'
+                                    className={styles.shellToolbarButton}
+                                    title={intl.formatMessage(messages.closeTerminal)}
+                                    aria-label={intl.formatMessage(messages.closeTerminal)}
+                                    onClick={closeShell}
+                                >
+                                    <CloseShellIcon />
+                                </button>
+                            </div>
                         }
                     >
                         <div className={styles.shellTerminalWrap}>

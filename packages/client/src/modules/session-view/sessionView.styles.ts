@@ -31,6 +31,8 @@ export const styles = {
     tabs: 'shrink-0 border-t border-b border-zinc-800 px-4 py-2 md:hidden',
     main: 'relative flex min-h-0 flex-1 flex-col md:gap-0 md:py-2 md:pr-2',
     content: 'relative min-h-0 flex-1 md:grid md:grid-cols-[minmax(0,1fr)]',
+    // Standalone class (not composed with `content`) so `md:grid` cannot override hide.
+    contentShellFullscreenHidden: 'hidden',
     pane: 'absolute inset-0 z-10 flex flex-col md:relative md:inset-auto md:z-auto md:min-h-0 md:min-w-0',
     paneReview: 'absolute inset-0 z-10 flex min-h-0 min-w-0 flex-col md:relative md:inset-auto md:z-auto',
     paneReviewFullscreen: 'absolute inset-0 z-10 flex min-h-0 min-w-0 flex-col md:relative md:inset-auto md:z-auto',
@@ -47,12 +49,15 @@ export const styles = {
     shellTerminal:
         'absolute inset-0 touch-pan-y overflow-hidden px-2 py-2 [&_.xterm-helper-textarea]:!left-0 [&_.xterm-helper-textarea]:!top-0',
     shellPanelDesktop: 'relative hidden min-h-0 shrink-0 md:flex',
+    shellPanelDesktopFullscreen: 'relative hidden min-h-0 flex-1 md:flex',
     shellPanelDesktopHidden: 'hidden',
     shellPanelMobile: 'absolute inset-0 z-20 flex flex-col md:hidden',
     shellPanelMobileHidden: 'pointer-events-none absolute inset-0 z-0 flex flex-col invisible md:hidden',
-    shellCloseButton:
+    shellToolbarActions: 'flex items-center gap-0.5',
+    shellToolbarButton:
         'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors active:bg-zinc-800 active:text-zinc-100 md:hover:bg-zinc-800/80 md:hover:text-zinc-100',
-    shellCloseIcon: 'h-3.5 w-3.5',
+    shellToolbarButtonActive: 'bg-zinc-800/80 text-zinc-100',
+    shellToolbarIcon: 'h-3.5 w-3.5',
     shellTerminalWrap: 'relative min-h-0 flex-1 overflow-hidden pb-[env(safe-area-inset-bottom)]',
     centered: 'flex flex-1 items-center justify-center px-4 text-sm text-zinc-500',
     mobileActions: 'flex items-center md:hidden',

@@ -37,6 +37,7 @@ export function setDiffViewMode(mode: DiffViewMode): void {
     setLocalStorageItem(DIFF_VIEW_MODE_KEY, mode);
 }
 const SHELL_PANEL_OPEN_SUFFIX = 'shellPanelOpen';
+const SHELL_PANEL_FULLSCREEN_SUFFIX = 'shellPanelFullscreen';
 /** @deprecated Migrated to reviewPaneWidthPct. */
 const LEGACY_REVIEW_PANE_WIDTH_PX_KEY = 'tether.layout.reviewPaneWidthPx';
 /** @deprecated Migrated back to fileTreeWidthPx. */
@@ -174,6 +175,14 @@ export function getShellPanelOpen(sessionId: string): boolean | null {
 
 export function setShellPanelOpen(sessionId: string, open: boolean): void {
     setSessionLocalStorageItem(sessionId, SHELL_PANEL_OPEN_SUFFIX, open ? '1' : '0');
+}
+
+export function getShellPanelFullscreen(sessionId: string): boolean {
+    return getSessionLocalStorageItem(sessionId, SHELL_PANEL_FULLSCREEN_SUFFIX) === '1';
+}
+
+export function setShellPanelFullscreen(sessionId: string, fullscreen: boolean): void {
+    setSessionLocalStorageItem(sessionId, SHELL_PANEL_FULLSCREEN_SUFFIX, fullscreen ? '1' : '0');
 }
 
 export function getFileTreeWidthPx(): number {

@@ -18,6 +18,8 @@ type Messages = {
     terminalView: NoMessageValues;
     reviewView: NoMessageValues;
     toggleTerminal: NoMessageValues;
+    enterFullscreenTerminal: NoMessageValues;
+    exitFullscreenTerminal: NoMessageValues;
     closeTerminal: NoMessageValues;
     openReview: NoMessageValues;
     closeReview: NoMessageValues;
@@ -101,6 +103,14 @@ export const messages = defineMessages<Messages>(
         toggleTerminal: {
             id: 'sessionView.toggleTerminal',
             defaultMessage: 'Toggle terminal',
+        },
+        enterFullscreenTerminal: {
+            id: 'sessionView.enterFullscreenTerminal',
+            defaultMessage: 'Fullscreen terminal',
+        },
+        exitFullscreenTerminal: {
+            id: 'sessionView.exitFullscreenTerminal',
+            defaultMessage: 'Exit fullscreen terminal',
         },
         closeTerminal: {
             id: 'sessionView.closeTerminal',
