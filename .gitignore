@@ -8,6 +8,5 @@ build/
 .DS_Store
 *.tsbuildinfo
 .vite/
-packages/server/data/
 *.out
 *.bin

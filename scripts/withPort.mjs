@@ -5,13 +5,13 @@ import { spawn } from 'node:child_process';
  *
  * Preferred (no npm warnings):
  *   npm run dev -- --PORT=8080
- *   npm run start -- --PORT=8080 --SERVER_PORT=3001
+ *   npm run start -- --PORT=8080
  *
  * Also supported:
- *   PORT=8080 SERVER_PORT=3001 npm run dev
+ *   PORT=8080 npm run dev
  *
- * PORT        — UI / Vite listen port (what you open in the browser)
- * SERVER_PORT — API server listen port
+ * PORT — host listen port (UI + API on one port)
+ * SERVER_PORT — accepted as an alias for PORT (legacy)
  */
 
 const NPM_CONFIG_PORT_KEYS = ['npm_config_port', 'npm_config_server_port'];
@@ -42,12 +42,18 @@ const serverPortFromArgs = takeArgValue(args, ['--SERVER_PORT', '--server-port']
 if (portFromArgs && !process.env.PORT) {
     process.env.PORT = portFromArgs;
 }
+if (serverPortFromArgs && !process.env.PORT) {
+    process.env.PORT = serverPortFromArgs;
+}
 if (serverPortFromArgs && !process.env.SERVER_PORT) {
     process.env.SERVER_PORT = serverPortFromArgs;
 }
 
 if (process.env.npm_config_port && !process.env.PORT) {
     process.env.PORT = process.env.npm_config_port;
+}
+if (process.env.npm_config_server_port && !process.env.PORT) {
+    process.env.PORT = process.env.npm_config_server_port;
 }
 if (process.env.npm_config_server_port && !process.env.SERVER_PORT) {
     process.env.SERVER_PORT = process.env.npm_config_server_port;

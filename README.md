@@ -13,7 +13,13 @@ npm install
 npm run start
 ```
 
-This builds the project and runs it in production mode.
+This builds the UI and starts `@tether/host` — one process, one port for the UI and API.
+
+```bash
+npm run dev
+```
+
+Starts the host in development mode (Vite middleware + API on the same port).
 
 ## Why Tether
 
