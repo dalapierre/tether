@@ -124,6 +124,11 @@ type DiffCacheEntry = {
     running: boolean;
     dirty: boolean;
     debounce: ReturnType<typeof setTimeout> | null;
+    /**
+     * When true, always notify clients after refresh. Index-only watches clear this
+     * so unchanged summaries (common during `git add`) do not bump the client.
+     */
+    forceBroadcast: boolean;
 };
 
 const diffCaches = new Map<string, DiffCacheEntry>();
@@ -140,6 +145,27 @@ function withHeavyDiffSlot<T>(fn: () => Promise<T>): Promise<T> {
     return run;
 }
 
+function isSameDiffSummary(a: SessionDiffSummary | null, b: SessionDiffSummary): boolean {
+    if (!a || a.baseSha !== b.baseSha || a.files.length !== b.files.length) {
+        return false;
+    }
+    for (let i = 0; i < a.files.length; i++) {
+        const left = a.files[i]!;
+        const right = b.files[i]!;
+        if (
+            left.path !== right.path ||
+            left.oldPath !== right.oldPath ||
+            left.status !== right.status ||
+            left.additions !== right.additions ||
+            left.deletions !== right.deletions ||
+            left.binary !== right.binary
+        ) {
+            return false;
+        }
+    }
+    return true;
+}
+
 function getOrCreateDiffCache(sessionId: string): DiffCacheEntry {
     let entry = diffCaches.get(sessionId);
     if (!entry) {
@@ -149,6 +175,7 @@ function getOrCreateDiffCache(sessionId: string): DiffCacheEntry {
             running: false,
             dirty: false,
             debounce: null,
+            forceBroadcast: true,
         };
         diffCaches.set(sessionId, entry);
     }
@@ -170,12 +197,20 @@ function clearDiffCache(sessionId: string): void {
  * Never awaited from HTTP handlers — completes independently and notifies via WS.
  * Watcher events are debounced; explicit kicks (GET miss, busy→ready) run immediately.
  */
-function scheduleDiffRefresh(sessionId: string, options: { immediate?: boolean } = {}): void {
+function scheduleDiffRefresh(
+    sessionId: string,
+    options: { immediate?: boolean; onlyBroadcastIfChanged?: boolean } = {},
+): void {
     const session = sessions.get(sessionId);
     if (!session || session.type !== 'coding') return;
 
     const entry = getOrCreateDiffCache(sessionId);
     entry.dirty = true;
+    // Worktree / explicit refreshes must notify even when the file list is unchanged
+    // (content can change with identical name-status/numstat). Index-only watches opt out.
+    if (!options.onlyBroadcastIfChanged) {
+        entry.forceBroadcast = true;
+    }
     if (entry.debounce) {
         clearTimeout(entry.debounce);
         entry.debounce = null;
@@ -266,9 +301,14 @@ async function runDiffRefresh(sessionId: string): Promise<void> {
                         return;
                     }
 
+                    const previous = entry.cache;
+                    const forceBroadcast = entry.forceBroadcast;
                     entry.cache = summary;
+                    entry.forceBroadcast = false;
                     transientFailures = 0;
-                    broadcastSessionDiff(sessionId);
+                    if (forceBroadcast || !isSameDiffSummary(previous, summary)) {
+                        broadcastSessionDiff(sessionId);
+                    }
                 });
             } catch (err: unknown) {
                 if (isDiffAbortError(err) || (err instanceof Error && err.name === 'AbortError')) {
@@ -673,8 +713,10 @@ async function startWatchingHead(session: RuntimeSession): Promise<void> {
                             });
                             return;
                         }
-                        // Index-only changes (stash, mixed reset, etc.) — tip unchanged.
-                        scheduleDiffRefresh(live.id);
+                        // Index-only changes (stash, mixed reset, `git add`, etc.) — tip
+                        // unchanged. Skip the client bump when the review summary is identical
+                        // so staging does not reopen the review panel.
+                        scheduleDiffRefresh(live.id, { onlyBroadcastIfChanged: true });
                     } catch (err: unknown) {
                         logger.error(`Failed to sync review base for session ${session.id}`, err);
                     }

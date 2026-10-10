@@ -1362,14 +1362,16 @@ export function SessionView({ sessionId }: SessionViewProps) {
                     setDesktopReviewOpen(true);
                     setReviewPanelOpen(sessionId, true);
                     if (!isDesktop) {
-                        setTab('review');
+                        // Index/watch refreshes (e.g. `git add` in the terminal) also bump the
+                        // diff generation. Don't yank the user off the terminal tab for those.
+                        setTab((current) => (current === 'terminal' ? current : 'review'));
                     }
                     return;
                 }
 
                 // Return to the review tab when a file was open before refresh (mobile).
                 if (!isDesktop && getSelectedDiffPath(sessionId)) {
-                    setTab('review');
+                    setTab((current) => (current === 'terminal' ? current : 'review'));
                 }
             })
             .catch(() => {
