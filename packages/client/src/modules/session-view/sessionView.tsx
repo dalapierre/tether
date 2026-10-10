@@ -461,7 +461,6 @@ export function SessionView({ sessionId }: SessionViewProps) {
     const [tab, setTab] = useState<SessionTab>('agent');
     const [reviewVisited, setReviewVisited] = useState(false);
     const [shellVisited, setShellVisited] = useState(false);
-    const [hasReviewFiles, setHasReviewFiles] = useState(false);
     const [desktopReviewOpen, setDesktopReviewOpen] = useState(false);
     const [desktopReviewFullscreen, setDesktopReviewFullscreen] = useState(false);
     const [desktopShellOpen, setDesktopShellOpen] = useState(false);
@@ -491,10 +490,6 @@ export function SessionView({ sessionId }: SessionViewProps) {
     // Tracks the last diff generation observed while this session view is mounted,
     // so we can detect a newly triggered diff (WS bump) vs the initial fetch.
     const seenDiffGenerationRef = useRef<number | null>(null);
-    const onHasFilesChange = useCallback((hasFiles: boolean) => {
-        setHasReviewFiles(hasFiles);
-    }, []);
-
     const showDesktopReview = isDesktop && desktopReviewOpen;
     const showDesktopReviewFullscreen = showDesktopReview && desktopReviewFullscreen;
     const showDesktopShell = isDesktop && desktopShellOpen;
@@ -766,7 +761,6 @@ export function SessionView({ sessionId }: SessionViewProps) {
         setDesktopReviewOpen(storedOpen === true);
         setDesktopReviewFullscreen(getReviewPanelFullscreen(sessionId));
         setReviewVisited(storedOpen === true);
-        setHasReviewFiles(false);
         seenDiffGenerationRef.current = null;
 
         const storedShellOpen = getShellPanelOpen(sessionId);
@@ -1338,7 +1332,6 @@ export function SessionView({ sessionId }: SessionViewProps) {
 
     useEffect(() => {
         if (!session || session.type !== 'coding') {
-            setHasReviewFiles(false);
             return;
         }
 
@@ -1356,7 +1349,6 @@ export function SessionView({ sessionId }: SessionViewProps) {
                     return;
                 }
                 const hasFiles = (state.summary?.files.length ?? 0) > 0;
-                setHasReviewFiles(hasFiles);
                 if (!hasFiles) {
                     return;
                 }
@@ -1728,7 +1720,6 @@ export function SessionView({ sessionId }: SessionViewProps) {
                                 <Suspense fallback={<Spinner size='lg' label='Loading review' />}>
                                     <SessionCodeView
                                         sessionId={session.id}
-                                        onHasFilesChange={onHasFilesChange}
                                         keybindsEnabled={reviewPaneVisible}
                                         onSubmitAgentPrompt={submitAgentPrompt}
                                         fullscreen={showDesktopReviewFullscreen}
