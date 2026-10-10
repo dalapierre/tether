@@ -10,8 +10,16 @@ const repoRoot = path.resolve(root, '../..');
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, repoRoot, '');
     const overNetwork = env.OVER_NETWORK === 'true';
-    const clientPort = Number(env.CLIENT_PORT) || 1111;
-    const serverPort = Number(env.PORT) || 1928;
+    const clientPort =
+        Number(
+            process.env.PORT ||
+                process.env.npm_config_port ||
+                process.env.CLIENT_PORT ||
+                process.env.npm_config_client_port ||
+                env.PORT ||
+                env.CLIENT_PORT,
+        ) || 1111;
+    const serverPort = Number(process.env.SERVER_PORT || process.env.npm_config_server_port || env.SERVER_PORT) || 1928;
     const sharedServer = {
         host: overNetwork ? true : ('127.0.0.1' as const),
         port: clientPort,
