@@ -447,6 +447,9 @@ export function SessionView({ sessionId }: SessionViewProps) {
     const reviewPaneRef = useRef<HTMLDivElement | null>(null);
     const prevShellPaneVisibleRef = useRef(false);
     const prevReviewPaneVisibleRef = useRef(false);
+    // Tracks the last diff generation observed while this session view is mounted,
+    // so we can detect a newly triggered diff (WS bump) vs the initial fetch.
+    const seenDiffGenerationRef = useRef<number | null>(null);
     const onHasFilesChange = useCallback((hasFiles: boolean) => {
         setHasReviewFiles(hasFiles);
     }, []);
@@ -694,6 +697,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
         setDesktopReviewFullscreen(getReviewPanelFullscreen(sessionId));
         setReviewVisited(storedOpen === true);
         setHasReviewFiles(false);
+        seenDiffGenerationRef.current = null;
 
         const storedShellOpen = getShellPanelOpen(sessionId);
         setDesktopShellOpen(storedShellOpen === true);
@@ -1268,15 +1272,42 @@ export function SessionView({ sessionId }: SessionViewProps) {
         }
 
         let cancelled = false;
+        const generation = diffGeneration;
+        const previousGeneration = seenDiffGenerationRef.current;
+        const isNewDiff = previousGeneration !== null && generation > previousGeneration;
+        seenDiffGenerationRef.current = generation;
 
-        ensureSessionDiff(session.id, diffGeneration)
+        ensureSessionDiff(session.id, generation)
             .then((state) => {
                 if (cancelled) return;
                 // Cold/pending empty responses should not clear a previously known review tab.
                 if (state.pending && (!state.summary || state.summary.files.length === 0)) {
                     return;
                 }
-                setHasReviewFiles((state.summary?.files.length ?? 0) > 0);
+                const hasFiles = (state.summary?.files.length ?? 0) > 0;
+                setHasReviewFiles(hasFiles);
+                if (!hasFiles) {
+                    return;
+                }
+
+                setReviewVisited(true);
+
+                const storedOpen = getReviewPanelOpen(sessionId);
+                // Open on first preference (never set), or whenever a new diff is triggered
+                // while this session is open — even if the user previously closed the panel.
+                if (storedOpen === null || isNewDiff) {
+                    setDesktopReviewOpen(true);
+                    setReviewPanelOpen(sessionId, true);
+                    if (!isDesktop) {
+                        setTab('review');
+                    }
+                    return;
+                }
+
+                // Return to the review tab when a file was open before refresh (mobile).
+                if (!isDesktop && getSelectedDiffPath(sessionId)) {
+                    setTab('review');
+                }
             })
             .catch(() => {
                 // Keep the last known state; tab enablement is best-effort.
@@ -1285,26 +1316,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
         return () => {
             cancelled = true;
         };
-    }, [session, diffGeneration]);
-
-    useEffect(() => {
-        if (!hasReviewFiles) {
-            return;
-        }
-
-        setReviewVisited(true);
-
-        const storedOpen = getReviewPanelOpen(sessionId);
-        if (storedOpen === null) {
-            setDesktopReviewOpen(true);
-            setReviewPanelOpen(sessionId, true);
-        }
-
-        // Return to the review tab when a file was open before refresh (mobile).
-        if (!isDesktop && getSelectedDiffPath(sessionId)) {
-            setTab('review');
-        }
-    }, [hasReviewFiles, sessionId, isDesktop]);
+    }, [session, diffGeneration, sessionId, isDesktop]);
 
     useEffect(() => {
         if (!isDesktop && tab !== 'agent') return;
