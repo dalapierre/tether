@@ -66,8 +66,6 @@ type Messages = {
     devDirHint: NoMessageValues;
     toastDurationLabel: NoMessageValues;
     toastDurationHint: NoMessageValues;
-    authTokenExpirationLabel: NoMessageValues;
-    authTokenExpirationHint: NoMessageValues;
     defaultProfileLabel: NoMessageValues;
     defaultHarnessLabel: NoMessageValues;
     harnessesEmpty: NoMessageValues;
@@ -90,7 +88,6 @@ type Messages = {
     profileYoloModeHint: NoMessageValues;
     profileUseWorktreesLabel: NoMessageValues;
     profileUseWorktreesHint: NoMessageValues;
-    signOut: NoMessageValues;
     saving: NoMessageValues;
     save: NoMessageValues;
     cancel: NoMessageValues;
@@ -361,14 +358,6 @@ export const messages = defineMessages<Messages>(
             id: 'settings.toastDurationHint',
             defaultMessage: 'Seconds notifications stay on screen before dismissing (1–120).',
         },
-        authTokenExpirationLabel: {
-            id: 'settings.authTokenExpirationLabel',
-            defaultMessage: 'Auth token expiration',
-        },
-        authTokenExpirationHint: {
-            id: 'settings.authTokenExpirationHint',
-            defaultMessage: 'Minutes before a login session expires and you must sign in again (1–1440).',
-        },
         defaultHarnessLabel: {
             id: 'settings.defaultHarnessLabel',
             defaultMessage: 'Default harness',
@@ -456,10 +445,6 @@ export const messages = defineMessages<Messages>(
         profileUseWorktreesHint: {
             id: 'settings.profileUseWorktreesHint',
             defaultMessage: 'When off, sessions run directly in the repository instead of a separate worktree.',
-        },
-        signOut: {
-            id: 'settings.signOut',
-            defaultMessage: 'Sign out',
         },
         saving: {
             id: 'settings.saving',

@@ -137,12 +137,9 @@ Tether is primarily accessed from a phone, but the client also supports desktop 
 - Avoid hover-only affordances as the sole way to complete a task; desktop may add hover polish, but phone must remain fully usable.
 - **List item backgrounds must inset** — any selectable, hoverable, or otherwise highlighted element inside a list (rows, menu items, options, etc.) must not let its background touch the left or right edges of its parent. Use horizontal margin (and usually a small radius) so hover/active/selected fills leave a visible gap from the container borders.
 
-### Network calls (auth by default)
+### Network calls
 
-All network calls must require authentication via the access token **unless specified otherwise**.
-
-- Default to authenticated requests on both client and server when adding or changing API routes, fetch helpers, or other network I/O.
-- Only skip access-token auth when the task or existing API explicitly marks the endpoint as public/unauthenticated.
+API and WebSocket endpoints are unauthenticated. Do not add access-key, bearer-token, or login gates unless explicitly requested.
 
 ### Settings schema versioning
 

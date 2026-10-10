@@ -66,4 +66,4 @@ Phone-first layouts keep prompting and review usable away from the desk; desktop
 
 ## Self-hosted and free
 
-Tether runs on your machine. Your agents, repos, and session data stay local. Sign in with an access key you configure — not a cloud account. It will always be free: no hosted tier, no subscription, no vendor lock-in.
+Tether runs on your machine. Your agents, repos, and session data stay local — no cloud account required. It will always be free: no hosted tier, no subscription, no vendor lock-in.

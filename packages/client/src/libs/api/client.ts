@@ -1,5 +1,3 @@
-import { clearAccessToken, getAccessToken } from '@client/libs/auth/session';
-
 export class ApiError extends Error {
     readonly status: number;
 
@@ -12,24 +10,10 @@ export class ApiError extends Error {
 
 export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
     const headers = new Headers(init.headers);
-    const token = getAccessToken();
-
-    if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
-    }
 
     if (init.body !== undefined && !headers.has('Content-Type')) {
         headers.set('Content-Type', 'application/json');
     }
 
-    const res = await fetch(path, { ...init, headers });
-
-    if (res.status === 403) {
-        clearAccessToken();
-        if (window.location.pathname !== '/login') {
-            window.location.assign('/login');
-        }
-    }
-
-    return res;
+    return fetch(path, { ...init, headers });
 }

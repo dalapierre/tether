@@ -25,7 +25,6 @@ export type AgentProfile = {
 export type Settings = {
     devDir: string;
     toastDurationSeconds: number;
-    authTokenExpirationMinutes: number;
     defaultAgent: AgentId;
     defaultProfileId: string;
     profiles: AgentProfile[];
@@ -39,15 +38,10 @@ export const DEFAULT_TOAST_DURATION_SECONDS = 10;
 export const MIN_TOAST_DURATION_SECONDS = 1;
 export const MAX_TOAST_DURATION_SECONDS = 120;
 
-export const DEFAULT_AUTH_TOKEN_EXPIRATION_MINUTES = 60;
-export const MIN_AUTH_TOKEN_EXPIRATION_MINUTES = 1;
-export const MAX_AUTH_TOKEN_EXPIRATION_MINUTES = 1440;
-
 type SettingsFile = {
     version: number;
     devDir: string;
     toastDurationSeconds: number;
-    authTokenExpirationMinutes: number;
     defaultAgent: AgentId;
     defaultProfileId: string;
     profiles: AgentProfile[];
@@ -78,7 +72,6 @@ const defaultSettingsFile: SettingsFile = {
     version: SETTINGS_FILE_VERSION,
     devDir: getHomeDir(),
     toastDurationSeconds: DEFAULT_TOAST_DURATION_SECONDS,
-    authTokenExpirationMinutes: DEFAULT_AUTH_TOKEN_EXPIRATION_MINUTES,
     defaultAgent: DEFAULT_AGENT,
     defaultProfileId: DEFAULT_PROFILE_ID,
     profiles: [createDefaultProfile()],
@@ -158,21 +151,10 @@ export function normalizeToastDurationSeconds(value: unknown): number {
     return DEFAULT_TOAST_DURATION_SECONDS;
 }
 
-export function normalizeAuthTokenExpirationMinutes(value: unknown): number {
-    if (typeof value === 'number' && Number.isFinite(value)) {
-        const minutes = Math.round(value);
-        if (minutes >= MIN_AUTH_TOKEN_EXPIRATION_MINUTES && minutes <= MAX_AUTH_TOKEN_EXPIRATION_MINUTES) {
-            return minutes;
-        }
-    }
-    return DEFAULT_AUTH_TOKEN_EXPIRATION_MINUTES;
-}
-
 function toPublicSettings(file: SettingsFile): Settings {
     return {
         devDir: file.devDir,
         toastDurationSeconds: file.toastDurationSeconds,
-        authTokenExpirationMinutes: file.authTokenExpirationMinutes,
         defaultAgent: file.defaultAgent,
         defaultProfileId: file.defaultProfileId,
         profiles: file.profiles.map((profile) => ({ ...profile })),
@@ -198,7 +180,6 @@ function normalizeSettingsFile(value: unknown): SettingsFile {
         typeof record.version === 'number' && Number.isInteger(record.version) ? record.version : SETTINGS_FILE_VERSION;
     const devDir = typeof record.devDir === 'string' ? record.devDir : '';
     const toastDurationSeconds = normalizeToastDurationSeconds(record.toastDurationSeconds);
-    const authTokenExpirationMinutes = normalizeAuthTokenExpirationMinutes(record.authTokenExpirationMinutes);
     const profiles = normalizeProfiles(record.profiles, record.agent, record.yoloMode);
     const defaultAgent = resolveDefaultAgent(record.defaultAgent ?? record.agent);
     const defaultProfileId = resolveDefaultProfileId(record.defaultProfileId, profiles);
@@ -209,7 +190,6 @@ function normalizeSettingsFile(value: unknown): SettingsFile {
         version,
         devDir,
         toastDurationSeconds,
-        authTokenExpirationMinutes,
         defaultAgent,
         defaultProfileId,
         profiles,
@@ -323,7 +303,6 @@ export function normalizeIncomingProfiles(value: unknown): AgentProfile[] | null
 export async function updateSettings(patch: {
     devDir?: string;
     toastDurationSeconds?: number;
-    authTokenExpirationMinutes?: number;
     defaultAgent?: AgentId;
     defaultProfileId?: string;
     profiles?: AgentProfile[];
@@ -338,16 +317,11 @@ export async function updateSettings(patch: {
         patch.toastDurationSeconds !== undefined
             ? normalizeToastDurationSeconds(patch.toastDurationSeconds)
             : current.toastDurationSeconds;
-    const authTokenExpirationMinutes =
-        patch.authTokenExpirationMinutes !== undefined
-            ? normalizeAuthTokenExpirationMinutes(patch.authTokenExpirationMinutes)
-            : current.authTokenExpirationMinutes;
 
     const next: SettingsFile = {
         ...current,
         devDir: typeof patch.devDir === 'string' ? patch.devDir : current.devDir,
         toastDurationSeconds,
-        authTokenExpirationMinutes,
         defaultAgent,
         defaultProfileId,
         profiles,

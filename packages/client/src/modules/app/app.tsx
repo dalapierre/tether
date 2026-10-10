@@ -1,13 +1,11 @@
 import { Spinner } from '@client/components/spinner';
 import { AppShell } from '@client/modules/app-shell';
-import { RequireAuth } from '@client/modules/auth/require-auth';
 import { ToastProvider } from '@client/modules/toast';
 import { Suspense, lazy } from 'react';
 import { IntlProvider } from 'react-intl';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 
 const WorkspacePage = lazy(() => import('@client/pages/workspace-page').then((m) => ({ default: m.WorkspacePage })));
-const LoginPage = lazy(() => import('@client/pages/login-page').then((m) => ({ default: m.LoginPage })));
 const SessionPage = lazy(() => import('@client/pages/session-page').then((m) => ({ default: m.SessionPage })));
 const SettingsPage = lazy(() => import('@client/pages/settings-page').then((m) => ({ default: m.SettingsPage })));
 const NewSessionPage = lazy(() =>
@@ -21,14 +19,7 @@ export function App() {
                 <ToastProvider>
                     <Suspense fallback={<Spinner size='lg' label='Loading' />}>
                         <Routes>
-                            <Route path='/login' element={<LoginPage />} />
-                            <Route
-                                element={
-                                    <RequireAuth>
-                                        <AppShell />
-                                    </RequireAuth>
-                                }
-                            >
+                            <Route element={<AppShell />}>
                                 <Route path='/' element={<WorkspacePage />} />
                                 <Route path='/sessions/:sessionId' element={<SessionPage />} />
                                 <Route path='/settings' element={<SettingsPage />} />

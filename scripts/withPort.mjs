@@ -12,10 +12,9 @@ import { spawn } from 'node:child_process';
  *
  * PORT        — UI / Vite listen port (what you open in the browser)
  * SERVER_PORT — API server listen port
- * CLIENT_PORT — back-compat alias for PORT
  */
 
-const NPM_CONFIG_PORT_KEYS = ['npm_config_port', 'npm_config_server_port', 'npm_config_client_port'];
+const NPM_CONFIG_PORT_KEYS = ['npm_config_port', 'npm_config_server_port'];
 
 function takeArgValue(args, names) {
     for (let i = 0; i < args.length; i++) {
@@ -39,7 +38,6 @@ function takeArgValue(args, names) {
 const args = process.argv.slice(2);
 const portFromArgs = takeArgValue(args, ['--PORT', '--port']);
 const serverPortFromArgs = takeArgValue(args, ['--SERVER_PORT', '--server-port']);
-const clientPortFromArgs = takeArgValue(args, ['--CLIENT_PORT', '--client-port']);
 
 if (portFromArgs && !process.env.PORT) {
     process.env.PORT = portFromArgs;
@@ -47,18 +45,12 @@ if (portFromArgs && !process.env.PORT) {
 if (serverPortFromArgs && !process.env.SERVER_PORT) {
     process.env.SERVER_PORT = serverPortFromArgs;
 }
-if (clientPortFromArgs && !process.env.PORT) {
-    process.env.PORT = clientPortFromArgs;
-}
 
 if (process.env.npm_config_port && !process.env.PORT) {
     process.env.PORT = process.env.npm_config_port;
 }
 if (process.env.npm_config_server_port && !process.env.SERVER_PORT) {
     process.env.SERVER_PORT = process.env.npm_config_server_port;
-}
-if (!process.env.PORT && (process.env.CLIENT_PORT || process.env.npm_config_client_port)) {
-    process.env.PORT = process.env.CLIENT_PORT || process.env.npm_config_client_port;
 }
 
 // Drop npm's config env so nested `npm run` calls do not warn about unknown configs.

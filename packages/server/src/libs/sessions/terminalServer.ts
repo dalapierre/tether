@@ -1,4 +1,3 @@
-import { verifyAccessToken } from '@server/libs/authTokens.js';
 import { logger, sanitizeUrl } from '@server/libs/logger.js';
 import {
     attachSessionEvents,
@@ -31,14 +30,6 @@ export function attachTerminalServer(server: HttpServer): void {
         }
 
         logger.info(`WS ${loggedUrl}`);
-
-        const token = url.searchParams.get('token') ?? '';
-        if (!token || !verifyAccessToken(token)) {
-            logger.warn(`WS ${loggedUrl} → 403`);
-            socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
-            socket.destroy();
-            return;
-        }
 
         if (isEvents) {
             wss.handleUpgrade(request, socket, head, (ws) => {

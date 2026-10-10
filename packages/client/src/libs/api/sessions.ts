@@ -1,6 +1,5 @@
 import { ApiError, apiFetch } from '@client/libs/api/client';
 import { isAgentId, type AgentId } from '@client/libs/agents/agents';
-import { getAccessToken } from '@client/libs/auth/session';
 import { clearSessionLocalStorage } from '@client/libs/storage/sessionLocalStorage';
 
 export type SessionStatus = 'ready' | 'busy' | 'error';
@@ -381,36 +380,21 @@ export async function discardSessionDiffFile(sessionId: string, filePath: string
 }
 
 export function connectSessionTerminal(sessionId: string): WebSocket {
-    const token = getAccessToken();
-    if (!token) {
-        throw new Error('Not authenticated');
-    }
-
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const url = `${protocol}//${window.location.host}/api/sessions/${encodeURIComponent(sessionId)}/terminal?token=${encodeURIComponent(token)}`;
+    const url = `${protocol}//${window.location.host}/api/sessions/${encodeURIComponent(sessionId)}/terminal`;
     return new WebSocket(url);
 }
 
 /** Connect to the session's built-in user shell (cwd = session workspace). */
 export function connectSessionShell(sessionId: string): WebSocket {
-    const token = getAccessToken();
-    if (!token) {
-        throw new Error('Not authenticated');
-    }
-
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const url = `${protocol}//${window.location.host}/api/sessions/${encodeURIComponent(sessionId)}/shell?token=${encodeURIComponent(token)}`;
+    const url = `${protocol}//${window.location.host}/api/sessions/${encodeURIComponent(sessionId)}/shell`;
     return new WebSocket(url);
 }
 
 export function connectSessionEvents(): WebSocket {
-    const token = getAccessToken();
-    if (!token) {
-        throw new Error('Not authenticated');
-    }
-
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const url = `${protocol}//${window.location.host}/api/sessions/events?token=${encodeURIComponent(token)}`;
+    const url = `${protocol}//${window.location.host}/api/sessions/events`;
     return new WebSocket(url);
 }
 

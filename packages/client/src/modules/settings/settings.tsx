@@ -8,12 +8,10 @@ import { listAvailableAgents, type AvailableAgent } from '@client/libs/api/agent
 import { ApiError } from '@client/libs/api/client';
 import { getSettings, updateSettings, type AgentProfile } from '@client/libs/api/settings';
 import { DEFAULT_KEYBINDS, cloneKeybinds, keybindsEqual, type Keybinds } from '@client/libs/keybinds';
-import { clearAccessToken } from '@client/libs/auth/session';
 import { useIsDesktop } from '@client/libs/dom/useMediaQuery';
 import { DEFAULT_TOAST_DURATION_SECONDS, setToastDurationSeconds, showToast } from '@client/modules/toast';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useIntl } from 'react-intl';
-import { useNavigate } from 'react-router-dom';
 import { KeybindsPanel } from './keybindsPanel';
 import { messages } from './settings.messages';
 import { styles } from './settings.styles';
@@ -21,9 +19,6 @@ import type { SettingsProps } from './settings.types';
 
 const MIN_TOAST_DURATION_SECONDS = 1;
 const MAX_TOAST_DURATION_SECONDS = 120;
-const DEFAULT_AUTH_TOKEN_EXPIRATION_MINUTES = 60;
-const MIN_AUTH_TOKEN_EXPIRATION_MINUTES = 1;
-const MAX_AUTH_TOKEN_EXPIRATION_MINUTES = 1440;
 
 type SettingsView = 'root' | 'general' | 'agents' | 'profiles' | 'new-profile' | 'edit-profile' | 'keybinds';
 
@@ -119,21 +114,16 @@ function pickHarness(availableAgents: AvailableAgent[], preferred: AgentId): Age
 
 export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
     const intl = useIntl();
-    const navigate = useNavigate();
     const isDesktop = useIsDesktop();
     const [view, setView] = useState<SettingsView>('root');
     const [devDir, setDevDir] = useState('');
     const [toastDurationSeconds, setToastDurationSecondsState] = useState(DEFAULT_TOAST_DURATION_SECONDS);
-    const [authTokenExpirationMinutes, setAuthTokenExpirationMinutes] = useState(DEFAULT_AUTH_TOKEN_EXPIRATION_MINUTES);
     const [defaultAgent, setDefaultAgent] = useState<AgentId>('cursor');
     const [defaultProfileId, setDefaultProfileId] = useState('');
     const [profiles, setProfiles] = useState<AgentProfile[]>([]);
     const [keybinds, setKeybinds] = useState<Keybinds>(() => cloneKeybinds(DEFAULT_KEYBINDS));
     const [savedDevDir, setSavedDevDir] = useState('');
     const [savedToastDurationSeconds, setSavedToastDurationSeconds] = useState(DEFAULT_TOAST_DURATION_SECONDS);
-    const [savedAuthTokenExpirationMinutes, setSavedAuthTokenExpirationMinutes] = useState(
-        DEFAULT_AUTH_TOKEN_EXPIRATION_MINUTES,
-    );
     const [savedDefaultAgent, setSavedDefaultAgent] = useState<AgentId>('cursor');
     const [savedDefaultProfileId, setSavedDefaultProfileId] = useState('');
     const [savedKeybinds, setSavedKeybinds] = useState<Keybinds>(() => cloneKeybinds(DEFAULT_KEYBINDS));
@@ -156,14 +146,12 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
                 if (cancelled) return;
                 setDevDir(settings.devDir);
                 setToastDurationSecondsState(settings.toastDurationSeconds);
-                setAuthTokenExpirationMinutes(settings.authTokenExpirationMinutes);
                 setDefaultAgent(settings.defaultAgent);
                 setDefaultProfileId(settings.defaultProfileId);
                 setProfiles(settings.profiles);
                 setKeybinds(cloneKeybinds(settings.keybinds));
                 setSavedDevDir(settings.devDir);
                 setSavedToastDurationSeconds(settings.toastDurationSeconds);
-                setSavedAuthTokenExpirationMinutes(settings.authTokenExpirationMinutes);
                 setSavedDefaultAgent(settings.defaultAgent);
                 setSavedDefaultProfileId(settings.defaultProfileId);
                 setSavedKeybinds(cloneKeybinds(settings.keybinds));
@@ -207,10 +195,7 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
         onClose();
     }, [availableAgents, defaultAgent, onClose, view]);
 
-    const generalDirty =
-        devDir.trim() !== savedDevDir ||
-        toastDurationSeconds !== savedToastDurationSeconds ||
-        authTokenExpirationMinutes !== savedAuthTokenExpirationMinutes;
+    const generalDirty = devDir.trim() !== savedDevDir || toastDurationSeconds !== savedToastDurationSeconds;
     const agentsDirty = defaultAgent !== savedDefaultAgent || defaultProfileId !== savedDefaultProfileId;
     const keybindsDirty = !keybindsEqual(keybinds, savedKeybinds);
     const editingProfile = editingProfileId
@@ -228,7 +213,6 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
         if (view === 'general') {
             setDevDir(savedDevDir);
             setToastDurationSecondsState(savedToastDurationSeconds);
-            setAuthTokenExpirationMinutes(savedAuthTokenExpirationMinutes);
         } else if (view === 'agents') {
             setDefaultAgent(savedDefaultAgent);
             setDefaultProfileId(savedDefaultProfileId);
@@ -311,7 +295,6 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
             const settings = await updateSettings({
                 devDir: devDir.trim(),
                 toastDurationSeconds,
-                authTokenExpirationMinutes,
                 defaultAgent,
                 defaultProfileId: nextDefaultProfileId,
                 profiles: nextProfiles,
@@ -319,14 +302,12 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
             });
             setDevDir(settings.devDir);
             setToastDurationSecondsState(settings.toastDurationSeconds);
-            setAuthTokenExpirationMinutes(settings.authTokenExpirationMinutes);
             setDefaultAgent(settings.defaultAgent);
             setDefaultProfileId(settings.defaultProfileId);
             setProfiles(settings.profiles);
             setKeybinds(cloneKeybinds(settings.keybinds));
             setSavedDevDir(settings.devDir);
             setSavedToastDurationSeconds(settings.toastDurationSeconds);
-            setSavedAuthTokenExpirationMinutes(settings.authTokenExpirationMinutes);
             setSavedDefaultAgent(settings.defaultAgent);
             setSavedDefaultProfileId(settings.defaultProfileId);
             setSavedKeybinds(cloneKeybinds(settings.keybinds));
@@ -360,7 +341,6 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
             const settings = await updateSettings({
                 devDir: devDir.trim(),
                 toastDurationSeconds,
-                authTokenExpirationMinutes,
                 defaultAgent,
                 defaultProfileId,
                 profiles: nextProfiles,
@@ -368,14 +348,12 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
             });
             setDevDir(settings.devDir);
             setToastDurationSecondsState(settings.toastDurationSeconds);
-            setAuthTokenExpirationMinutes(settings.authTokenExpirationMinutes);
             setDefaultAgent(settings.defaultAgent);
             setDefaultProfileId(settings.defaultProfileId);
             setProfiles(settings.profiles);
             setKeybinds(cloneKeybinds(settings.keybinds));
             setSavedDevDir(settings.devDir);
             setSavedToastDurationSeconds(settings.toastDurationSeconds);
-            setSavedAuthTokenExpirationMinutes(settings.authTokenExpirationMinutes);
             setSavedDefaultAgent(settings.defaultAgent);
             setSavedDefaultProfileId(settings.defaultProfileId);
             setSavedKeybinds(cloneKeybinds(settings.keybinds));
@@ -479,11 +457,6 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
             showToast('generic-error', intl.formatMessage(messages.removeProfileFailed));
         }
         setRemovingId(null);
-    }
-
-    function onSignOut() {
-        clearAccessToken();
-        navigate('/login', { replace: true });
     }
 
     const showSaveButton =
@@ -668,12 +641,6 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
                                 <CategoryChevron />
                             </button>
                         </div>
-
-                        <div className={styles.actions}>
-                            <Button type='button' variant='secondary' onClick={onSignOut}>
-                                {intl.formatMessage(messages.signOut)}
-                            </Button>
-                        </div>
                     </>
                 ) : null}
 
@@ -722,35 +689,6 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
                                         Math.min(
                                             MAX_TOAST_DURATION_SECONDS,
                                             Math.max(MIN_TOAST_DURATION_SECONDS, Math.round(next)),
-                                        ),
-                                    );
-                                }}
-                            />
-                        </label>
-
-                        <label className={styles.inlineField}>
-                            <span className={styles.inlineFieldText}>
-                                <span className={styles.inlineFieldLabel}>
-                                    {intl.formatMessage(messages.authTokenExpirationLabel)}
-                                </span>
-                                <span className={styles.inlineFieldHint}>
-                                    {intl.formatMessage(messages.authTokenExpirationHint)}
-                                </span>
-                            </span>
-                            <input
-                                className={styles.inlineFieldInput}
-                                type='number'
-                                min={MIN_AUTH_TOKEN_EXPIRATION_MINUTES}
-                                max={MAX_AUTH_TOKEN_EXPIRATION_MINUTES}
-                                step={1}
-                                value={authTokenExpirationMinutes}
-                                onChange={(event) => {
-                                    const next = Number(event.target.value);
-                                    if (!Number.isFinite(next)) return;
-                                    setAuthTokenExpirationMinutes(
-                                        Math.min(
-                                            MAX_AUTH_TOKEN_EXPIRATION_MINUTES,
-                                            Math.max(MIN_AUTH_TOKEN_EXPIRATION_MINUTES, Math.round(next)),
                                         ),
                                     );
                                 }}
