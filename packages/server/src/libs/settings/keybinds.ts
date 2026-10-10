@@ -81,7 +81,7 @@ export const DEFAULT_KEYBINDS: Keybinds = {
         restartSession: 'r',
     },
     session: {
-        goBack: 'escape',
+        goBack: '',
         toggleReview: '.',
         reviewFullscreen: 'super+.',
         toggleTerminal: 'alt+q',
@@ -161,9 +161,9 @@ export function normalizeKeybinds(value: unknown): Keybinds {
         sessionSource.enterAgentInsert = 'i';
     }
 
-    // Migrate previous default goBack chord.
-    if (sessionSource.goBack === 'q') {
-        sessionSource.goBack = 'escape';
+    // Migrate previous default goBack chords (q → escape → unbound).
+    if (sessionSource.goBack === 'q' || sessionSource.goBack === 'escape') {
+        sessionSource.goBack = '';
     }
 
     return {

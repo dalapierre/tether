@@ -92,7 +92,7 @@ export const DEFAULT_KEYBINDS: Keybinds = {
         restartSession: 'r',
     },
     session: {
-        goBack: 'escape',
+        goBack: '',
         toggleReview: '.',
         reviewFullscreen: 'super+.',
         toggleTerminal: 'alt+q',
