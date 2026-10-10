@@ -1,5 +1,5 @@
 import { isAgentId, type AgentId } from '@server/libs/agents/agents.js';
-import { getLegacyServerDataDir, getSettingsFilePath, getTetherHomeDir } from '@server/libs/paths.js';
+import { getHomeDir, getLegacyServerDataDir, getSettingsFilePath, getTetherHomeDir } from '@server/libs/paths.js';
 import { DEFAULT_KEYBINDS, normalizeKeybinds, type Keybinds } from '@server/libs/settings/keybinds.js';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -76,7 +76,7 @@ const DEFAULT_AGENT: AgentId = 'cursor';
 
 const defaultSettingsFile: SettingsFile = {
     version: SETTINGS_FILE_VERSION,
-    devDir: '',
+    devDir: getHomeDir(),
     toastDurationSeconds: DEFAULT_TOAST_DURATION_SECONDS,
     authTokenExpirationMinutes: DEFAULT_AUTH_TOKEN_EXPIRATION_MINUTES,
     defaultAgent: DEFAULT_AGENT,
