@@ -6,7 +6,7 @@
     "scripts": {
         "dev": "tsx watch --exclude '../**/node_modules/**' --exclude '../../node_modules/**' src/index.ts",
         "build": "vite build",
-        "start": "NODE_ENV=production PORT=1928 tsx src/index.ts",
+        "start": "NODE_ENV=production tsx src/index.ts",
         "typecheck": "tsc -p tsconfig.json --noEmit"
     },
     "dependencies": {

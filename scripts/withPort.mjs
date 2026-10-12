@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 
 /**
- * Apply port overrides, then run the remaining command.
+ * Apply PORT override, then run the remaining command.
  *
  * Preferred (no npm warnings):
  *   npm run dev -- --PORT=8080
@@ -9,12 +9,9 @@ import { spawn } from 'node:child_process';
  * Also supported:
  *   PORT=8080 npm run dev
  *
- * PORT — host listen port (UI + API on one port). Used by `npm run dev` only;
- * `npm run start` always listens on 1928 in production (no HMR).
- * SERVER_PORT — accepted as an alias for PORT (legacy)
+ * PORT — host listen port (UI + API on one port). Used by `npm run dev` only
+ * (default 1111). `npm run start` always listens on 1928 in production (no HMR).
  */
-
-const NPM_CONFIG_PORT_KEYS = ['npm_config_port', 'npm_config_server_port'];
 
 function takeArgValue(args, names) {
     for (let i = 0; i < args.length; i++) {
@@ -37,32 +34,17 @@ function takeArgValue(args, names) {
 
 const args = process.argv.slice(2);
 const portFromArgs = takeArgValue(args, ['--PORT', '--port']);
-const serverPortFromArgs = takeArgValue(args, ['--SERVER_PORT', '--server-port']);
 
 if (portFromArgs && !process.env.PORT) {
     process.env.PORT = portFromArgs;
-}
-if (serverPortFromArgs && !process.env.PORT) {
-    process.env.PORT = serverPortFromArgs;
-}
-if (serverPortFromArgs && !process.env.SERVER_PORT) {
-    process.env.SERVER_PORT = serverPortFromArgs;
 }
 
 if (process.env.npm_config_port && !process.env.PORT) {
     process.env.PORT = process.env.npm_config_port;
 }
-if (process.env.npm_config_server_port && !process.env.PORT) {
-    process.env.PORT = process.env.npm_config_server_port;
-}
-if (process.env.npm_config_server_port && !process.env.SERVER_PORT) {
-    process.env.SERVER_PORT = process.env.npm_config_server_port;
-}
 
 // Drop npm's config env so nested `npm run` calls do not warn about unknown configs.
-for (const key of NPM_CONFIG_PORT_KEYS) {
-    delete process.env[key];
-}
+delete process.env.npm_config_port;
 
 const [command, ...commandArgs] = args;
 if (!command) {

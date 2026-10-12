@@ -17,7 +17,7 @@ dotenv.config({ path: path.join(repoRoot, '.env') });
 dotenv.config({ path: path.join(packageRoot, '.env') });
 
 const isProd = process.env.NODE_ENV === 'production';
-const PORT = isProd ? 1928 : Number(process.env.PORT || process.env.SERVER_PORT || process.env.npm_config_port) || 1928;
+const PORT = isProd ? 1928 : Number(process.env.PORT) || 1111;
 const HOST = '0.0.0.0';
 
 async function start(): Promise<void> {

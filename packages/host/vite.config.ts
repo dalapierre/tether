@@ -15,7 +15,7 @@ const uiRoot = path.resolve(hostRoot, '../ui');
  */
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, repoRoot, '');
-    const port = Number(process.env.PORT || process.env.SERVER_PORT || env.PORT || env.SERVER_PORT) || 1928;
+    const port = Number(process.env.PORT || env.PORT) || 1111;
 
     return {
         root: uiRoot,
