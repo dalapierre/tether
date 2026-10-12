@@ -16,8 +16,8 @@ const repoRoot = path.resolve(packageRoot, '../..');
 dotenv.config({ path: path.join(repoRoot, '.env') });
 dotenv.config({ path: path.join(packageRoot, '.env') });
 
-const isProd = process.env.NODE_ENV === 'production';
-const PORT = isProd ? 1928 : Number(process.env.PORT) || 1111;
+const isDev = process.env.NODE_ENV !== 'production';
+const PORT = isDev ? Number(process.env.PORT) || 1111 : 1928;
 const HOST = '0.0.0.0';
 
 async function start(): Promise<void> {
@@ -33,7 +33,8 @@ async function start(): Promise<void> {
     const server = http.createServer(app);
     attachTerminalServer(server, tetherHost);
 
-    await serveUi(app, server, !isProd);
+    // Dev: Vite middleware + HMR. Prod: static dist/ui (no HMR).
+    await serveUi(app, server, isDev);
 
     server.listen(PORT, HOST, () => {
         logger.info(`Tether host listening on http://${HOST}:${PORT}`);
