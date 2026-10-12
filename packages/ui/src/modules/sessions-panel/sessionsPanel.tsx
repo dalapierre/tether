@@ -230,9 +230,14 @@ export function SessionsPanel({
 
     filteredSessionsRef.current = filteredSessions;
 
-    const keybindsEnabled = listInteractive && !pendingDelete && !actionsMenu;
-    const expandedKeybindsEnabled = keybindsEnabled && !effectivelyCollapsed;
-    const navKeybindsEnabled = expandedKeybindsEnabled && !sessionsLoading && filteredSessions.length > 0;
+    // Sidebar actions stay available while the panel is mounted (including next to a
+    // session). List navigation only when home is the primary surface — otherwise
+    // arrows/`r` fight session review keybinds.
+    const panelFree = !pendingDelete && !actionsMenu;
+    const sidebarActionsEnabled = panelFree;
+    const expandedActionsEnabled = sidebarActionsEnabled && !effectivelyCollapsed;
+    const navKeybindsEnabled =
+        listInteractive && expandedActionsEnabled && !sessionsLoading && filteredSessions.length > 0;
 
     const closeActionsMenu = useCallback(() => {
         setActionsMenu(null);
@@ -258,8 +263,8 @@ export function SessionsPanel({
         }
     }
 
-    useKeybind('home', 'newSession', openNewSession, { enabled: keybindsEnabled });
-    useKeybind('home', 'openSettings', () => openSettings(), { enabled: keybindsEnabled });
+    useKeybind('home', 'newSession', openNewSession, { enabled: sidebarActionsEnabled });
+    useKeybind('home', 'openSettings', () => openSettings(), { enabled: sidebarActionsEnabled });
     useKeybind(
         'home',
         'focusSearch',
@@ -267,7 +272,7 @@ export function SessionsPanel({
             searchInputRef.current?.focus();
             setSelectedIndex(null);
         },
-        { enabled: expandedKeybindsEnabled && !sessionsLoading },
+        { enabled: expandedActionsEnabled && !sessionsLoading },
     );
     useKeybind(
         'home',
