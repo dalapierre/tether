@@ -350,7 +350,7 @@ function shouldIgnoreDiffWatchPath(filename: string): boolean {
 }
 
 function isSessionStatus(value: unknown): value is SessionStatus {
-    return value === 'ready' || value === 'busy' || value === 'error';
+    return value === 'ready' || value === 'busy' || value === 'error' || value === 'initializing';
 }
 
 function isSessionType(value: unknown): value is SessionType {
@@ -738,6 +738,25 @@ async function startWatchingHead(session: RuntimeSession): Promise<void> {
 }
 
 async function toPublic(session: RuntimeSession, options: { syncBranch?: boolean } = {}): Promise<Session> {
+    // Workspace may not exist yet; skip git calls until initialization finishes.
+    if (session.status === 'initializing') {
+        return {
+            id: session.id,
+            name: session.name,
+            profileId: session.profileId,
+            agent: session.agent,
+            type: session.type,
+            repositoryId: session.repositoryId,
+            branch: session.branch,
+            behindDefault: null,
+            defaultBranch: null,
+            cpuPercent: session.cpuPercent,
+            ramPercent: session.ramPercent,
+            status: session.status,
+            createdAt: session.createdAt,
+        };
+    }
+
     // List/snapshot should stay cheap: branch is kept current by restore + HEAD watchers.
     if (options.syncBranch !== false) {
         await syncSessionBranch(session, { broadcast: true });
@@ -856,11 +875,15 @@ function setStatus(session: RuntimeSession, status: SessionStatus): void {
 }
 
 function applyAgentStatusFromOutput(session: RuntimeSession, data: string): void {
-    if (session.status === 'error') return;
+    if (session.status === 'error' || session.status === 'initializing') return;
     const detected = extractStatusFromOutput(data, session.oscTitleState);
     if (detected) {
         setStatus(session, detected);
     }
+}
+
+function isLiveSession(session: RuntimeSession): boolean {
+    return sessions.get(session.id) === session;
 }
 
 async function listWorktreeLeaves(worktreesRoot: string): Promise<Set<string>> {
@@ -1103,6 +1126,124 @@ async function allocateSessionId(takenIds: Set<string>, name: string): Promise<s
     return uniqueSlug(slugify(name) || 'session', takenIds);
 }
 
+async function rollbackWorktree(
+    repositoryPath: string,
+    workspace: { branch: string; worktreePath: string; createdBranch: boolean },
+): Promise<void> {
+    await execFileAsync('git', ['worktree', 'remove', '--force', workspace.worktreePath], {
+        cwd: repositoryPath,
+    }).catch(async () => {
+        await rm(workspace.worktreePath, { recursive: true, force: true }).catch(() => undefined);
+        await pruneStaleWorktrees(repositoryPath);
+    });
+    if (workspace.createdBranch) {
+        await execFileAsync('git', ['branch', '-D', workspace.branch], { cwd: repositoryPath }).catch(() => undefined);
+    }
+}
+
+/**
+ * Slow setup (worktree, agent chat id, harness spawn) after the session is already listed.
+ * Failures leave the session in error so the user can delete or inspect output.
+ */
+async function finalizeCodingSession(
+    session: RuntimeSession,
+    input: {
+        agent: AgentId;
+        useWorktrees: boolean;
+        branch?: string;
+        workingDirectory: string;
+    },
+    repository: { id: string; path: string },
+): Promise<void> {
+    let workspace: { branch: string; worktreePath: string; baseSha: string; createdBranch: boolean } | null = null;
+
+    try {
+        if (input.useWorktrees) {
+            try {
+                workspace = await createWorktree(repository.id, repository.path, session.id, input.branch ?? '');
+            } catch (err: unknown) {
+                const message = err instanceof Error ? err.message : 'Failed to create worktree';
+                throw new Error(
+                    message.startsWith('Failed to create worktree') ? message : `Failed to create worktree: ${message}`,
+                );
+            }
+        } else {
+            const [{ stdout: headStdout }, { stdout: branchStdout }] = await Promise.all([
+                execFileAsync('git', ['rev-parse', 'HEAD'], { cwd: repository.path }),
+                execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: repository.path }),
+            ]);
+            workspace = {
+                branch: branchStdout.trim() || 'HEAD',
+                worktreePath: repository.path,
+                baseSha: headStdout.trim(),
+                createdBranch: false,
+            };
+        }
+
+        if (!isLiveSession(session)) {
+            if (input.useWorktrees && workspace) {
+                await rollbackWorktree(repository.path, workspace);
+            }
+            return;
+        }
+
+        try {
+            await assertWorkingDirectoryExists(workspace.worktreePath, input.workingDirectory);
+        } catch (err: unknown) {
+            if (input.useWorktrees) {
+                await rollbackWorktree(repository.path, workspace);
+            }
+            throw err;
+        }
+
+        if (!isLiveSession(session)) {
+            if (input.useWorktrees) {
+                await rollbackWorktree(repository.path, workspace);
+            }
+            return;
+        }
+
+        const agentSessionId = await createAgentSessionId(input.agent);
+
+        if (!isLiveSession(session)) {
+            if (input.useWorktrees) {
+                await rollbackWorktree(repository.path, workspace);
+            }
+            return;
+        }
+
+        session.branch = workspace.branch;
+        session.createdBranch = workspace.createdBranch;
+        session.ownedBranch = workspace.createdBranch ? workspace.branch : null;
+        session.worktreePath = workspace.worktreePath;
+        session.baseSha = workspace.baseSha;
+        session.agentSessionId = agentSessionId;
+
+        await persistSessions();
+        await startWatchingHead(session);
+        startWatchingDiff(session);
+
+        const publicSession = await toPublic(session, { syncBranch: false });
+        broadcastSessionUpsert(publicSession);
+
+        try {
+            if (input.agent === 'cursor') {
+                await ensureCursorStatusIndicatorsEnabled();
+            }
+            if (!isLiveSession(session)) return;
+            await spawnHarness(session);
+        } catch {
+            // Session remains in error state with buffered failure output.
+        }
+    } catch (err: unknown) {
+        if (!isLiveSession(session)) return;
+        const message = err instanceof Error ? err.message : 'Failed to initialize session';
+        appendOutput(session.id, `\r\n[failed to initialize session: ${message}]\r\n`);
+        setStatus(session, 'error');
+        logger.error(`Failed to initialize session ${session.id}`, err);
+    }
+}
+
 async function createCodingSession(input: {
     name: string;
     agent: AgentId;
@@ -1115,6 +1256,16 @@ async function createCodingSession(input: {
     const repository = await getRepository(input.repositoryId);
     if (!repository) {
         throw new Error('Repository not found');
+    }
+
+    const requestedBranch = input.useWorktrees ? (input.branch?.trim() ?? '') : '';
+    if (input.useWorktrees) {
+        if (!requestedBranch) {
+            throw new Error('Branch is required');
+        }
+        if (!isValidBranchName(requestedBranch)) {
+            throw new Error('Invalid branch name');
+        }
     }
 
     const takenIds = new Set(sessions.keys());
@@ -1139,50 +1290,7 @@ async function createCodingSession(input: {
     }
 
     const id = await allocateSessionId(takenIds, input.name);
-
-    let workspace: { branch: string; worktreePath: string; baseSha: string; createdBranch: boolean };
-    if (input.useWorktrees) {
-        try {
-            workspace = await createWorktree(repository.id, repository.path, id, input.branch ?? '');
-        } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : 'Failed to create worktree';
-            throw new Error(
-                message.startsWith('Failed to create worktree') ? message : `Failed to create worktree: ${message}`,
-            );
-        }
-    } else {
-        const [{ stdout: headStdout }, { stdout: branchStdout }] = await Promise.all([
-            execFileAsync('git', ['rev-parse', 'HEAD'], { cwd: repository.path }),
-            execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: repository.path }),
-        ]);
-        workspace = {
-            branch: branchStdout.trim() || 'HEAD',
-            worktreePath: repository.path,
-            baseSha: headStdout.trim(),
-            createdBranch: false,
-        };
-    }
-
-    try {
-        await assertWorkingDirectoryExists(workspace.worktreePath, input.workingDirectory);
-    } catch (err: unknown) {
-        if (input.useWorktrees) {
-            await execFileAsync('git', ['worktree', 'remove', '--force', workspace.worktreePath], {
-                cwd: repository.path,
-            }).catch(async () => {
-                await rm(workspace.worktreePath, { recursive: true, force: true }).catch(() => undefined);
-                await pruneStaleWorktrees(repository.path);
-            });
-            if (workspace.createdBranch) {
-                await execFileAsync('git', ['branch', '-D', workspace.branch], { cwd: repository.path }).catch(
-                    () => undefined,
-                );
-            }
-        }
-        throw err;
-    }
-
-    const agentSessionId = await createAgentSessionId(input.agent);
+    const worktreePath = input.useWorktrees ? path.join(getRepositoryWorktreesDir(repository.id), id) : repository.path;
 
     const session: RuntimeSession = {
         id,
@@ -1191,20 +1299,20 @@ async function createCodingSession(input: {
         agent: input.agent,
         type: 'coding',
         repositoryId: repository.id,
-        branch: workspace.branch,
+        branch: input.useWorktrees ? requestedBranch : null,
         cpuPercent: null,
         ramPercent: null,
-        status: 'busy',
+        status: 'initializing',
         createdAt: Date.now(),
         yoloMode: input.yoloMode,
         useWorktrees: input.useWorktrees,
-        createdBranch: workspace.createdBranch,
-        ownedBranch: workspace.createdBranch ? workspace.branch : null,
-        worktreePath: workspace.worktreePath,
+        createdBranch: false,
+        ownedBranch: null,
+        worktreePath,
         workingDirectory: input.workingDirectory,
-        baseSha: workspace.baseSha,
+        baseSha: '',
         hadLocalCommits: false,
-        agentSessionId,
+        agentSessionId: null,
         pty: null,
         shellPty: null,
         oscTitleState: { pending: '' },
@@ -1213,20 +1321,12 @@ async function createCodingSession(input: {
     sessions.set(id, session);
     ensureUsageSamplerStarted();
     await persistSessions();
-    await startWatchingHead(session);
-    startWatchingDiff(session);
-
-    try {
-        if (input.agent === 'cursor') {
-            await ensureCursorStatusIndicatorsEnabled();
-        }
-        await spawnHarness(session);
-    } catch {
-        // Session remains in error state with buffered failure output.
-    }
 
     const publicSession = await toPublic(session);
     broadcastSessionUpsert(publicSession);
+
+    void finalizeCodingSession(session, input, repository);
+
     return publicSession;
 }
 
@@ -1453,6 +1553,10 @@ function clampPtySize(cols: number, rows: number): { cols: number; rows: number 
 
 function spawnUserShell(session: RuntimeSession): void {
     if (session.shellPty) {
+        return;
+    }
+
+    if (session.status === 'initializing') {
         return;
     }
 

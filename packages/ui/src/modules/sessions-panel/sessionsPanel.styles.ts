@@ -41,11 +41,14 @@ export const styles = {
     placeholder: 'text-sm text-zinc-500',
     sessionRow: 'group relative',
     sessionButton:
-        'relative w-full rounded-md border border-zinc-800 bg-zinc-950/40 px-2.5 py-2 pr-8 text-left outline-none transition-colors active:bg-zinc-800 focus-visible:border-aura-green md:hover:bg-zinc-900',
+        'relative w-full rounded-md border border-zinc-800 bg-zinc-950/40 px-2.5 py-2 pr-8 text-left outline-none transition-colors active:bg-zinc-800 focus-visible:border-aura-green md:hover:bg-zinc-900 disabled:cursor-not-allowed disabled:opacity-60 disabled:active:bg-zinc-950/40 md:disabled:hover:bg-zinc-950/40',
     sessionButtonActive:
-        'relative w-full rounded-md border border-zinc-700 bg-zinc-800 px-2.5 py-2 pr-8 text-left outline-none transition-colors focus-visible:border-aura-green',
+        'relative w-full rounded-md border border-zinc-700 bg-zinc-800 px-2.5 py-2 pr-8 text-left outline-none transition-colors focus-visible:border-aura-green disabled:cursor-not-allowed disabled:opacity-60',
     sessionButtonSelected:
-        'relative w-full rounded-md border border-aura-green bg-zinc-800/80 px-2.5 py-2 pr-8 text-left outline-none transition-colors focus-visible:border-aura-green',
+        'relative w-full rounded-md border border-aura-green bg-zinc-800/80 px-2.5 py-2 pr-8 text-left outline-none transition-colors focus-visible:border-aura-green disabled:cursor-not-allowed disabled:opacity-60',
+    initializingStatus: 'flex items-center gap-1.5',
+    initializingLabel: 'text-[10px] font-medium text-zinc-400',
+    initializingSpinner: 'flex shrink-0 items-center justify-center',
     sessionTitle: 'truncate text-sm font-bold text-zinc-100',
     sessionMeta: 'mt-0.5 min-w-0 truncate text-xs text-zinc-400',
     sessionMetaRepo: 'font-bold text-zinc-300',
@@ -54,7 +57,7 @@ export const styles = {
     usage: 'text-[10px] font-bold text-white',
     usageWarning: 'text-[10px] font-bold text-amber-400',
     usageDanger: 'text-[10px] font-bold text-red-400',
-    trailing: 'absolute top-2 right-1.5 flex items-center gap-1',
+    trailing: 'absolute top-2 right-1.5 flex max-w-[calc(100%-0.75rem)] items-center gap-1',
     restartButton:
         'inline-flex h-5 w-5 items-center justify-center rounded text-zinc-400 transition-colors md:hover:bg-zinc-700 md:hover:text-zinc-100 active:bg-zinc-700 active:text-zinc-100 disabled:opacity-50',
     restartIcon: 'h-3 w-3',

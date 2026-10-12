@@ -19,6 +19,11 @@ export function NewSessionPage() {
                 onClose={onClose}
                 onStarted={(session) => {
                     upsertSession(session);
+                    // Stay on the list while workspace/agent setup finishes in the background.
+                    if (session.status === 'initializing') {
+                        navigate(getPanelReturnPath(location.state), { replace: true });
+                        return;
+                    }
                     navigate(`/sessions/${session.id}`, { replace: true });
                 }}
             />

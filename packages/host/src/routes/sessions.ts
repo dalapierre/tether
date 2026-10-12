@@ -177,6 +177,7 @@ export function createSessionsRouter(host: TetherHost): Router {
                 message === 'Branch is required' ||
                 message === 'Repository is required' ||
                 message === 'Repository not found' ||
+                message === 'Invalid branch name' ||
                 message === 'Invalid working directory' ||
                 message === 'Working directory not found' ||
                 message.startsWith('Failed to create worktree')

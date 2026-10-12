@@ -13,6 +13,9 @@ export const styles = {
     statusDotReady: 'bg-emerald-500',
     statusDotBusy: 'bg-amber-400',
     statusDotError: 'bg-red-500',
+    statusInitializing: 'flex items-center gap-1.5',
+    statusInitializingLabel: 'text-[10px] font-medium text-zinc-400',
+    statusInitializingSpinner: 'flex shrink-0 items-center justify-center',
     // Mobile: under tabs. Desktop: pinned below the main panes (flex order-last).
     metaPanel: 'shrink-0 md:order-last md:mr-2 md:mb-2 [&>div]:flex-none',
     meta: 'flex items-center gap-3 px-2 py-1.5 text-xs text-zinc-400 md:px-3',

@@ -286,6 +286,8 @@ function sessionStatusLabelFor(
             return formatMessage(messages.statusBusy);
         case 'error':
             return formatMessage(messages.statusError);
+        case 'initializing':
+            return formatMessage(messages.statusInitializing);
     }
 }
 
@@ -303,6 +305,8 @@ function sessionStatusDotClassFor(connection: ConnectionState, status: SessionSt
             return styles.statusDotBusy;
         case 'error':
             return styles.statusDotError;
+        case 'initializing':
+            return styles.statusDotBusy;
     }
 }
 
@@ -1654,11 +1658,22 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         title={
                             <>
                                 <span className={styles.agentTitleName}>{agentTitle}</span>
-                                <span
-                                    className={`${styles.statusDot} ${statusDotClass}`}
-                                    role='status'
-                                    aria-label={statusLabel}
-                                />
+                                {displaySession.status === 'initializing' ? (
+                                    <span className={styles.statusInitializing} role='status' aria-label={statusLabel}>
+                                        <span className={styles.statusInitializingLabel}>{statusLabel}</span>
+                                        <Spinner
+                                            size='sm'
+                                            label={statusLabel}
+                                            className={styles.statusInitializingSpinner}
+                                        />
+                                    </span>
+                                ) : (
+                                    <span
+                                        className={`${styles.statusDot} ${statusDotClass}`}
+                                        role='status'
+                                        aria-label={statusLabel}
+                                    />
+                                )}
                             </>
                         }
                         toolbarActions={

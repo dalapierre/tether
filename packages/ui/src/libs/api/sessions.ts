@@ -3,7 +3,7 @@ import { getTransport } from '@ui/libs/api/transport';
 import { isAgentId, type AgentId } from '@ui/libs/agents/agents';
 import { clearSessionLocalStorage } from '@ui/libs/storage/sessionLocalStorage';
 
-export type SessionStatus = 'ready' | 'busy' | 'error';
+export type SessionStatus = 'ready' | 'busy' | 'error' | 'initializing';
 
 export type SessionType = 'coding' | 'conversation';
 
@@ -117,7 +117,7 @@ type FileDiffResponse = {
 };
 
 function isSessionStatus(value: unknown): value is SessionStatus {
-    return value === 'ready' || value === 'busy' || value === 'error';
+    return value === 'ready' || value === 'busy' || value === 'error' || value === 'initializing';
 }
 
 function isSessionType(value: unknown): value is SessionType {

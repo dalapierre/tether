@@ -10,6 +10,7 @@ type Messages = {
     statusReady: NoMessageValues;
     statusBusy: NoMessageValues;
     statusError: NoMessageValues;
+    statusInitializing: NoMessageValues;
     metaConversation: { harness: string };
     branchBehindDefault: { count: number; defaultBranch: string };
     metaCpu: { percent: number };
@@ -71,6 +72,10 @@ export const messages = defineMessages<Messages>(
         statusError: {
             id: 'sessionView.statusError',
             defaultMessage: 'Error',
+        },
+        statusInitializing: {
+            id: 'sessionView.statusInitializing',
+            defaultMessage: 'Initializing',
         },
         metaConversation: {
             id: 'sessionView.metaConversation',

@@ -1,6 +1,6 @@
 import type { AgentId } from '@core/libs/agents/agents.js';
 
-export type SessionStatus = 'ready' | 'busy' | 'error';
+export type SessionStatus = 'ready' | 'busy' | 'error' | 'initializing';
 
 export type SessionType = 'coding' | 'conversation';
 

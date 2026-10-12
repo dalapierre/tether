@@ -2,6 +2,7 @@ import logoLight from '@ui/assets/logo_light.svg';
 import { ConfirmDialog } from '@ui/components/confirm-dialog';
 import { IconButton } from '@ui/components/icon-button';
 import { Panel } from '@ui/components/panel';
+import { Spinner } from '@ui/components/spinner';
 import { SwipeToDelete } from '@ui/components/swipe-to-delete';
 import { listRepositories, type Repository } from '@ui/libs/api/repositories';
 import { deleteSession, restartSession, type Session, type SessionStatus } from '@ui/libs/api/sessions';
@@ -151,13 +152,16 @@ function indicatorClass(status: SessionStatus): string {
             return styles.indicatorBusy;
         case 'error':
             return styles.indicatorError;
+        case 'initializing':
+            return styles.indicatorBusy;
     }
 }
 
-function sessionButtonClass(active: boolean, selected: boolean): string {
-    if (active) return styles.sessionButtonActive;
-    if (selected) return styles.sessionButtonSelected;
-    return styles.sessionButton;
+function sessionButtonClass(active: boolean, selected: boolean, initializing: boolean): string {
+    const padding = initializing ? ' !pr-28' : '';
+    if (active) return `${styles.sessionButtonActive}${padding}`;
+    if (selected) return `${styles.sessionButtonSelected}${padding}`;
+    return `${styles.sessionButton}${padding}`;
 }
 
 export function SessionsPanel({
@@ -337,7 +341,7 @@ export function SessionsPanel({
 
             const index = selectedIndexRef.current;
             const session = index === null ? null : filteredSessionsRef.current[index];
-            if (!session) return;
+            if (!session || session.status === 'initializing') return;
 
             event.preventDefault();
             navigate(`/sessions/${session.id}`);
@@ -590,6 +594,7 @@ export function SessionsPanel({
                                         ? filteredSessions.map((session, index) => {
                                               const isActive = session.id === activeSessionId;
                                               const isSelected = index === selectedIndex;
+                                              const isInitializing = session.status === 'initializing';
                                               return (
                                                   <div key={session.id} ref={isSelected ? selectedRowRef : null}>
                                                       <SwipeToDelete
@@ -601,9 +606,18 @@ export function SessionsPanel({
                                                           <div className={styles.sessionRow}>
                                                               <button
                                                                   type='button'
-                                                                  className={sessionButtonClass(isActive, isSelected)}
+                                                                  className={sessionButtonClass(
+                                                                      isActive,
+                                                                      isSelected,
+                                                                      isInitializing,
+                                                                  )}
                                                                   tabIndex={effectivelyCollapsed ? -1 : undefined}
-                                                                  onClick={() => navigate(`/sessions/${session.id}`)}
+                                                                  disabled={isInitializing}
+                                                                  aria-disabled={isInitializing}
+                                                                  onClick={() => {
+                                                                      if (isInitializing) return;
+                                                                      navigate(`/sessions/${session.id}`);
+                                                                  }}
                                                               >
                                                                   <span className={styles.sessionTitle}>
                                                                       {session.name}
@@ -685,10 +699,27 @@ export function SessionsPanel({
                                                                           <RestartIcon />
                                                                       </button>
                                                                   ) : null}
-                                                                  <span
-                                                                      className={`${styles.indicator} ${indicatorClass(session.status)}`}
-                                                                      aria-hidden='true'
-                                                                  />
+                                                                  {isInitializing ? (
+                                                                      <span className={styles.initializingStatus}>
+                                                                          <span className={styles.initializingLabel}>
+                                                                              {intl.formatMessage(
+                                                                                  messages.initializing,
+                                                                              )}
+                                                                          </span>
+                                                                          <Spinner
+                                                                              size='sm'
+                                                                              label={intl.formatMessage(
+                                                                                  messages.initializing,
+                                                                              )}
+                                                                              className={styles.initializingSpinner}
+                                                                          />
+                                                                      </span>
+                                                                  ) : (
+                                                                      <span
+                                                                          className={`${styles.indicator} ${indicatorClass(session.status)}`}
+                                                                          aria-hidden='true'
+                                                                      />
+                                                                  )}
                                                               </div>
                                                               <div className={styles.moreActions}>
                                                                   <button

@@ -25,6 +25,7 @@ type Messages = {
     deleteFailed: NoMessageValues;
     restartSession: NoMessageValues;
     restartFailed: NoMessageValues;
+    initializing: NoMessageValues;
 };
 
 export const messages = defineMessages<Messages>(
@@ -124,6 +125,10 @@ export const messages = defineMessages<Messages>(
         restartFailed: {
             id: 'sessionsPanel.restartFailed',
             defaultMessage: 'Failed to restart session',
+        },
+        initializing: {
+            id: 'sessionsPanel.initializing',
+            defaultMessage: 'Initializing',
         },
     },
     { typed: true },

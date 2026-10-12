@@ -2,7 +2,7 @@ import { styles } from './spinner.styles';
 import type { SpinnerProps } from './spinner.types';
 
 export function Spinner({ className, size = 'default', label }: SpinnerProps) {
-    const sizeClass = size === 'lg' ? styles.lg : '';
+    const sizeClass = size === 'lg' ? styles.lg : size === 'sm' ? styles.sm : '';
     return (
         <div
             className={className ?? 'flex flex-1 items-center justify-center'}

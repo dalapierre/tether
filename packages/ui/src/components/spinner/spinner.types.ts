@@ -1,5 +1,5 @@
 export type SpinnerProps = {
     className?: string;
-    size?: 'default' | 'lg';
+    size?: 'sm' | 'default' | 'lg';
     label: string;
 };
