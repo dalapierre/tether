@@ -9,8 +9,8 @@
     "scripts": {
         "dev": "node scripts/withPort.mjs npm run dev -w @tether/host",
         "build": "npm run build -w @tether/host",
-        "start": "node scripts/withPort.mjs npm run start:app",
-        "start:app": "npm run update && npm run build && NODE_ENV=production npm run start -w @tether/host",
+        "start": "npm run start:app",
+        "start:app": "npm run update && npm run build && npm run start -w @tether/host",
         "update": "git pull origin main && npm i",
         "prepare": "husky",
         "fix:prettier": "npx prettier **/*.{js,ts,jsx,tsx,json} --write"

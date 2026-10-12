@@ -5,12 +5,12 @@ import { spawn } from 'node:child_process';
  *
  * Preferred (no npm warnings):
  *   npm run dev -- --PORT=8080
- *   npm run start -- --PORT=8080
  *
  * Also supported:
  *   PORT=8080 npm run dev
  *
- * PORT — host listen port (UI + API on one port)
+ * PORT — host listen port (UI + API on one port). Used by `npm run dev` only;
+ * `npm run start` always listens on 1928 in production (no HMR).
  * SERVER_PORT — accepted as an alias for PORT (legacy)
  */
 

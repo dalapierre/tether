@@ -16,7 +16,8 @@ const repoRoot = path.resolve(packageRoot, '../..');
 dotenv.config({ path: path.join(repoRoot, '.env') });
 dotenv.config({ path: path.join(packageRoot, '.env') });
 
-const PORT = Number(process.env.PORT || process.env.SERVER_PORT || process.env.npm_config_port) || 1928;
+const isProd = process.env.NODE_ENV === 'production';
+const PORT = isProd ? 1928 : Number(process.env.PORT || process.env.SERVER_PORT || process.env.npm_config_port) || 1928;
 const HOST = '0.0.0.0';
 
 async function start(): Promise<void> {
@@ -32,8 +33,7 @@ async function start(): Promise<void> {
     const server = http.createServer(app);
     attachTerminalServer(server, tetherHost);
 
-    const runningDev = process.env.NODE_ENV !== 'production';
-    await serveUi(app, server, runningDev);
+    await serveUi(app, server, !isProd);
 
     server.listen(PORT, HOST, () => {
         logger.info(`Tether host listening on http://${HOST}:${PORT}`);
