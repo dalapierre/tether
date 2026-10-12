@@ -2,6 +2,7 @@ import { Button } from '@ui/components/button';
 import { RoutePanel } from '@ui/components/route-panel';
 import { SearchSelect } from '@ui/components/search-select';
 import { Spinner } from '@ui/components/spinner';
+import { Toggle } from '@ui/components/toggle';
 import {
     listRepositories,
     listRepositoryBranches,
@@ -9,7 +10,8 @@ import {
     type Repository,
 } from '@ui/libs/api/repositories';
 import { createSession } from '@ui/libs/api/sessions';
-import { getSettings, type AgentProfile } from '@ui/libs/api/settings';
+import { getSettings } from '@ui/libs/api/settings';
+import type { AgentId } from '@ui/libs/agents/agents';
 import { isValidBranchName } from '@ui/libs/git/branchName';
 import { showToast } from '@ui/modules/toast';
 import { useEffect, useMemo, useState } from 'react';
@@ -38,14 +40,15 @@ function AdvancedChevron({ open }: { open: boolean }) {
 export function NewSession({ onClose, onStarted }: NewSessionProps) {
     const intl = useIntl();
     const [name, setName] = useState('');
-    const [profileId, setProfileId] = useState('');
+    const [agent, setAgent] = useState<AgentId>('cursor');
+    const [yoloMode, setYoloMode] = useState(false);
+    const [useWorktrees, setUseWorktrees] = useState(true);
     const [repositoryId, setRepositoryId] = useState('');
     const [branch, setBranch] = useState('');
     const [branches, setBranches] = useState<string[]>([]);
     const [workingDirectory, setWorkingDirectory] = useState(DEFAULT_WORKING_DIRECTORY);
     const [directories, setDirectories] = useState<string[]>([DEFAULT_WORKING_DIRECTORY]);
     const [advancedOpen, setAdvancedOpen] = useState(false);
-    const [profiles, setProfiles] = useState<AgentProfile[]>([]);
     const [repositories, setRepositories] = useState<Repository[]>([]);
     const [loading, setLoading] = useState(true);
     const [starting, setStarting] = useState(false);
@@ -56,8 +59,9 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
         Promise.all([getSettings(), listRepositories()])
             .then(([settings, items]) => {
                 if (cancelled) return;
-                setProfiles(settings.profiles);
-                setProfileId(settings.defaultProfileId);
+                setAgent(settings.defaultAgent);
+                setYoloMode(settings.defaultYoloMode);
+                setUseWorktrees(settings.defaultUseWorktrees);
                 setRepositories(items);
                 if (items.length === 1) {
                     setRepositoryId(items[0].id);
@@ -144,16 +148,6 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
         };
     }, [onClose, starting]);
 
-    const selectedProfile = useMemo(
-        () => profiles.find((profile) => profile.id === profileId) ?? null,
-        [profiles, profileId],
-    );
-
-    const profileOptions = useMemo(
-        () => profiles.map((profile) => ({ value: profile.id, label: profile.name })),
-        [profiles],
-    );
-
     const repositoryOptions = useMemo(
         () => repositories.map((repository) => ({ value: repository.id, label: repository.name })),
         [repositories],
@@ -169,16 +163,14 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
         [directories],
     );
 
-    const usesWorktrees = selectedProfile?.useWorktrees !== false;
-
     async function handleStart() {
         const trimmedName = name.trim();
-        if (!trimmedName || !profileId || !selectedProfile || starting) return;
+        if (!trimmedName || starting) return;
         if (!repositoryId) return;
 
         const trimmedWorkingDirectory = workingDirectory.trim() || DEFAULT_WORKING_DIRECTORY;
 
-        if (usesWorktrees) {
+        if (useWorktrees) {
             const trimmedBranch = branch.trim();
             if (!trimmedBranch) return;
             if (!isValidBranchName(trimmedBranch)) {
@@ -189,8 +181,10 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
             setStarting(true);
             try {
                 const session = await createSession({
-                    profileId,
                     name: trimmedName,
+                    agent,
+                    yoloMode,
+                    useWorktrees: true,
                     repositoryId,
                     branch: trimmedBranch,
                     workingDirectory: trimmedWorkingDirectory,
@@ -209,8 +203,10 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
         setStarting(true);
         try {
             const session = await createSession({
-                profileId,
                 name: trimmedName,
+                agent,
+                yoloMode,
+                useWorktrees: false,
                 repositoryId,
                 workingDirectory: trimmedWorkingDirectory,
             });
@@ -225,10 +221,8 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
         !loading &&
         !starting &&
         name.trim().length > 0 &&
-        Boolean(profileId) &&
-        Boolean(selectedProfile) &&
         Boolean(repositoryId) &&
-        (!usesWorktrees || branch.trim().length > 0);
+        (!useWorktrees || branch.trim().length > 0);
 
     return (
         <form
@@ -291,20 +285,6 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                         </label>
 
                         <div>
-                            <p className={styles.label}>{intl.formatMessage(messages.profileLabel)}</p>
-                            <SearchSelect
-                                options={profileOptions}
-                                value={profileId || null}
-                                onSelect={(option) => setProfileId(option.value)}
-                                placeholder={intl.formatMessage(messages.profilePlaceholder)}
-                                emptyMessage={intl.formatMessage(messages.profilesEmpty)}
-                                noResultsMessage={intl.formatMessage(messages.profileNoResults)}
-                                disabled={starting}
-                                ariaLabel={intl.formatMessage(messages.profileLabel)}
-                            />
-                        </div>
-
-                        <div>
                             <p className={styles.label}>{intl.formatMessage(messages.projectLabel)}</p>
                             <SearchSelect
                                 options={repositoryOptions}
@@ -322,7 +302,7 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                             />
                         </div>
 
-                        {usesWorktrees ? (
+                        {useWorktrees ? (
                             <div>
                                 <p className={styles.label}>{intl.formatMessage(messages.branchLabel)}</p>
                                 <SearchSelect
@@ -369,6 +349,22 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                                             ariaLabel={intl.formatMessage(messages.workingDirectoryLabel)}
                                         />
                                     </div>
+
+                                    <Toggle
+                                        label={intl.formatMessage(messages.yoloModeLabel)}
+                                        description={intl.formatMessage(messages.yoloModeHint)}
+                                        checked={yoloMode}
+                                        disabled={starting}
+                                        onChange={setYoloMode}
+                                    />
+
+                                    <Toggle
+                                        label={intl.formatMessage(messages.useWorktreesLabel)}
+                                        description={intl.formatMessage(messages.useWorktreesHint)}
+                                        checked={useWorktrees}
+                                        disabled={starting}
+                                        onChange={setUseWorktrees}
+                                    />
                                 </div>
                             ) : null}
                         </div>

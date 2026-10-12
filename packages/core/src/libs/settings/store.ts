@@ -12,22 +12,13 @@ export type StoredRepository = {
     path: string;
 };
 
-export type AgentProfile = {
-    id: string;
-    name: string;
-    agent: AgentId;
-    yoloMode: boolean;
-    /** When false, coding sessions run in the repository checkout instead of a worktree. */
-    useWorktrees: boolean;
-};
-
 /** Public settings exposed through the settings API/UI. */
 export type Settings = {
     devDir: string;
     toastDurationSeconds: number;
     defaultAgent: AgentId;
-    defaultProfileId: string;
-    profiles: AgentProfile[];
+    defaultYoloMode: boolean;
+    defaultUseWorktrees: boolean;
     keybinds: Keybinds;
 };
 
@@ -43,8 +34,8 @@ type SettingsFile = {
     devDir: string;
     toastDurationSeconds: number;
     defaultAgent: AgentId;
-    defaultProfileId: string;
-    profiles: AgentProfile[];
+    defaultYoloMode: boolean;
+    defaultUseWorktrees: boolean;
     keybinds: Keybinds;
     /** Persisted added repositories — not exposed via the settings API/UI. */
     repositories: StoredRepository[];
@@ -53,28 +44,17 @@ type SettingsFile = {
 const dataFile = getSettingsFilePath();
 const legacyDataFile = path.join(getLegacyServerDataDir(), 'settings.json');
 
-const DEFAULT_PROFILE_ID = 'default';
-
-function createDefaultProfile(overrides: Partial<AgentProfile> = {}): AgentProfile {
-    return {
-        id: DEFAULT_PROFILE_ID,
-        name: 'Coding',
-        agent: 'cursor',
-        yoloMode: false,
-        useWorktrees: true,
-        ...overrides,
-    };
-}
-
 const DEFAULT_AGENT: AgentId = 'cursor';
+const DEFAULT_YOLO_MODE = false;
+const DEFAULT_USE_WORKTREES = true;
 
 const defaultSettingsFile: SettingsFile = {
     version: SETTINGS_FILE_VERSION,
     devDir: getHomeDir(),
     toastDurationSeconds: DEFAULT_TOAST_DURATION_SECONDS,
     defaultAgent: DEFAULT_AGENT,
-    defaultProfileId: DEFAULT_PROFILE_ID,
-    profiles: [createDefaultProfile()],
+    defaultYoloMode: DEFAULT_YOLO_MODE,
+    defaultUseWorktrees: DEFAULT_USE_WORKTREES,
     keybinds: DEFAULT_KEYBINDS,
     repositories: [],
 };
@@ -91,54 +71,49 @@ function isStoredRepository(value: unknown): value is StoredRepository {
     );
 }
 
-function isAgentProfile(value: unknown): value is AgentProfile {
-    if (!value || typeof value !== 'object') return false;
-    const profile = value as Partial<AgentProfile> & Record<string, unknown>;
-    return (
-        typeof profile.id === 'string' &&
-        profile.id.length > 0 &&
-        typeof profile.name === 'string' &&
-        profile.name.trim().length > 0 &&
-        isAgentId(profile.agent) &&
-        typeof profile.yoloMode === 'boolean'
-    );
-}
-
-function normalizeProfile(profile: AgentProfile & { useWorktrees?: boolean }): AgentProfile {
-    return {
-        id: profile.id,
-        name: profile.name.trim(),
-        agent: profile.agent,
-        yoloMode: profile.yoloMode,
-        useWorktrees: typeof profile.useWorktrees === 'boolean' ? profile.useWorktrees : true,
-    };
-}
-
-function normalizeProfiles(value: unknown, legacyAgent?: unknown, legacyYoloMode?: unknown): AgentProfile[] {
-    if (Array.isArray(value)) {
-        const profiles = value.filter(isAgentProfile).map((profile) => normalizeProfile(profile));
-        if (profiles.length > 0) {
-            return profiles;
-        }
-    }
-
-    return [
-        createDefaultProfile({
-            agent: isAgentId(legacyAgent) ? legacyAgent : 'cursor',
-            yoloMode: typeof legacyYoloMode === 'boolean' ? legacyYoloMode : false,
-        }),
-    ];
-}
-
-function resolveDefaultProfileId(value: unknown, profiles: AgentProfile[]): string {
-    if (typeof value === 'string' && profiles.some((profile) => profile.id === value)) {
-        return value;
-    }
-    return profiles[0]?.id ?? DEFAULT_PROFILE_ID;
-}
-
 function resolveDefaultAgent(value: unknown): AgentId {
     return isAgentId(value) ? value : DEFAULT_AGENT;
+}
+
+function resolveBoolean(value: unknown, fallback: boolean): boolean {
+    return typeof value === 'boolean' ? value : fallback;
+}
+
+/**
+ * Derive agent/yolo/worktree defaults from a legacy `profiles` array when present.
+ * Prefers the profile matching `defaultProfileId`, otherwise the first valid profile.
+ */
+function legacyDefaultsFromProfiles(
+    profilesRaw: unknown,
+    defaultProfileIdRaw: unknown,
+): Partial<Pick<SettingsFile, 'defaultAgent' | 'defaultYoloMode' | 'defaultUseWorktrees'>> {
+    if (!Array.isArray(profilesRaw)) {
+        return {};
+    }
+
+    type LegacyProfile = {
+        id?: unknown;
+        agent?: unknown;
+        yoloMode?: unknown;
+        useWorktrees?: unknown;
+    };
+
+    const profiles = profilesRaw.filter((item): item is LegacyProfile => !!item && typeof item === 'object');
+    if (profiles.length === 0) {
+        return {};
+    }
+
+    const preferredId = typeof defaultProfileIdRaw === 'string' ? defaultProfileIdRaw : null;
+    const selected = (preferredId ? profiles.find((profile) => profile.id === preferredId) : undefined) ?? profiles[0];
+    if (!selected) {
+        return {};
+    }
+
+    return {
+        defaultAgent: isAgentId(selected.agent) ? selected.agent : undefined,
+        defaultYoloMode: typeof selected.yoloMode === 'boolean' ? selected.yoloMode : undefined,
+        defaultUseWorktrees: typeof selected.useWorktrees === 'boolean' ? selected.useWorktrees : undefined,
+    };
 }
 
 export function normalizeToastDurationSeconds(value: unknown): number {
@@ -156,8 +131,8 @@ function toPublicSettings(file: SettingsFile): Settings {
         devDir: file.devDir,
         toastDurationSeconds: file.toastDurationSeconds,
         defaultAgent: file.defaultAgent,
-        defaultProfileId: file.defaultProfileId,
-        profiles: file.profiles.map((profile) => ({ ...profile })),
+        defaultYoloMode: file.defaultYoloMode,
+        defaultUseWorktrees: file.defaultUseWorktrees,
         keybinds: {
             home: { ...file.keybinds.home },
             session: { ...file.keybinds.session },
@@ -169,7 +144,6 @@ function normalizeSettingsFile(value: unknown): SettingsFile {
     if (!value || typeof value !== 'object') {
         return {
             ...defaultSettingsFile,
-            profiles: [createDefaultProfile()],
             keybinds: normalizeKeybinds(undefined),
             repositories: [],
         };
@@ -180,9 +154,16 @@ function normalizeSettingsFile(value: unknown): SettingsFile {
         typeof record.version === 'number' && Number.isInteger(record.version) ? record.version : SETTINGS_FILE_VERSION;
     const devDir = typeof record.devDir === 'string' ? record.devDir : '';
     const toastDurationSeconds = normalizeToastDurationSeconds(record.toastDurationSeconds);
-    const profiles = normalizeProfiles(record.profiles, record.agent, record.yoloMode);
-    const defaultAgent = resolveDefaultAgent(record.defaultAgent ?? record.agent);
-    const defaultProfileId = resolveDefaultProfileId(record.defaultProfileId, profiles);
+    const fromProfiles = legacyDefaultsFromProfiles(record.profiles, record.defaultProfileId);
+    const defaultAgent = resolveDefaultAgent(record.defaultAgent ?? fromProfiles.defaultAgent ?? record.agent);
+    const defaultYoloMode = resolveBoolean(
+        record.defaultYoloMode ?? fromProfiles.defaultYoloMode ?? record.yoloMode,
+        DEFAULT_YOLO_MODE,
+    );
+    const defaultUseWorktrees = resolveBoolean(
+        record.defaultUseWorktrees ?? fromProfiles.defaultUseWorktrees,
+        DEFAULT_USE_WORKTREES,
+    );
     const keybinds = normalizeKeybinds(record.keybinds);
     const repositories = Array.isArray(record.repositories) ? record.repositories.filter(isStoredRepository) : [];
 
@@ -191,8 +172,8 @@ function normalizeSettingsFile(value: unknown): SettingsFile {
         devDir,
         toastDurationSeconds,
         defaultAgent,
-        defaultProfileId,
-        profiles,
+        defaultYoloMode,
+        defaultUseWorktrees,
         keybinds,
         repositories,
     };
@@ -255,7 +236,6 @@ async function readSettingsFile(): Promise<SettingsFile> {
     } catch {
         return {
             ...defaultSettingsFile,
-            profiles: [createDefaultProfile()],
             keybinds: normalizeKeybinds(undefined),
             repositories: [],
         };
@@ -273,45 +253,24 @@ export async function getSettings(): Promise<Settings> {
     return toPublicSettings(file);
 }
 
-export async function getProfile(profileId: string): Promise<AgentProfile | null> {
-    const file = await readSettingsFile();
-    return file.profiles.find((profile) => profile.id === profileId) ?? null;
-}
-
-export function normalizeIncomingProfiles(value: unknown): AgentProfile[] | null {
-    if (!Array.isArray(value) || value.length === 0) {
-        return null;
-    }
-
-    const profiles: AgentProfile[] = [];
-    const seenIds = new Set<string>();
-
-    for (const item of value) {
-        if (!isAgentProfile(item)) {
-            return null;
-        }
-        if (seenIds.has(item.id)) {
-            return null;
-        }
-        seenIds.add(item.id);
-        profiles.push(normalizeProfile(item));
-    }
-
-    return profiles;
-}
-
 export async function updateSettings(patch: {
     devDir?: string;
     toastDurationSeconds?: number;
     defaultAgent?: AgentId;
-    defaultProfileId?: string;
-    profiles?: AgentProfile[];
+    defaultYoloMode?: boolean;
+    defaultUseWorktrees?: boolean;
     keybinds?: Keybinds;
 }): Promise<Settings> {
     const current = await readSettingsFile();
-    const profiles = patch.profiles ?? current.profiles;
     const defaultAgent = resolveDefaultAgent(patch.defaultAgent ?? current.defaultAgent);
-    const defaultProfileId = resolveDefaultProfileId(patch.defaultProfileId ?? current.defaultProfileId, profiles);
+    const defaultYoloMode = resolveBoolean(
+        patch.defaultYoloMode !== undefined ? patch.defaultYoloMode : current.defaultYoloMode,
+        DEFAULT_YOLO_MODE,
+    );
+    const defaultUseWorktrees = resolveBoolean(
+        patch.defaultUseWorktrees !== undefined ? patch.defaultUseWorktrees : current.defaultUseWorktrees,
+        DEFAULT_USE_WORKTREES,
+    );
     const keybinds = patch.keybinds ? normalizeKeybinds(patch.keybinds) : current.keybinds;
     const toastDurationSeconds =
         patch.toastDurationSeconds !== undefined
@@ -323,8 +282,8 @@ export async function updateSettings(patch: {
         devDir: typeof patch.devDir === 'string' ? patch.devDir : current.devDir,
         toastDurationSeconds,
         defaultAgent,
-        defaultProfileId,
-        profiles,
+        defaultYoloMode,
+        defaultUseWorktrees,
         keybinds,
     };
     await writeSettingsFile(next);

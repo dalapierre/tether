@@ -34,11 +34,11 @@ A session is a durable agent workspace you can return to at any time.
 - **Live status** — each session shows whether it’s ready, busy, or in error, including updates while you’re looking at something else.
 - **Search and switch** — find sessions by name, repository, or branch, open one, leave it, start another, come back. Deleting a session cleans up the agent process and any worktree or branch Tether created for it.
 
-## Agents and profiles
+## Agents
 
 Tether drives the coding agents you already have installed on the host. Supported harnesses include **Cursor**, **Claude Code**, **Codex**, **OpenCode**, and **Rovo** — whichever are available on your machine show up as options.
 
-**Profiles** capture how you like to start work: coding vs conversation, which agent to use, whether to auto-approve agent commands (Yolo mode), and whether to isolate the session in a git worktree. Set a default profile once, then spin up new sessions without re-deciding every time.
+In Settings you pick a default harness, whether to auto-approve agent commands (Yolo mode), and whether new sessions isolate work in a git worktree. New sessions inherit those defaults; you can override Yolo mode and worktrees under Advanced when starting a session.
 
 ## In a session
 
@@ -56,7 +56,7 @@ Sessions persist on the host and can resume after a restart, so walking away fro
 
 Point Tether at a development directory, then add the git repositories you care about. Coding sessions pick from that list.
 
-When a profile uses worktrees, a session gets its own checkout on a branch you choose or create — so parallel agent work doesn’t stomp on your main working tree. Without worktrees, the session runs in the repository checkout itself. Review always shows what that session changed relative to where it started.
+When a session uses worktrees, it gets its own checkout on a branch you choose or create — so parallel agent work doesn’t stomp on your main working tree. Without worktrees, the session runs in the repository checkout itself. Review always shows what that session changed relative to where it started.
 
 ## Built for context switching
 

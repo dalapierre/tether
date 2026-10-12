@@ -46,7 +46,7 @@ import {
 } from '@core/libs/sessions/terminalHub.js';
 import type { Session, SessionStatus, SessionType, StoredSession } from '@core/libs/sessions/types.js';
 import { resolveUserShell } from '@core/libs/sessions/userShell.js';
-import { getProfile } from '@core/libs/settings/store.js';
+import { getSettings } from '@core/libs/settings/store.js';
 import { slugify, uniqueSlug } from '@core/libs/slug/slug.js';
 import { execFile } from 'node:child_process';
 import { watch, type FSWatcher } from 'node:fs';
@@ -1049,8 +1049,10 @@ async function spawnHarness(session: RuntimeSession, options: { resume?: boolean
 }
 
 export async function createSession(input: {
-    profileId: string;
     name: string;
+    agent?: AgentId;
+    yoloMode?: boolean;
+    useWorktrees?: boolean;
     repositoryId?: string;
     branch?: string;
     workingDirectory?: string;
@@ -1060,15 +1062,10 @@ export async function createSession(input: {
         throw new Error('Name is required');
     }
 
-    const profile = await getProfile(input.profileId);
-    if (!profile) {
-        throw new Error('Profile not found');
-    }
-
-    const agent: AgentId = profile.agent;
-    const yoloMode = profile.yoloMode;
-    const useWorktrees = profile.useWorktrees;
-    const profileId = profile.id;
+    const settings = await getSettings();
+    const agent: AgentId = isAgentId(input.agent) ? input.agent : settings.defaultAgent;
+    const yoloMode = typeof input.yoloMode === 'boolean' ? input.yoloMode : settings.defaultYoloMode;
+    const useWorktrees = typeof input.useWorktrees === 'boolean' ? input.useWorktrees : settings.defaultUseWorktrees;
     const workingDirectory = normalizeWorkingDirectory(input.workingDirectory);
 
     const repositoryId = input.repositoryId?.trim() ?? '';
@@ -1083,7 +1080,6 @@ export async function createSession(input: {
         }
         return createCodingSession({
             name,
-            profileId,
             agent,
             yoloMode,
             useWorktrees: true,
@@ -1095,7 +1091,6 @@ export async function createSession(input: {
 
     return createCodingSession({
         name,
-        profileId,
         agent,
         yoloMode,
         useWorktrees: false,
@@ -1110,7 +1105,6 @@ async function allocateSessionId(takenIds: Set<string>, name: string): Promise<s
 
 async function createCodingSession(input: {
     name: string;
-    profileId: string;
     agent: AgentId;
     yoloMode: boolean;
     useWorktrees: boolean;
@@ -1193,7 +1187,7 @@ async function createCodingSession(input: {
     const session: RuntimeSession = {
         id,
         name: input.name,
-        profileId: input.profileId,
+        profileId: '',
         agent: input.agent,
         type: 'coding',
         repositoryId: repository.id,

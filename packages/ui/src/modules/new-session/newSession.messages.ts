@@ -9,10 +9,6 @@ type Messages = {
     description: NoMessageValues;
     nameLabel: NoMessageValues;
     namePlaceholder: NoMessageValues;
-    profileLabel: NoMessageValues;
-    profilePlaceholder: NoMessageValues;
-    profilesEmpty: NoMessageValues;
-    profileNoResults: NoMessageValues;
     projectLabel: NoMessageValues;
     projectPlaceholder: NoMessageValues;
     projectsEmpty: NoMessageValues;
@@ -24,6 +20,10 @@ type Messages = {
     workingDirectoryPlaceholder: NoMessageValues;
     workingDirectoryEmpty: NoMessageValues;
     workingDirectoryNoResults: NoMessageValues;
+    yoloModeLabel: NoMessageValues;
+    yoloModeHint: NoMessageValues;
+    useWorktreesLabel: NoMessageValues;
+    useWorktreesHint: NoMessageValues;
     start: NoMessageValues;
     starting: NoMessageValues;
     startFailed: NoMessageValues;
@@ -62,22 +62,6 @@ export const messages = defineMessages<Messages>(
         namePlaceholder: {
             id: 'newSession.namePlaceholder',
             defaultMessage: 'Session name',
-        },
-        profileLabel: {
-            id: 'newSession.profileLabel',
-            defaultMessage: 'Profile',
-        },
-        profilePlaceholder: {
-            id: 'newSession.profilePlaceholder',
-            defaultMessage: 'Search profiles…',
-        },
-        profilesEmpty: {
-            id: 'newSession.profilesEmpty',
-            defaultMessage: 'No profiles available. Add one in Settings.',
-        },
-        profileNoResults: {
-            id: 'newSession.profileNoResults',
-            defaultMessage: 'No matching profiles.',
         },
         projectLabel: {
             id: 'newSession.projectLabel',
@@ -122,6 +106,22 @@ export const messages = defineMessages<Messages>(
         workingDirectoryNoResults: {
             id: 'newSession.workingDirectoryNoResults',
             defaultMessage: 'No matching directories.',
+        },
+        yoloModeLabel: {
+            id: 'newSession.yoloModeLabel',
+            defaultMessage: 'Yolo mode',
+        },
+        yoloModeHint: {
+            id: 'newSession.yoloModeHint',
+            defaultMessage: 'Auto-approve agent commands for this session.',
+        },
+        useWorktreesLabel: {
+            id: 'newSession.useWorktreesLabel',
+            defaultMessage: 'Use worktrees',
+        },
+        useWorktreesHint: {
+            id: 'newSession.useWorktreesHint',
+            defaultMessage: 'When off, the session runs directly in the repository instead of a separate worktree.',
         },
         start: {
             id: 'newSession.start',

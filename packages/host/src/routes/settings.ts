@@ -4,7 +4,6 @@ import {
     logger,
     MAX_TOAST_DURATION_SECONDS,
     MIN_TOAST_DURATION_SECONDS,
-    normalizeIncomingProfiles,
     normalizeKeybinds,
     normalizeToastDurationSeconds,
     type TetherHost,
@@ -28,9 +27,8 @@ export function createSettingsRouter(host: TetherHost): Router {
         const devDir = typeof req.body?.devDir === 'string' ? req.body.devDir.trim() : undefined;
         const toastDurationRaw = req.body?.toastDurationSeconds;
         const defaultAgentRaw = typeof req.body?.defaultAgent === 'string' ? req.body.defaultAgent.trim() : undefined;
-        const defaultProfileId =
-            typeof req.body?.defaultProfileId === 'string' ? req.body.defaultProfileId.trim() : undefined;
-        const profiles = normalizeIncomingProfiles(req.body?.profiles);
+        const defaultYoloModeRaw = req.body?.defaultYoloMode;
+        const defaultUseWorktreesRaw = req.body?.defaultUseWorktrees;
         const keybindsRaw = req.body?.keybinds;
 
         if (devDir === undefined) {
@@ -61,18 +59,13 @@ export function createSettingsRouter(host: TetherHost): Router {
             return;
         }
 
-        if (defaultProfileId === undefined) {
-            res.status(400).json({ error: 'defaultProfileId is required' });
+        if (typeof defaultYoloModeRaw !== 'boolean') {
+            res.status(400).json({ error: 'defaultYoloMode must be a boolean' });
             return;
         }
 
-        if (!profiles) {
-            res.status(400).json({ error: 'profiles must be a non-empty array of valid profiles' });
-            return;
-        }
-
-        if (!profiles.some((profile) => profile.id === defaultProfileId)) {
-            res.status(400).json({ error: 'defaultProfileId must match a profile' });
+        if (typeof defaultUseWorktreesRaw !== 'boolean') {
+            res.status(400).json({ error: 'defaultUseWorktrees must be a boolean' });
             return;
         }
 
@@ -86,8 +79,8 @@ export function createSettingsRouter(host: TetherHost): Router {
                 devDir,
                 toastDurationSeconds: normalizeToastDurationSeconds(toastDurationSeconds),
                 defaultAgent: defaultAgentRaw,
-                defaultProfileId,
-                profiles,
+                defaultYoloMode: defaultYoloModeRaw,
+                defaultUseWorktrees: defaultUseWorktreesRaw,
                 keybinds: keybindsRaw !== undefined ? normalizeKeybinds(keybindsRaw) : undefined,
             });
             res.json({ settings });

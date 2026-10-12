@@ -4,20 +4,12 @@ import { DEFAULT_KEYBINDS, cloneKeybinds, type Keybinds } from '@ui/libs/keybind
 
 const DEFAULT_TOAST_DURATION_SECONDS = 10;
 
-export type AgentProfile = {
-    id: string;
-    name: string;
-    agent: AgentId;
-    yoloMode: boolean;
-    useWorktrees: boolean;
-};
-
 export type Settings = {
     devDir: string;
     toastDurationSeconds: number;
     defaultAgent: AgentId;
-    defaultProfileId: string;
-    profiles: AgentProfile[];
+    defaultYoloMode: boolean;
+    defaultUseWorktrees: boolean;
     keybinds: Keybinds;
 };
 

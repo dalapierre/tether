@@ -1,4 +1,4 @@
-import { logger, type TetherHost } from '@tether/core';
+import { isAgentId, logger, type TetherHost } from '@tether/core';
 import { Router } from 'express';
 
 export function createSessionsRouter(host: TetherHost): Router {
@@ -131,25 +131,40 @@ export function createSessionsRouter(host: TetherHost): Router {
     });
 
     router.post('/', async (req, res) => {
-        const profileId = typeof req.body?.profileId === 'string' ? req.body.profileId.trim() : '';
         const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+        const agentRaw = typeof req.body?.agent === 'string' ? req.body.agent.trim() : undefined;
+        const yoloModeRaw = req.body?.yoloMode;
+        const useWorktreesRaw = req.body?.useWorktrees;
         const repositoryId = typeof req.body?.repositoryId === 'string' ? req.body.repositoryId.trim() : '';
         const branch = typeof req.body?.branch === 'string' ? req.body.branch.trim() : '';
         const workingDirectory = typeof req.body?.workingDirectory === 'string' ? req.body.workingDirectory.trim() : '';
 
-        if (!profileId) {
-            res.status(400).json({ error: 'Profile is required' });
-            return;
-        }
         if (!name) {
             res.status(400).json({ error: 'Name is required' });
             return;
         }
 
+        if (agentRaw !== undefined && !isAgentId(agentRaw)) {
+            res.status(400).json({ error: 'agent must be a supported harness' });
+            return;
+        }
+
+        if (yoloModeRaw !== undefined && typeof yoloModeRaw !== 'boolean') {
+            res.status(400).json({ error: 'yoloMode must be a boolean' });
+            return;
+        }
+
+        if (useWorktreesRaw !== undefined && typeof useWorktreesRaw !== 'boolean') {
+            res.status(400).json({ error: 'useWorktrees must be a boolean' });
+            return;
+        }
+
         try {
             const session = await host.createSession({
-                profileId,
                 name,
+                agent: agentRaw,
+                yoloMode: typeof yoloModeRaw === 'boolean' ? yoloModeRaw : undefined,
+                useWorktrees: typeof useWorktreesRaw === 'boolean' ? useWorktreesRaw : undefined,
                 repositoryId: repositoryId || undefined,
                 branch: branch || undefined,
                 workingDirectory: workingDirectory || undefined,
@@ -162,7 +177,6 @@ export function createSessionsRouter(host: TetherHost): Router {
                 message === 'Branch is required' ||
                 message === 'Repository is required' ||
                 message === 'Repository not found' ||
-                message === 'Profile not found' ||
                 message === 'Invalid working directory' ||
                 message === 'Working directory not found' ||
                 message.startsWith('Failed to create worktree')

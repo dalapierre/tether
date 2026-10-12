@@ -16,15 +16,6 @@ type Messages = {
     categoryAgents: NoMessageValues;
     categoryAgentsCrumb: NoMessageValues;
     categoryAgentsDescription: NoMessageValues;
-    categoryProfiles: NoMessageValues;
-    categoryProfilesCrumb: NoMessageValues;
-    categoryProfilesDescription: NoMessageValues;
-    categoryNewProfile: NoMessageValues;
-    categoryNewProfileCrumb: NoMessageValues;
-    categoryNewProfileDescription: NoMessageValues;
-    categoryEditProfile: NoMessageValues;
-    categoryEditProfileCrumb: NoMessageValues;
-    categoryEditProfileDescription: NoMessageValues;
     categoryKeybinds: NoMessageValues;
     categoryKeybindsCrumb: NoMessageValues;
     categoryKeybindsDescription: NoMessageValues;
@@ -66,28 +57,12 @@ type Messages = {
     devDirHint: NoMessageValues;
     toastDurationLabel: NoMessageValues;
     toastDurationHint: NoMessageValues;
-    defaultProfileLabel: NoMessageValues;
     defaultHarnessLabel: NoMessageValues;
     harnessesEmpty: NoMessageValues;
-    profilesLabel: NoMessageValues;
-    profilesEmpty: NoMessageValues;
-    addProfile: NoMessageValues;
-    createProfile: NoMessageValues;
-    creatingProfile: NoMessageValues;
-    createProfileFailed: NoMessageValues;
-    removeProfile: NoMessageValues;
-    removeProfileConfirm: { name: string };
-    removeProfileConfirmContinue: NoMessageValues;
-    removeProfileConfirmCancel: NoMessageValues;
-    removeProfileFailed: NoMessageValues;
-    profileNameLabel: NoMessageValues;
-    profileNamePlaceholder: NoMessageValues;
-    profileNameRequired: NoMessageValues;
-    profileHarnessLabel: NoMessageValues;
-    profileYoloModeLabel: NoMessageValues;
-    profileYoloModeHint: NoMessageValues;
-    profileUseWorktreesLabel: NoMessageValues;
-    profileUseWorktreesHint: NoMessageValues;
+    defaultYoloModeLabel: NoMessageValues;
+    defaultYoloModeHint: NoMessageValues;
+    defaultUseWorktreesLabel: NoMessageValues;
+    defaultUseWorktreesHint: NoMessageValues;
     saving: NoMessageValues;
     save: NoMessageValues;
     cancel: NoMessageValues;
@@ -155,43 +130,7 @@ export const messages = defineMessages<Messages>(
         },
         categoryAgentsDescription: {
             id: 'settings.categoryAgentsDescription',
-            defaultMessage: 'Agent profiles and defaults for new sessions.',
-        },
-        categoryProfiles: {
-            id: 'settings.categoryProfiles',
-            defaultMessage: 'Profiles',
-        },
-        categoryProfilesCrumb: {
-            id: 'settings.categoryProfilesCrumb',
-            defaultMessage: 'profiles',
-        },
-        categoryProfilesDescription: {
-            id: 'settings.categoryProfilesDescription',
-            defaultMessage: 'Create and manage agent profiles.',
-        },
-        categoryNewProfile: {
-            id: 'settings.categoryNewProfile',
-            defaultMessage: 'New profile',
-        },
-        categoryNewProfileCrumb: {
-            id: 'settings.categoryNewProfileCrumb',
-            defaultMessage: 'new profile',
-        },
-        categoryNewProfileDescription: {
-            id: 'settings.categoryNewProfileDescription',
-            defaultMessage: 'Create an agent profile for new sessions.',
-        },
-        categoryEditProfile: {
-            id: 'settings.categoryEditProfile',
-            defaultMessage: 'Edit profile',
-        },
-        categoryEditProfileCrumb: {
-            id: 'settings.categoryEditProfileCrumb',
-            defaultMessage: 'edit profile',
-        },
-        categoryEditProfileDescription: {
-            id: 'settings.categoryEditProfileDescription',
-            defaultMessage: 'Update this profile’s harness and defaults.',
+            defaultMessage: 'Default harness and options for new sessions.',
         },
         categoryKeybinds: {
             id: 'settings.categoryKeybinds',
@@ -362,89 +301,25 @@ export const messages = defineMessages<Messages>(
             id: 'settings.defaultHarnessLabel',
             defaultMessage: 'Default harness',
         },
-        defaultProfileLabel: {
-            id: 'settings.defaultProfileLabel',
-            defaultMessage: 'Default profile',
-        },
         harnessesEmpty: {
             id: 'settings.harnessesEmpty',
             defaultMessage: 'No CLI coding agents found on this machine.',
         },
-        profilesLabel: {
-            id: 'settings.profilesLabel',
-            defaultMessage: 'Profiles',
-        },
-        profilesEmpty: {
-            id: 'settings.profilesEmpty',
-            defaultMessage: 'No profiles yet. Add one to get started.',
-        },
-        addProfile: {
-            id: 'settings.addProfile',
-            defaultMessage: 'Add profile',
-        },
-        createProfile: {
-            id: 'settings.createProfile',
-            defaultMessage: 'Create',
-        },
-        creatingProfile: {
-            id: 'settings.creatingProfile',
-            defaultMessage: 'Creating…',
-        },
-        createProfileFailed: {
-            id: 'settings.createProfileFailed',
-            defaultMessage: 'Failed to create profile',
-        },
-        removeProfile: {
-            id: 'settings.removeProfile',
-            defaultMessage: 'Remove',
-        },
-        removeProfileConfirm: {
-            id: 'settings.removeProfileConfirm',
-            defaultMessage: 'Remove profile {name}?',
-        },
-        removeProfileConfirmContinue: {
-            id: 'settings.removeProfileConfirmContinue',
-            defaultMessage: 'Remove',
-        },
-        removeProfileConfirmCancel: {
-            id: 'settings.removeProfileConfirmCancel',
-            defaultMessage: 'Cancel',
-        },
-        removeProfileFailed: {
-            id: 'settings.removeProfileFailed',
-            defaultMessage: 'Failed to remove profile',
-        },
-        profileNameLabel: {
-            id: 'settings.profileNameLabel',
-            defaultMessage: 'Name',
-        },
-        profileNamePlaceholder: {
-            id: 'settings.profileNamePlaceholder',
-            defaultMessage: 'Profile name',
-        },
-        profileNameRequired: {
-            id: 'settings.profileNameRequired',
-            defaultMessage: 'Profile name is required.',
-        },
-        profileHarnessLabel: {
-            id: 'settings.profileHarnessLabel',
-            defaultMessage: 'Harness',
-        },
-        profileYoloModeLabel: {
-            id: 'settings.profileYoloModeLabel',
+        defaultYoloModeLabel: {
+            id: 'settings.defaultYoloModeLabel',
             defaultMessage: 'Yolo mode',
         },
-        profileYoloModeHint: {
-            id: 'settings.profileYoloModeHint',
-            defaultMessage: 'Auto-approve agent commands for sessions using this profile.',
+        defaultYoloModeHint: {
+            id: 'settings.defaultYoloModeHint',
+            defaultMessage: 'Auto-approve agent commands by default for new sessions.',
         },
-        profileUseWorktreesLabel: {
-            id: 'settings.profileUseWorktreesLabel',
+        defaultUseWorktreesLabel: {
+            id: 'settings.defaultUseWorktreesLabel',
             defaultMessage: 'Use worktrees',
         },
-        profileUseWorktreesHint: {
-            id: 'settings.profileUseWorktreesHint',
-            defaultMessage: 'When off, sessions run directly in the repository instead of a separate worktree.',
+        defaultUseWorktreesHint: {
+            id: 'settings.defaultUseWorktreesHint',
+            defaultMessage: 'When off, new sessions run directly in the repository instead of a separate worktree.',
         },
         saving: {
             id: 'settings.saving',

@@ -1,12 +1,11 @@
 import { Button } from '@ui/components/button';
 import { ConfirmDialog } from '@ui/components/confirm-dialog';
-import { IconButton } from '@ui/components/icon-button';
 import { RoutePanel } from '@ui/components/route-panel';
 import { Toggle } from '@ui/components/toggle';
 import { agentLabelMessage, isAgentId, type AgentId } from '@ui/libs/agents/agents';
 import { listAvailableAgents, type AvailableAgent } from '@ui/libs/api/agents';
 import { ApiError } from '@ui/libs/api/client';
-import { getSettings, updateSettings, type AgentProfile } from '@ui/libs/api/settings';
+import { getSettings, updateSettings } from '@ui/libs/api/settings';
 import { DEFAULT_KEYBINDS, cloneKeybinds, keybindsEqual, type Keybinds } from '@ui/libs/keybinds';
 import { useIsDesktop } from '@ui/libs/dom/useMediaQuery';
 import { DEFAULT_TOAST_DURATION_SECONDS, setToastDurationSeconds, showToast } from '@ui/modules/toast';
@@ -20,14 +19,7 @@ import type { SettingsProps } from './settings.types';
 const MIN_TOAST_DURATION_SECONDS = 1;
 const MAX_TOAST_DURATION_SECONDS = 120;
 
-type SettingsView = 'root' | 'general' | 'agents' | 'profiles' | 'new-profile' | 'edit-profile' | 'keybinds';
-
-type ProfileDraft = {
-    name: string;
-    agent: AgentId;
-    yoloMode: boolean;
-    useWorktrees: boolean;
-};
+type SettingsView = 'root' | 'general' | 'agents' | 'keybinds';
 
 function CategoryChevron() {
     return (
@@ -59,57 +51,12 @@ function BackIcon() {
     );
 }
 
-function createLocalProfileId(existing: AgentProfile[]): string {
-    const taken = new Set(existing.map((profile) => profile.id));
-    let index = existing.length + 1;
-    let id = `profile-${index}`;
-    while (taken.has(id)) {
-        index += 1;
-        id = `profile-${index}`;
-    }
-    return id;
-}
-
-function emptyDraftProfile(defaultAgent: AgentId = 'cursor'): ProfileDraft {
-    return {
-        name: '',
-        agent: defaultAgent,
-        yoloMode: false,
-        useWorktrees: true,
-    };
-}
-
-function draftFromProfile(profile: AgentProfile): ProfileDraft {
-    return {
-        name: profile.name,
-        agent: profile.agent,
-        yoloMode: profile.yoloMode,
-        useWorktrees: profile.useWorktrees,
-    };
-}
-
-function profileDraftEquals(draft: ProfileDraft, profile: AgentProfile): boolean {
-    return (
-        draft.name.trim() === profile.name.trim() &&
-        draft.agent === profile.agent &&
-        draft.yoloMode === profile.yoloMode &&
-        draft.useWorktrees === profile.useWorktrees
-    );
-}
-
 function resolveHarnessIds(availableAgents: AvailableAgent[], selectedAgent: AgentId): AgentId[] {
     const ids = availableAgents.map((agent) => agent.id);
     if (!ids.includes(selectedAgent) && isAgentId(selectedAgent)) {
         return [selectedAgent, ...ids];
     }
     return ids;
-}
-
-function pickHarness(availableAgents: AvailableAgent[], preferred: AgentId): AgentId {
-    if (availableAgents.some((agent) => agent.id === preferred)) {
-        return preferred;
-    }
-    return availableAgents[0]?.id ?? preferred;
 }
 
 export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
@@ -119,24 +66,19 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
     const [devDir, setDevDir] = useState('');
     const [toastDurationSeconds, setToastDurationSecondsState] = useState(DEFAULT_TOAST_DURATION_SECONDS);
     const [defaultAgent, setDefaultAgent] = useState<AgentId>('cursor');
-    const [defaultProfileId, setDefaultProfileId] = useState('');
-    const [profiles, setProfiles] = useState<AgentProfile[]>([]);
+    const [defaultYoloMode, setDefaultYoloMode] = useState(false);
+    const [defaultUseWorktrees, setDefaultUseWorktrees] = useState(true);
     const [keybinds, setKeybinds] = useState<Keybinds>(() => cloneKeybinds(DEFAULT_KEYBINDS));
     const [savedDevDir, setSavedDevDir] = useState('');
     const [savedToastDurationSeconds, setSavedToastDurationSeconds] = useState(DEFAULT_TOAST_DURATION_SECONDS);
     const [savedDefaultAgent, setSavedDefaultAgent] = useState<AgentId>('cursor');
-    const [savedDefaultProfileId, setSavedDefaultProfileId] = useState('');
+    const [savedDefaultYoloMode, setSavedDefaultYoloMode] = useState(false);
+    const [savedDefaultUseWorktrees, setSavedDefaultUseWorktrees] = useState(true);
     const [savedKeybinds, setSavedKeybinds] = useState<Keybinds>(() => cloneKeybinds(DEFAULT_KEYBINDS));
     const [availableAgents, setAvailableAgents] = useState<AvailableAgent[]>([]);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
-    const [creatingProfile, setCreatingProfile] = useState(false);
-    const [savingProfile, setSavingProfile] = useState(false);
-    const [draftProfile, setDraftProfile] = useState(() => emptyDraftProfile());
-    const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
-    const [pendingRemoveProfile, setPendingRemoveProfile] = useState<AgentProfile | null>(null);
     const [pendingDiscard, setPendingDiscard] = useState(false);
-    const [removingId, setRemovingId] = useState<string | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -147,13 +89,14 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
                 setDevDir(settings.devDir);
                 setToastDurationSecondsState(settings.toastDurationSeconds);
                 setDefaultAgent(settings.defaultAgent);
-                setDefaultProfileId(settings.defaultProfileId);
-                setProfiles(settings.profiles);
+                setDefaultYoloMode(settings.defaultYoloMode);
+                setDefaultUseWorktrees(settings.defaultUseWorktrees);
                 setKeybinds(cloneKeybinds(settings.keybinds));
                 setSavedDevDir(settings.devDir);
                 setSavedToastDurationSeconds(settings.toastDurationSeconds);
                 setSavedDefaultAgent(settings.defaultAgent);
-                setSavedDefaultProfileId(settings.defaultProfileId);
+                setSavedDefaultYoloMode(settings.defaultYoloMode);
+                setSavedDefaultUseWorktrees(settings.defaultUseWorktrees);
                 setSavedKeybinds(cloneKeybinds(settings.keybinds));
                 setToastDurationSeconds(settings.toastDurationSeconds);
                 setAvailableAgents(agents);
@@ -178,36 +121,23 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
     }, [intl]);
 
     const goBack = useCallback(() => {
-        if (view === 'new-profile' || view === 'edit-profile') {
-            setView('profiles');
-            setDraftProfile(emptyDraftProfile(pickHarness(availableAgents, defaultAgent)));
-            setEditingProfileId(null);
-            return;
-        }
-        if (view === 'profiles') {
-            setView('agents');
-            return;
-        }
         if (view !== 'root') {
             setView('root');
             return;
         }
         onClose();
-    }, [availableAgents, defaultAgent, onClose, view]);
+    }, [onClose, view]);
 
     const generalDirty = devDir.trim() !== savedDevDir || toastDurationSeconds !== savedToastDurationSeconds;
-    const agentsDirty = defaultAgent !== savedDefaultAgent || defaultProfileId !== savedDefaultProfileId;
+    const agentsDirty =
+        defaultAgent !== savedDefaultAgent ||
+        defaultYoloMode !== savedDefaultYoloMode ||
+        defaultUseWorktrees !== savedDefaultUseWorktrees;
     const keybindsDirty = !keybindsEqual(keybinds, savedKeybinds);
-    const editingProfile = editingProfileId
-        ? (profiles.find((profile) => profile.id === editingProfileId) ?? null)
-        : null;
-    const editProfileDirty =
-        view === 'edit-profile' && editingProfile !== null && !profileDraftEquals(draftProfile, editingProfile);
     const hasUnsavedChanges =
         (view === 'general' && generalDirty) ||
         (view === 'agents' && agentsDirty) ||
-        (view === 'keybinds' && keybindsDirty) ||
-        editProfileDirty;
+        (view === 'keybinds' && keybindsDirty);
 
     function discardChanges() {
         if (view === 'general') {
@@ -215,11 +145,10 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
             setToastDurationSecondsState(savedToastDurationSeconds);
         } else if (view === 'agents') {
             setDefaultAgent(savedDefaultAgent);
-            setDefaultProfileId(savedDefaultProfileId);
+            setDefaultYoloMode(savedDefaultYoloMode);
+            setDefaultUseWorktrees(savedDefaultUseWorktrees);
         } else if (view === 'keybinds') {
             setKeybinds(cloneKeybinds(savedKeybinds));
-        } else if (view === 'edit-profile' && editingProfile) {
-            setDraftProfile(draftFromProfile(editingProfile));
         }
         setPendingDiscard(false);
     }
@@ -227,8 +156,7 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
     useEffect(() => {
         function onKeyDown(event: KeyboardEvent) {
             if (event.key !== 'Escape') return;
-            // Open confirm dialogs handle Escape themselves (closes / toggles off).
-            if (pendingRemoveProfile || pendingDiscard) return;
+            if (pendingDiscard) return;
             if (hasUnsavedChanges) {
                 event.preventDefault();
                 setPendingDiscard(true);
@@ -241,7 +169,7 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
         return () => {
             window.removeEventListener('keydown', onKeyDown);
         };
-    }, [goBack, hasUnsavedChanges, pendingDiscard, pendingRemoveProfile]);
+    }, [goBack, hasUnsavedChanges, pendingDiscard]);
 
     const crumbs = useMemo(() => {
         const root = {
@@ -261,101 +189,32 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
             return [root, { label: intl.formatMessage(messages.categoryAgentsCrumb) }];
         }
 
-        if (view === 'keybinds') {
-            return [root, { label: intl.formatMessage(messages.categoryKeybindsCrumb) }];
-        }
-
-        const agentsCrumb = {
-            label: intl.formatMessage(messages.categoryAgentsCrumb),
-            onClick: () => setView('agents'),
-        };
-
-        if (view === 'profiles') {
-            return [root, agentsCrumb, { label: intl.formatMessage(messages.categoryProfilesCrumb) }];
-        }
-
-        const profilesCrumb = {
-            label: intl.formatMessage(messages.categoryProfilesCrumb),
-            onClick: () => {
-                setView('profiles');
-                setDraftProfile(emptyDraftProfile(pickHarness(availableAgents, defaultAgent)));
-                setEditingProfileId(null);
-            },
-        };
-
-        if (view === 'edit-profile') {
-            return [root, agentsCrumb, profilesCrumb, { label: intl.formatMessage(messages.categoryEditProfileCrumb) }];
-        }
-
-        return [root, agentsCrumb, profilesCrumb, { label: intl.formatMessage(messages.categoryNewProfileCrumb) }];
-    }, [availableAgents, defaultAgent, intl, view]);
-
-    async function persistProfiles(nextProfiles: AgentProfile[], nextDefaultProfileId: string): Promise<boolean> {
-        try {
-            const settings = await updateSettings({
-                devDir: devDir.trim(),
-                toastDurationSeconds,
-                defaultAgent,
-                defaultProfileId: nextDefaultProfileId,
-                profiles: nextProfiles,
-                keybinds,
-            });
-            setDevDir(settings.devDir);
-            setToastDurationSecondsState(settings.toastDurationSeconds);
-            setDefaultAgent(settings.defaultAgent);
-            setDefaultProfileId(settings.defaultProfileId);
-            setProfiles(settings.profiles);
-            setKeybinds(cloneKeybinds(settings.keybinds));
-            setSavedDevDir(settings.devDir);
-            setSavedToastDurationSeconds(settings.toastDurationSeconds);
-            setSavedDefaultAgent(settings.defaultAgent);
-            setSavedDefaultProfileId(settings.defaultProfileId);
-            setSavedKeybinds(cloneKeybinds(settings.keybinds));
-            setToastDurationSeconds(settings.toastDurationSeconds);
-            onKeybindsSaved?.(settings.keybinds);
-            return true;
-        } catch (err: unknown) {
-            if (err instanceof ApiError) {
-                showToast('generic-error', err.message);
-            } else {
-                showToast(
-                    'generic-error',
-                    err instanceof Error ? err.message : intl.formatMessage(messages.saveFailed),
-                );
-            }
-            return false;
-        }
-    }
+        return [root, { label: intl.formatMessage(messages.categoryKeybindsCrumb) }];
+    }, [intl, view]);
 
     async function handleSave() {
         setSaving(true);
 
         try {
-            const nextProfiles =
-                view === 'agents' && defaultAgent !== savedDefaultAgent
-                    ? profiles.map((profile) =>
-                          profile.id === defaultProfileId ? { ...profile, agent: defaultAgent } : profile,
-                      )
-                    : profiles;
-
             const settings = await updateSettings({
                 devDir: devDir.trim(),
                 toastDurationSeconds,
                 defaultAgent,
-                defaultProfileId,
-                profiles: nextProfiles,
+                defaultYoloMode,
+                defaultUseWorktrees,
                 keybinds,
             });
             setDevDir(settings.devDir);
             setToastDurationSecondsState(settings.toastDurationSeconds);
             setDefaultAgent(settings.defaultAgent);
-            setDefaultProfileId(settings.defaultProfileId);
-            setProfiles(settings.profiles);
+            setDefaultYoloMode(settings.defaultYoloMode);
+            setDefaultUseWorktrees(settings.defaultUseWorktrees);
             setKeybinds(cloneKeybinds(settings.keybinds));
             setSavedDevDir(settings.devDir);
             setSavedToastDurationSeconds(settings.toastDurationSeconds);
             setSavedDefaultAgent(settings.defaultAgent);
-            setSavedDefaultProfileId(settings.defaultProfileId);
+            setSavedDefaultYoloMode(settings.defaultYoloMode);
+            setSavedDefaultUseWorktrees(settings.defaultUseWorktrees);
             setSavedKeybinds(cloneKeybinds(settings.keybinds));
             setToastDurationSeconds(settings.toastDurationSeconds);
             onKeybindsSaved?.(settings.keybinds);
@@ -381,98 +240,11 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
         }
     }
 
-    function openEditProfile(profile: AgentProfile) {
-        setEditingProfileId(profile.id);
-        setDraftProfile(draftFromProfile(profile));
-        setView('edit-profile');
-    }
-
-    async function handleCreateProfile() {
-        const name = draftProfile.name.trim();
-        if (!name || creatingProfile) return;
-
-        const nextProfile: AgentProfile = {
-            id: createLocalProfileId(profiles),
-            name,
-            agent: draftProfile.agent,
-            yoloMode: draftProfile.yoloMode,
-            useWorktrees: draftProfile.useWorktrees,
-        };
-        const nextProfiles = [...profiles, nextProfile];
-        const nextDefault = defaultProfileId || nextProfile.id;
-
-        setCreatingProfile(true);
-        const ok = await persistProfiles(nextProfiles, nextDefault);
-        setCreatingProfile(false);
-
-        if (!ok) return;
-
-        setDraftProfile(emptyDraftProfile(pickHarness(availableAgents, defaultAgent)));
-        setView('profiles');
-    }
-
-    async function handleSaveProfile() {
-        const name = draftProfile.name.trim();
-        if (!name || !editingProfileId || savingProfile) return;
-
-        const nextProfiles = profiles.map((profile) =>
-            profile.id === editingProfileId
-                ? {
-                      ...profile,
-                      name,
-                      agent: draftProfile.agent,
-                      yoloMode: draftProfile.yoloMode,
-                      useWorktrees: draftProfile.useWorktrees,
-                  }
-                : profile,
-        );
-
-        setSavingProfile(true);
-        const ok = await persistProfiles(nextProfiles, defaultProfileId);
-        setSavingProfile(false);
-
-        if (!ok) return;
-
-        setDraftProfile(emptyDraftProfile(pickHarness(availableAgents, defaultAgent)));
-        setEditingProfileId(null);
-        setView('profiles');
-    }
-
-    async function confirmRemoveProfile() {
-        const profile = pendingRemoveProfile;
-        if (!profile || removingId) return;
-        if (profiles.length <= 1) {
-            setPendingRemoveProfile(null);
-            return;
-        }
-
-        const nextProfiles = profiles.filter((item) => item.id !== profile.id);
-        const nextDefault = defaultProfileId === profile.id ? (nextProfiles[0]?.id ?? '') : defaultProfileId;
-
-        setRemovingId(profile.id);
-        setPendingRemoveProfile(null);
-
-        const ok = await persistProfiles(nextProfiles, nextDefault);
-        if (!ok) {
-            showToast('generic-error', intl.formatMessage(messages.removeProfileFailed));
-        }
-        setRemovingId(null);
-    }
-
     const showSaveButton =
         !loading &&
         ((view === 'general' && generalDirty) ||
             (view === 'agents' && agentsDirty) ||
             (view === 'keybinds' && keybindsDirty));
-    const canCreateProfile = draftProfile.name.trim().length > 0 && !creatingProfile;
-    const profileFormBusy = creatingProfile || savingProfile;
-    const canSaveProfile =
-        editProfileDirty && draftProfile.name.trim().length > 0 && !savingProfile && Boolean(editingProfile);
-    const showProfileForm = (view === 'new-profile' || view === 'edit-profile') && !loading;
-    const harnessOptions = useMemo(
-        () => resolveHarnessIds(availableAgents, draftProfile.agent),
-        [availableAgents, draftProfile.agent],
-    );
     const defaultHarnessOptions = useMemo(
         () => resolveHarnessIds(availableAgents, defaultAgent),
         [availableAgents, defaultAgent],
@@ -500,21 +272,6 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
                     title: intl.formatMessage(messages.categoryKeybinds),
                     description: intl.formatMessage(messages.categoryKeybindsDescription),
                 };
-            case 'profiles':
-                return {
-                    title: intl.formatMessage(messages.categoryProfiles),
-                    description: intl.formatMessage(messages.categoryProfilesDescription),
-                };
-            case 'new-profile':
-                return {
-                    title: intl.formatMessage(messages.categoryNewProfile),
-                    description: intl.formatMessage(messages.categoryNewProfileDescription),
-                };
-            case 'edit-profile':
-                return {
-                    title: intl.formatMessage(messages.categoryEditProfile),
-                    description: intl.formatMessage(messages.categoryEditProfileDescription),
-                };
         }
     }, [intl, view]);
 
@@ -529,45 +286,6 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
                 <div className={styles.footerAction}>
                     <Button type='button' onClick={() => void handleSave()} disabled={saving}>
                         {saving ? intl.formatMessage(messages.saving) : intl.formatMessage(messages.save)}
-                    </Button>
-                </div>
-            </div>
-        </div>
-    ) : view === 'profiles' && !loading ? (
-        <div className={styles.footer}>
-            <Button
-                type='button'
-                onClick={() => {
-                    setEditingProfileId(null);
-                    setDraftProfile(emptyDraftProfile(pickHarness(availableAgents, defaultAgent)));
-                    setView('new-profile');
-                }}
-            >
-                {intl.formatMessage(messages.addProfile)}
-            </Button>
-        </div>
-    ) : view === 'new-profile' && !loading ? (
-        <div className={styles.footer}>
-            <Button type='button' onClick={() => void handleCreateProfile()} disabled={!canCreateProfile}>
-                {intl.formatMessage(creatingProfile ? messages.creatingProfile : messages.createProfile)}
-            </Button>
-        </div>
-    ) : view === 'edit-profile' && !loading && canSaveProfile ? (
-        <div className={styles.footer}>
-            <div className={styles.footerActions}>
-                <div className={styles.footerAction}>
-                    <Button
-                        type='button'
-                        variant='secondary'
-                        onClick={() => setPendingDiscard(true)}
-                        disabled={savingProfile}
-                    >
-                        {intl.formatMessage(messages.cancel)}
-                    </Button>
-                </div>
-                <div className={styles.footerAction}>
-                    <Button type='button' onClick={() => void handleSaveProfile()} disabled={savingProfile}>
-                        {savingProfile ? intl.formatMessage(messages.saving) : intl.formatMessage(messages.save)}
                     </Button>
                 </div>
             </div>
@@ -724,153 +442,26 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
                             </select>
                         </label>
 
-                        <label className={styles.label}>
-                            {intl.formatMessage(messages.defaultProfileLabel)}
-                            <select
-                                className={styles.select}
-                                value={defaultProfileId}
-                                onChange={(event) => setDefaultProfileId(event.target.value)}
-                            >
-                                {profiles.map((profile) => (
-                                    <option key={profile.id} value={profile.id}>
-                                        {profile.name.trim() || profile.id}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
+                        <Toggle
+                            label={intl.formatMessage(messages.defaultYoloModeLabel)}
+                            description={intl.formatMessage(messages.defaultYoloModeHint)}
+                            checked={defaultYoloMode}
+                            onChange={setDefaultYoloMode}
+                        />
 
-                        <div className={styles.categories}>
-                            <button type='button' className={styles.categoryButton} onClick={() => setView('profiles')}>
-                                <span className={styles.categoryText}>
-                                    <span className={styles.categoryLabel}>
-                                        {intl.formatMessage(messages.categoryProfiles)}
-                                    </span>
-                                    <span className={styles.categoryDescription}>
-                                        {intl.formatMessage(messages.categoryProfilesDescription)}
-                                    </span>
-                                </span>
-                                <CategoryChevron />
-                            </button>
-                        </div>
+                        <Toggle
+                            label={intl.formatMessage(messages.defaultUseWorktreesLabel)}
+                            description={intl.formatMessage(messages.defaultUseWorktreesHint)}
+                            checked={defaultUseWorktrees}
+                            onChange={setDefaultUseWorktrees}
+                        />
                     </div>
                 ) : null}
 
                 {view === 'keybinds' && !loading ? (
                     <KeybindsPanel keybinds={keybinds} onChange={setKeybinds} disabled={saving} />
                 ) : null}
-
-                {view === 'profiles' && !loading ? (
-                    <div className={styles.fields}>
-                        <p className={styles.label}>{intl.formatMessage(messages.profilesLabel)}</p>
-                        <div className={styles.repositories}>
-                            {profiles.length === 0 ? (
-                                <p className={styles.repositoryEmpty}>{intl.formatMessage(messages.profilesEmpty)}</p>
-                            ) : (
-                                profiles.map((profile) => (
-                                    <div key={profile.id} className={styles.profileRow}>
-                                        <button
-                                            type='button'
-                                            className={styles.profileRowButton}
-                                            onClick={() => openEditProfile(profile)}
-                                        >
-                                            {profile.name.trim() || profile.id}
-                                        </button>
-                                        <IconButton
-                                            label={intl.formatMessage(messages.removeProfile)}
-                                            disabled={profiles.length <= 1 || removingId === profile.id}
-                                            onClick={() => setPendingRemoveProfile(profile)}
-                                        >
-                                            ×
-                                        </IconButton>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-                ) : null}
-
-                {showProfileForm ? (
-                    <div className={styles.fields}>
-                        <label className={styles.label}>
-                            {intl.formatMessage(messages.profileNameLabel)}
-                            <input
-                                className={styles.input}
-                                type='text'
-                                value={draftProfile.name}
-                                onChange={(event) =>
-                                    setDraftProfile((current) => ({ ...current, name: event.target.value }))
-                                }
-                                placeholder={intl.formatMessage(messages.profileNamePlaceholder)}
-                                autoComplete='off'
-                                autoCapitalize='off'
-                                autoCorrect='off'
-                                spellCheck={false}
-                                autoFocus
-                                disabled={profileFormBusy}
-                            />
-                        </label>
-
-                        <label className={styles.label}>
-                            {intl.formatMessage(messages.profileHarnessLabel)}
-                            <select
-                                className={styles.select}
-                                value={draftProfile.agent}
-                                disabled={profileFormBusy || harnessOptions.length === 0}
-                                onChange={(event) => {
-                                    const next = event.target.value;
-                                    if (harnessOptions.includes(next as AgentId)) {
-                                        setDraftProfile((current) => ({ ...current, agent: next as AgentId }));
-                                    }
-                                }}
-                            >
-                                {harnessOptions.length === 0 ? (
-                                    <option value={draftProfile.agent}>
-                                        {intl.formatMessage(messages.harnessesEmpty)}
-                                    </option>
-                                ) : (
-                                    harnessOptions.map((agentId) => (
-                                        <option key={agentId} value={agentId}>
-                                            {intl.formatMessage(agentLabelMessage(agentId))}
-                                        </option>
-                                    ))
-                                )}
-                            </select>
-                        </label>
-
-                        <Toggle
-                            label={intl.formatMessage(messages.profileYoloModeLabel)}
-                            description={intl.formatMessage(messages.profileYoloModeHint)}
-                            checked={draftProfile.yoloMode}
-                            disabled={profileFormBusy}
-                            onChange={(checked) => setDraftProfile((current) => ({ ...current, yoloMode: checked }))}
-                        />
-
-                        <Toggle
-                            label={intl.formatMessage(messages.profileUseWorktreesLabel)}
-                            description={intl.formatMessage(messages.profileUseWorktreesHint)}
-                            checked={draftProfile.useWorktrees}
-                            disabled={profileFormBusy}
-                            onChange={(checked) =>
-                                setDraftProfile((current) => ({ ...current, useWorktrees: checked }))
-                            }
-                        />
-                    </div>
-                ) : null}
             </RoutePanel>
-            {pendingRemoveProfile ? (
-                <ConfirmDialog
-                    message={intl.formatMessage(messages.removeProfileConfirm, {
-                        name: pendingRemoveProfile.name.trim() || pendingRemoveProfile.id,
-                    })}
-                    cancelLabel={intl.formatMessage(messages.removeProfileConfirmCancel)}
-                    confirmLabel={intl.formatMessage(messages.removeProfileConfirmContinue)}
-                    busy={removingId === pendingRemoveProfile.id}
-                    onCancel={() => setPendingRemoveProfile(null)}
-                    onConfirm={() => {
-                        void confirmRemoveProfile();
-                    }}
-                />
-            ) : null}
             {pendingDiscard ? (
                 <ConfirmDialog
                     message={intl.formatMessage(messages.discardChangesConfirm)}

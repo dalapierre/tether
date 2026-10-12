@@ -267,8 +267,10 @@ export async function getSession(id: string): Promise<Session | null> {
 }
 
 export async function createSession(input: {
-    profileId: string;
     name: string;
+    agent?: AgentId;
+    yoloMode?: boolean;
+    useWorktrees?: boolean;
     repositoryId?: string;
     branch?: string;
     workingDirectory?: string;

@@ -22,9 +22,7 @@ export { DEFAULT_KEYBINDS, isKeybinds, normalizeKeybinds, type Keybinds } from '
 export {
     MAX_TOAST_DURATION_SECONDS,
     MIN_TOAST_DURATION_SECONDS,
-    normalizeIncomingProfiles,
     normalizeToastDurationSeconds,
-    type AgentProfile,
     type Settings,
     type StoredRepository,
 } from './libs/settings/store.js';

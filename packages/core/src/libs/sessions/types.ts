@@ -7,7 +7,10 @@ export type SessionType = 'coding' | 'conversation';
 export type Session = {
     id: string;
     name: string;
-    /** Settings profile used to create this session. */
+    /**
+     * Legacy settings profile id. Kept for sessions.json / API back-compat;
+     * new sessions use an empty string.
+     */
     profileId: string;
     agent: AgentId;
     type: SessionType;
