@@ -1,59 +1,36 @@
 /**
- * Pin the session shell to the visible viewport while the soft keyboard is open.
+ * Size a session shell to the visible viewport while the soft keyboard is open.
  *
- * On iOS Safari the keyboard shrinks visualViewport and often pans it
- * (`offsetTop > 0`) to reveal xterm's helper textarea. Sizing height alone
- * leaves the shell sitting above the visible region — a blank gap and a
- * terminal that looks "pushed up". Follow both height and offsetTop, and
- * listen to visualViewport `scroll` (where offsetTop changes arrive).
+ * Applied only on the session page — binding this globally (and especially
+ * writing visualViewport.offsetTop into layout) causes focus/keyboard feedback
+ * loops on mobile inputs (terminals, Monaco, paste sheet, etc.).
  *
- * Session-page only: binding this globally fights focus scrolling on forms
- * and other inputs.
+ * Use the visible height only. Do not apply offsetTop or force-scroll the
+ * document: that fights the browser's focus scrolling and produces rapid
+ * focus/blur jitter. xterm's helper textarea is pinned via CSS instead so
+ * iOS does not need to pan the visual viewport to reveal it.
  */
 export function bindSessionViewport(element: HTMLElement): () => void {
-    const clear = () => {
-        element.style.position = '';
-        element.style.left = '';
-        element.style.right = '';
-        element.style.width = '';
-        element.style.top = '';
-        element.style.height = '';
-    };
-
     const sync = () => {
         const vv = window.visualViewport;
         if (!vv) {
-            clear();
+            element.style.height = '';
             return;
         }
 
-        element.style.position = 'fixed';
-        element.style.left = '0';
-        element.style.right = '0';
-        element.style.width = '100%';
-        element.style.top = `${Math.round(vv.offsetTop)}px`;
-        element.style.height = `${Math.round(vv.height)}px`;
-
-        // Document scroll is separate from visualViewport offset; keep it
-        // pinned so iOS focus-scroll can't drag the shell off-screen.
-        if (window.scrollY !== 0) {
-            window.scrollTo(0, 0);
-        }
-        const scroller = document.scrollingElement;
-        if (scroller && scroller.scrollTop !== 0) {
-            scroller.scrollTop = 0;
+        const nextHeight = `${Math.round(vv.height)}px`;
+        if (element.style.height !== nextHeight) {
+            element.style.height = nextHeight;
         }
     };
 
     sync();
     window.addEventListener('resize', sync);
     window.visualViewport?.addEventListener('resize', sync);
-    window.visualViewport?.addEventListener('scroll', sync);
 
     return () => {
         window.removeEventListener('resize', sync);
         window.visualViewport?.removeEventListener('resize', sync);
-        window.visualViewport?.removeEventListener('scroll', sync);
-        clear();
+        element.style.height = '';
     };
 }
