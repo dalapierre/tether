@@ -48,10 +48,12 @@ import { attachTouchScroll } from '@ui/libs/terminal/touchScroll';
 import { AURA_TERMINAL_THEME } from '@ui/libs/theme/aura';
 import { Spinner } from '@ui/components/spinner';
 import {
+    clearViewedSessionId,
     ensureSessionDiff,
     getDiffGeneration,
     getLiveSession,
     getSessionsSnapshot,
+    setViewedSessionId,
     subscribe,
 } from '@ui/modules/session-events';
 import { showToast } from '@ui/modules/toast';
@@ -516,6 +518,13 @@ export function SessionView({ sessionId }: SessionViewProps) {
     // Remember follow intent at drag start — by pointer-up the terminal has
     // blurred into the handle, so an at-end check misses "was at the prompt".
     const shellFollowAfterResizeRef = useRef(true);
+
+    useEffect(() => {
+        setViewedSessionId(sessionId);
+        return () => {
+            clearViewedSessionId(sessionId);
+        };
+    }, [sessionId]);
 
     useEffect(() => {
         return onPanelResizeDragStart(() => {

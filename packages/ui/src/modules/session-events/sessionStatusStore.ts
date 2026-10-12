@@ -26,6 +26,8 @@ let sessions = new Map<string, Session>();
 let snapshotReceived = false;
 /** Sessions that have already reached ready at least once (suppresses startup ready toasts). */
 let hasBeenReady = new Set<string>();
+/** Session currently open in the session view (suppresses status toasts for that session). */
+let viewedSessionId: string | null = null;
 /** Bumped when the server signals that review diffs may have changed. */
 let diffGenerations = new Map<string, number>();
 const listeners = new Set<Listener>();
@@ -235,6 +237,20 @@ export function sessionHasBeenReady(sessionId: string): boolean {
     return hasBeenReady.has(sessionId);
 }
 
+export function setViewedSessionId(sessionId: string): void {
+    viewedSessionId = sessionId;
+}
+
+export function clearViewedSessionId(sessionId: string): void {
+    if (viewedSessionId === sessionId) {
+        viewedSessionId = null;
+    }
+}
+
+export function isViewingSession(sessionId: string): boolean {
+    return viewedSessionId === sessionId;
+}
+
 export function removeSession(sessionId: string): void {
     if (!sessions.has(sessionId) && !hasBeenReady.has(sessionId) && !diffGenerations.has(sessionId)) {
         return;
@@ -243,6 +259,7 @@ export function removeSession(sessionId: string): void {
     next.delete(sessionId);
     sessions = next;
     hasBeenReady.delete(sessionId);
+    clearViewedSessionId(sessionId);
     if (diffGenerations.has(sessionId)) {
         const nextDiff = new Map(diffGenerations);
         nextDiff.delete(sessionId);

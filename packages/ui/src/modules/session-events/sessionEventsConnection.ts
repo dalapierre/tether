@@ -12,6 +12,7 @@ import {
     applySessionUsage,
     bumpDiffGeneration,
     hasSessionsSnapshot,
+    isViewingSession,
     markSessionReadySeen,
     removeSession,
     seedSessions,
@@ -32,9 +33,12 @@ function maybeToastStatusChange(
     next: SessionStatus,
     name: string,
 ): void {
+    // Status is already visible on the open session — don't interrupt with a toast.
+    const suppressToast = isViewingSession(sessionId);
+
     if (previous === 'busy' && next === 'ready') {
         // Skip the first ready after create/startup; toast only when the agent finishes a later turn.
-        if (sessionHasBeenReady(sessionId)) {
+        if (sessionHasBeenReady(sessionId) && !suppressToast) {
             showToast('session-ready', name);
         }
         markSessionReadySeen(sessionId);
@@ -43,7 +47,7 @@ function maybeToastStatusChange(
     if (next === 'ready') {
         markSessionReadySeen(sessionId);
     }
-    if (previous !== null && previous !== 'error' && next === 'error') {
+    if (previous !== null && previous !== 'error' && next === 'error' && !suppressToast) {
         showToast('session-error', name);
     }
 }
