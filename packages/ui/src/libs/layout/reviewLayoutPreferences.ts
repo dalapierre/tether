@@ -217,7 +217,11 @@ export function setSessionsPanelWidthPx(width: number): void {
 }
 
 export function getSessionsPanelCollapsed(): boolean {
-    return getLocalStorageItem(SESSIONS_PANEL_COLLAPSED_KEY) === '1';
+    const stored = getLocalStorageItem(SESSIONS_PANEL_COLLAPSED_KEY);
+    if (stored === null) {
+        return false;
+    }
+    return stored === '1';
 }
 
 export function setSessionsPanelCollapsed(collapsed: boolean): void {

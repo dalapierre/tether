@@ -1,8 +1,9 @@
 export const styles = {
     root: 'flex h-full min-h-0 flex-1 flex-col bg-zinc-950 text-zinc-100',
-    body: 'flex min-h-0 flex-1 overflow-hidden md:grid md:grid-cols-[auto_minmax(0,1fr)] md:pl-2',
+    /** Default desktop columns match expanded sidebar (320px); inline style overrides from prefs. */
+    body: 'flex min-h-0 flex-1 overflow-hidden md:grid md:grid-cols-[320px_auto_minmax(0,1fr)] md:pl-2',
     bodyAnimate:
-        'flex min-h-0 flex-1 overflow-hidden transition-[grid-template-columns] duration-200 ease-in-out md:grid md:grid-cols-[auto_minmax(0,1fr)] md:pl-2',
+        'flex min-h-0 flex-1 overflow-hidden transition-[grid-template-columns] duration-200 ease-in-out md:grid md:grid-cols-[320px_auto_minmax(0,1fr)] md:pl-2',
     panel: 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:min-h-0 md:min-w-0',
     panelHidden: 'hidden',
     /** Same width as PanelResizeHandle gap so collapse doesn’t shift main content. */

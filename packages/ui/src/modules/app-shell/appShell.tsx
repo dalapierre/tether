@@ -29,7 +29,7 @@ export function AppShell() {
     const showMain = isDesktop || showMainContent;
 
     const [panelWidth, setPanelWidth] = useState(getSessionsPanelWidthPx);
-    const [collapsed, setCollapsed] = useState(getSessionsPanelCollapsed);
+    const [collapsed, setCollapsed] = useState(() => getSessionsPanelCollapsed());
     const [animateLayout, setAnimateLayout] = useState(false);
     const panelWidthRef = useRef(panelWidth);
     panelWidthRef.current = panelWidth;
