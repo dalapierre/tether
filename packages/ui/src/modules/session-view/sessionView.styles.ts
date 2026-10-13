@@ -67,7 +67,7 @@ export const styles = {
     shellSplitPane: 'relative min-h-0 min-w-0 flex-1 overflow-hidden border-r border-zinc-800 last:border-r-0',
     shellTerminalPane: 'relative h-full min-h-0 w-full overflow-hidden',
     shellListRail: 'relative flex shrink-0 border-l border-zinc-800 bg-zinc-900/80',
-    shellList: 'flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-1',
+    shellList: 'panel-scroll flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto p-1',
     shellListItem: 'group flex min-h-7 items-center rounded-md text-zinc-400',
     shellListItemActive: 'bg-zinc-800 text-zinc-100',
     shellListTab:

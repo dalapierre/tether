@@ -15,7 +15,7 @@ export const styles = {
     resetReviewsIcon: 'h-3.5 w-3.5',
     fullscreenIcon: 'h-4 w-4',
     centered: 'flex flex-1 items-center justify-center px-4 text-sm text-zinc-500',
-    fileList: 'code-review-scroll min-h-0 flex-1 overflow-y-auto',
+    fileList: 'panel-scroll min-h-0 flex-1 overflow-y-auto',
     fileTreeFooter:
         'flex h-7 shrink-0 items-center border-t border-zinc-800 bg-zinc-900 px-2 text-xs text-zinc-400 md:px-3',
     treeRow:
@@ -70,7 +70,7 @@ export const styles = {
         'absolute z-20 inline-flex h-9 -translate-x-1/2 items-center rounded-md border border-zinc-700 bg-zinc-900 px-3.5 text-sm font-medium text-zinc-100 shadow-md active:bg-zinc-800 md:hover:bg-zinc-800',
     commentButtonAbove: '-translate-y-full',
 
-    markdownPreview: 'code-review-scroll min-h-0 flex-1 overflow-y-auto',
+    markdownPreview: 'panel-scroll min-h-0 flex-1 overflow-y-auto',
     markdownBody: 'mx-auto max-w-3xl px-4 py-6 text-sm leading-relaxed text-zinc-200 md:px-8',
     mdH1: 'mb-4 border-b border-zinc-800 pb-2 text-2xl font-semibold tracking-tight text-zinc-50',
     mdH2: 'mb-3 mt-8 border-b border-zinc-800/80 pb-1.5 text-xl font-semibold tracking-tight text-zinc-50',
@@ -83,12 +83,12 @@ export const styles = {
     mdLi: 'leading-relaxed',
     mdBlockquote: 'mb-4 border-l-2 border-zinc-600 pl-4 text-zinc-400 italic',
     mdHr: 'my-8 border-zinc-800',
-    mdTableWrap: 'mb-4 overflow-x-auto',
+    mdTableWrap: 'panel-scroll mb-4 overflow-x-auto',
     mdTable: 'w-full border-collapse text-left text-sm',
     mdThead: 'border-b border-zinc-700',
     mdTh: 'px-3 py-2 font-semibold text-zinc-200',
     mdTd: 'border-t border-zinc-800/80 px-3 py-2 text-zinc-300',
     mdInlineCode: 'rounded bg-zinc-800 px-1.5 py-0.5 text-[0.85em] text-zinc-100',
-    mdPre: 'mb-4 overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-900 p-3 text-[12px] leading-5 text-zinc-100',
+    mdPre: 'panel-scroll mb-4 overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-900 p-3 text-[12px] leading-5 text-zinc-100',
     mdImg: 'my-4 max-w-full rounded-md',
 };

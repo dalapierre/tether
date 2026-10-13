@@ -36,7 +36,7 @@ export const styles = {
         'absolute right-1 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-zinc-400 transition-colors hover:text-zinc-100 active:bg-zinc-800',
     searchClearIcon: 'h-3.5 w-3.5',
     sectionLabel: 'shrink-0 px-3 pb-1 text-[11px] font-medium uppercase tracking-wide text-zinc-500',
-    body: 'flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-2 pb-2',
+    body: 'panel-scroll flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto px-2 pb-2',
     bodyEmpty: 'flex min-h-0 flex-1 flex-col items-center justify-center px-3 pb-2',
     placeholder: 'text-sm text-zinc-500',
     sessionRow: 'group relative',

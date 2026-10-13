@@ -1696,8 +1696,8 @@ export function SessionCodeView({
             renderOverviewRuler: true,
             overviewRulerLanes: 0,
             scrollbar: {
-                verticalScrollbarSize: 10,
-                horizontalScrollbarSize: 10,
+                verticalScrollbarSize: 6,
+                horizontalScrollbarSize: 6,
                 useShadows: false,
                 verticalHasArrows: false,
                 horizontalHasArrows: false,
