@@ -13,6 +13,7 @@
         "start:app": "npm run update && npm run build && npm run start -w @tether/host",
         "update": "git pull origin main && npm i",
         "prepare": "husky",
+        "test": "npm run test -w @tether/core",
         "fix:prettier": "npx prettier **/*.{js,ts,jsx,tsx,json} --write"
     },
     "devDependencies": {
