@@ -1,4 +1,4 @@
-import { BRANCH_IN_USE_BY_WORKTREE_ERROR, isAgentId, logger, type TetherHost } from '@tether/core';
+import { BRANCH_IN_USE_BY_WORKTREE_ERROR, errors, isAgentId, logger, type TetherHost } from '@tether/core';
 import { Router } from 'express';
 
 export function createSessionsRouter(host: TetherHost): Router {
@@ -10,7 +10,7 @@ export function createSessionsRouter(host: TetherHost): Router {
             const sessions = await host.listSessions(repositoryId || undefined);
             res.json({ sessions });
         } catch (err: unknown) {
-            logger.error('Failed to list sessions', err);
+            logger.error(errors.sessionsListFailure, err);
             res.status(500).json({ error: 'Failed to list sessions' });
         }
     });
@@ -24,7 +24,7 @@ export function createSessionsRouter(host: TetherHost): Router {
             }
             res.json({ diff: result.diff, pending: result.pending });
         } catch (err: unknown) {
-            logger.error('Failed to load session diff', err);
+            logger.error(errors.sessionsDiffLoadFailure, err);
             res.status(500).json({ error: 'Failed to load session diff' });
         }
     });
@@ -49,7 +49,7 @@ export function createSessionsRouter(host: TetherHost): Router {
                 res.status(400).json({ error: message });
                 return;
             }
-            logger.error('Failed to load session file diff', err);
+            logger.error(errors.sessionsDiffFileLoadFailure, err);
             res.status(500).json({ error: 'Failed to load file diff' });
         }
     });
@@ -74,7 +74,7 @@ export function createSessionsRouter(host: TetherHost): Router {
                 res.status(400).json({ error: message });
                 return;
             }
-            logger.error('Failed to discard session file change', err);
+            logger.error(errors.sessionsDiffDiscardFailure, err);
             res.status(500).json({ error: 'Failed to discard file change' });
         }
     });
@@ -88,7 +88,7 @@ export function createSessionsRouter(host: TetherHost): Router {
             }
             res.json({ session });
         } catch (err: unknown) {
-            logger.error('Failed to get session', err);
+            logger.error(errors.sessionsGetFailure, err);
             res.status(500).json({ error: 'Failed to get session' });
         }
     });
@@ -134,7 +134,7 @@ export function createSessionsRouter(host: TetherHost): Router {
                 res.status(400).json({ error: message });
                 return;
             }
-            logger.error('Failed to restart session', err);
+            logger.error(errors.sessionsRestartFailure, err);
             res.status(500).json({ error: 'Failed to restart session' });
         }
     });
@@ -198,7 +198,7 @@ export function createSessionsRouter(host: TetherHost): Router {
                     ? 400
                     : 500;
             if (status === 500) {
-                logger.error('Failed to create session', err);
+                logger.error(errors.sessionsCreateFailure, err);
             }
             res.status(status).json({ error: status === 500 ? 'Failed to create session' : message });
         }

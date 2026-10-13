@@ -1,4 +1,5 @@
 import { isAgentId, type AgentId } from '@core/libs/agents/agents.js';
+import { errors } from '@core/libs/errors.js';
 import { logger } from '@core/libs/logger.js';
 import { getHomeDir, getRepositoryWorktreesDir, getSessionsFilePath, getTetherHomeDir } from '@core/libs/paths.js';
 import {
@@ -337,7 +338,7 @@ async function runDiffRefresh(sessionId: string): Promise<void> {
                     }
                     continue;
                 }
-                logger.error(`Failed to refresh session diff for ${sessionId}`, err);
+                logger.error(errors.sessionDiffRefreshFailure, { sessionId }, err);
                 // Commits often race the refresh with index.lock; retry briefly instead of
                 // leaving the hierarchy stuck on a pre-commit (or empty) cache.
                 if (isTransientDiffError(err) && transientFailures < 5) {
@@ -548,7 +549,7 @@ async function readStoredSessions(): Promise<StoredSession[]> {
     try {
         parsed = JSON.parse(raw);
     } catch {
-        logger.error('Failed to parse sessions.json — starting with an empty session list');
+        logger.error(errors.sessionsPersistParseFailure);
         return [];
     }
 
@@ -686,7 +687,7 @@ async function refreshSessionBehindFromRemote(session: RuntimeSession): Promise<
             });
         }
     } catch (err: unknown) {
-        logger.error(`Failed to refresh remote behind count for session ${session.id}`, err);
+        logger.error(errors.sessionRemoteBehindRefreshFailure, { sessionId: session.id }, err);
     }
 }
 
@@ -701,7 +702,7 @@ async function syncSessionBranch(session: RuntimeSession, options: { broadcast?:
 
     session.branch = branch;
     void persistSessions().catch((err: unknown) => {
-        logger.error(`Failed to persist branch for session ${session.id}`, err);
+        logger.error(errors.sessionPersistBranchFailure, { sessionId: session.id }, err);
     });
 
     if (options.broadcast !== false) {
@@ -756,7 +757,7 @@ function startWatchingDiff(session: RuntimeSession): void {
         // Warm the cache so the first GET is usually already filled.
         scheduleDiffRefresh(session.id, { immediate: true });
     } catch (err: unknown) {
-        logger.error(`Failed to watch workspace for session ${session.id}`, err);
+        logger.error(errors.sessionWorkspaceWatchFailure, { sessionId: session.id }, err);
     }
 }
 
@@ -825,11 +826,11 @@ async function startWatchingHead(session: RuntimeSession): Promise<void> {
                         // so staging does not reopen the review panel.
                         scheduleDiffRefresh(active.id, { onlyBroadcastIfChanged: true });
                     } catch (err: unknown) {
-                        logger.error(`Failed to sync review base for session ${session.id}`, err);
+                        logger.error(errors.sessionReviewBaseSyncFailure, { sessionId: session.id }, err);
                     }
                 })
                 .catch((err: unknown) => {
-                    logger.error(`Failed to sync review base for session ${session.id}`, err);
+                    logger.error(errors.sessionReviewBaseSyncFailure, { sessionId: session.id }, err);
                 });
         }, HEAD_DEBOUNCE_MS);
     };
@@ -852,7 +853,7 @@ async function startWatchingHead(session: RuntimeSession): Promise<void> {
         for (const watcher of state.watchers) {
             watcher.close();
         }
-        logger.error(`Failed to watch HEAD for session ${session.id}`, err);
+        logger.error(errors.sessionHeadWatchFailure, { sessionId: session.id }, err);
     }
 }
 
@@ -987,7 +988,7 @@ function ensureUsageSamplerStarted(): void {
     usageSamplerStarted = true;
     setInterval(() => {
         void tickSessionUsage().catch((err: unknown) => {
-            logger.error('Failed to sample session resource usage', err);
+            logger.error(errors.sessionUsageSampleFailure, err);
         });
     }, USAGE_SAMPLE_INTERVAL_MS);
 }
@@ -1003,7 +1004,7 @@ function setStatus(session: RuntimeSession, status: SessionStatus): void {
         scheduleDiffRefresh(session.id, { immediate: true });
     }
     void persistSessions().catch((err: unknown) => {
-        logger.error(`Failed to persist status for session ${session.id}`, err);
+        logger.error(errors.sessionPersistStatusFailure, { sessionId: session.id }, err);
     });
 }
 
@@ -1408,7 +1409,7 @@ async function finalizeCodingSession(
         const message = err instanceof Error ? err.message : 'Failed to initialize session';
         appendOutput(session.id, `\r\n[failed to initialize session: ${message}]\r\n`);
         setStatus(session, 'error');
-        logger.error(`Failed to initialize session ${session.id}`, err);
+        logger.error(errors.sessionInitFailure, { sessionId: session.id }, err);
     }
 }
 
@@ -1570,7 +1571,7 @@ export async function restoreSessions(): Promise<void> {
             }
             await spawnHarness(session, { resume: Boolean(session.agentSessionId) });
         } catch (err: unknown) {
-            logger.error(`Failed to restore session ${session.id}`, err);
+            logger.error(errors.sessionRestoreFailure, { sessionId: session.id }, err);
         }
     }
 
@@ -1635,7 +1636,7 @@ async function syncReviewBase(session: RuntimeSession): Promise<string> {
         if (session.baseSha !== head) {
             session.baseSha = head;
             void persistSessions().catch((err: unknown) => {
-                logger.error(`Failed to persist review base for session ${session.id}`, err);
+                logger.error(errors.sessionPersistReviewBaseFailure, { sessionId: session.id }, err);
             });
         }
         return session.baseSha;
@@ -1962,7 +1963,7 @@ async function cleanupWorktree(session: RuntimeSession): Promise<void> {
             await rm(session.worktreePath, { recursive: true, force: true });
         }
     } catch (err: unknown) {
-        logger.error(`Failed to remove worktree for session ${session.id}`, err);
+        logger.error(errors.sessionWorktreeRemoveFailure, { sessionId: session.id }, err);
         await rm(session.worktreePath, { recursive: true, force: true }).catch(() => undefined);
         if (repository) {
             await pruneStaleWorktrees(repository.path);
@@ -2006,7 +2007,7 @@ export function deleteSession(id: string): boolean {
     broadcastSessionRemove(id);
 
     void persistSessions().catch((err: unknown) => {
-        logger.error(`Failed to persist sessions after deleting ${id}`, err);
+        logger.error(errors.sessionPersistDeleteFailure, { sessionId: id }, err);
     });
     void cleanupWorktree(session);
 
@@ -2023,7 +2024,7 @@ export function attachSessionEvents(socket: HubClient): void {
             }
         })
         .catch((err: unknown) => {
-            logger.error('Failed to send session events snapshot', err);
+            logger.error(errors.sessionEventsSnapshotFailure, err);
         });
 }
 

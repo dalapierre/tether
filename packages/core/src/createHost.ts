@@ -1,4 +1,5 @@
 import { listAvailableAgents } from '@core/libs/agents/agents.js';
+import { errors } from '@core/libs/errors.js';
 import { logger } from '@core/libs/logger.js';
 import {
     addRepository,
@@ -63,7 +64,7 @@ export async function createHost(): Promise<TetherHost> {
     try {
         await restoreSessions();
     } catch (err: unknown) {
-        logger.error('Failed to restore sessions', err);
+        logger.error(errors.sessionsRestoreFailure, err);
     }
 
     return {

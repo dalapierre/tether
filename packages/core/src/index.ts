@@ -3,6 +3,16 @@ export type { HubClient } from './libs/hubClient.js';
 
 export { isAgentId, listAvailableAgents, type AgentId, type AgentInfo } from './libs/agents/agents.js';
 
+export {
+    errors,
+    formatCriticalError,
+    formatErrorMessage,
+    type CriticalError,
+    type CriticalErrorDefinition,
+    type CriticalErrorKey,
+    type CriticalErrorValues,
+} from './libs/errors.js';
+
 export { logger, sanitizeUrl } from './libs/logger.js';
 
 export type { AvailableRepository, Repository } from './libs/repositories/store.js';

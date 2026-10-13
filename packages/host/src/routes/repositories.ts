@@ -1,4 +1,4 @@
-import { logger, type TetherHost } from '@tether/core';
+import { errors, logger, type TetherHost } from '@tether/core';
 import { Router } from 'express';
 
 export function createRepositoriesRouter(host: TetherHost): Router {
@@ -9,7 +9,7 @@ export function createRepositoriesRouter(host: TetherHost): Router {
             const repositories = await host.listRepositories();
             res.json({ repositories });
         } catch (err: unknown) {
-            logger.error('Failed to list repositories', err);
+            logger.error(errors.repositoriesListFailure, err);
             res.status(500).json({ error: 'Failed to list repositories' });
         }
     });
@@ -19,7 +19,7 @@ export function createRepositoriesRouter(host: TetherHost): Router {
             const repositories = await host.listAvailableRepositories();
             res.json({ repositories });
         } catch (err: unknown) {
-            logger.error('Failed to list available repositories', err);
+            logger.error(errors.repositoriesListAvailableFailure, err);
             res.status(500).json({ error: 'Failed to list available repositories' });
         }
     });
@@ -33,7 +33,7 @@ export function createRepositoriesRouter(host: TetherHost): Router {
             }
             res.json({ branches });
         } catch (err: unknown) {
-            logger.error('Failed to list repository branches', err);
+            logger.error(errors.repositoriesBranchesListFailure, err);
             res.status(500).json({ error: 'Failed to list branches' });
         }
     });
@@ -47,7 +47,7 @@ export function createRepositoriesRouter(host: TetherHost): Router {
             }
             res.json({ directories });
         } catch (err: unknown) {
-            logger.error('Failed to list repository directories', err);
+            logger.error(errors.repositoriesDirectoriesListFailure, err);
             res.status(500).json({ error: 'Failed to list directories' });
         }
     });
@@ -73,7 +73,7 @@ export function createRepositoriesRouter(host: TetherHost): Router {
                     ? 400
                     : 500;
             if (status === 500) {
-                logger.error('Failed to add repository', err);
+                logger.error(errors.repositoriesAddFailure, err);
             }
             res.status(status).json({ error: status === 500 ? 'Failed to add repository' : message });
         }
@@ -88,7 +88,7 @@ export function createRepositoriesRouter(host: TetherHost): Router {
             }
             res.status(204).send();
         } catch (err: unknown) {
-            logger.error('Failed to remove repository', err);
+            logger.error(errors.repositoriesRemoveFailure, err);
             res.status(500).json({ error: 'Failed to remove repository' });
         }
     });

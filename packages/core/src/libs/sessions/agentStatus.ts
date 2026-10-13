@@ -1,3 +1,4 @@
+import { errors } from '@core/libs/errors.js';
 import { logger } from '@core/libs/logger.js';
 import type { SessionStatus } from '@core/libs/sessions/types.js';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -38,7 +39,7 @@ export async function ensureCursorStatusIndicatorsEnabled(): Promise<void> {
             );
             return;
         }
-        logger.error('Failed to enable Cursor status indicators', err);
+        logger.error(errors.sessionCursorStatusIndicatorsFailure, err);
     }
 }
 

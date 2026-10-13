@@ -1,4 +1,4 @@
-import { createHost, logger } from '@tether/core';
+import { createHost, errors, logger } from '@tether/core';
 import { attachTerminalServer } from '@host/libs/sessions/terminalServer.js';
 import { requestLogger } from '@host/middleware/requestLogger.js';
 import { registerHttpRoutes } from '@host/routes/register.js';
@@ -42,6 +42,6 @@ async function start(): Promise<void> {
 }
 
 void start().catch((err: unknown) => {
-    logger.error('Host failed to start', err);
+    logger.error(errors.hostStartupFailure, err);
     process.exit(1);
 });

@@ -1,4 +1,5 @@
 import {
+    errors,
     isAgentId,
     isKeybinds,
     logger,
@@ -18,7 +19,7 @@ export function createSettingsRouter(host: TetherHost): Router {
             const settings = await host.getSettings();
             res.json({ settings });
         } catch (err: unknown) {
-            logger.error('Failed to load settings', err);
+            logger.error(errors.settingsLoadFailure, err);
             res.status(500).json({ error: 'Failed to load settings' });
         }
     });
@@ -85,7 +86,7 @@ export function createSettingsRouter(host: TetherHost): Router {
             });
             res.json({ settings });
         } catch (err: unknown) {
-            logger.error('Failed to save settings', err);
+            logger.error(errors.settingsSaveFailure, err);
             res.status(500).json({ error: 'Failed to save settings' });
         }
     });

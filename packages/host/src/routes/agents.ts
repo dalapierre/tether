@@ -1,4 +1,4 @@
-import { logger, type TetherHost } from '@tether/core';
+import { errors, logger, type TetherHost } from '@tether/core';
 import { Router } from 'express';
 
 export function createAgentsRouter(host: TetherHost): Router {
@@ -9,7 +9,7 @@ export function createAgentsRouter(host: TetherHost): Router {
             const agents = await host.listAvailableAgents();
             res.json({ agents });
         } catch (err: unknown) {
-            logger.error('Failed to list available agents', err);
+            logger.error(errors.agentsListFailure, err);
             res.status(500).json({ error: 'Failed to list available agents' });
         }
     });

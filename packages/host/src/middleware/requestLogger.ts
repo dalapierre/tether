@@ -1,4 +1,4 @@
-import { logger, sanitizeUrl } from '@tether/core';
+import { errors, logger, sanitizeUrl } from '@tether/core';
 import type { NextFunction, Request, Response } from 'express';
 
 export function requestLogger(req: Request, res: Response, next: NextFunction): void {
@@ -11,7 +11,12 @@ export function requestLogger(req: Request, res: Response, next: NextFunction): 
         const { statusCode } = res;
         const message = `${req.method} ${url} → ${statusCode} (${durationMs}ms)`;
         if (statusCode >= 500) {
-            logger.error(message);
+            logger.error(errors.httpRequestServerError, {
+                method: req.method,
+                url,
+                statusCode,
+                durationMs,
+            });
             return;
         }
         if (statusCode >= 400) {

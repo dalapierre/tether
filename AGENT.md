@@ -30,6 +30,21 @@ Run Tether with `npm run dev` / `npm run start` (both start `@tether/host`). Dev
 
 Agent sessions use a **shell + harness init command** (no dedicated agent PTY). Auth / `ACCESS_KEY` / login are not used.
 
+### Backend errors (`logger.error`)
+
+All `logger.error` calls must use a catalogued entry from `packages/core/src/libs/errors.ts` (`errors` object). Each entry is `{ id, message }` where:
+
+- **`id`** — stable dotted identifier (`area.component.failure-type`), e.g. `session.persist.branch-failure` or `host.startup.failure`. Use kebab-case within segments; separate major scopes with dots.
+- **`message`** — human-readable template; may include `{placeholder}` variables that are filled at log time.
+
+When logging an error:
+
+1. **Add or reuse** an entry in `errors` — never pass a free-form string to `logger.error`.
+2. **Log with** `logger.error(errors.someKey, values?, err?)`. This formats the message and logs `[id] message` plus the underlying error.
+3. Prefer `formatCriticalError` when you need the `{ id, message, err }` shape without logging yet (future incident tooling).
+
+`logger.info` / `logger.warn` may still take plain strings. Whenever you add a catalog entry or change formatting behavior, update `errors.test.ts`.
+
 ### Core / backend unit tests (required)
 
 `@tether/core` uses Jest (`npm test` / `npm run test -w @tether/core`). **Whenever you add or modify backend/core functionality** (sessions, worktrees, repos, settings, agents, shells, git helpers, Host API behavior, etc.), you **must** add or update colocated unit tests (`*.test.ts` next to the module under `packages/core/src`) in the same change. Do not ship backend behavior changes without tests.
