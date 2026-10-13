@@ -39,8 +39,11 @@ type ShellEntry = {
     title: string;
 };
 
+/** Client-side shell ids; avoid `crypto.randomUUID` (secure-context only — fails on LAN HTTP). */
 function createShellId(): string {
-    return crypto.randomUUID();
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 function SplitShellIcon() {
