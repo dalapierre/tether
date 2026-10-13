@@ -55,6 +55,9 @@ type Messages = {
     devDirLabel: NoMessageValues;
     devDirPlaceholder: NoMessageValues;
     devDirHint: NoMessageValues;
+    worktreesDirLabel: NoMessageValues;
+    worktreesDirPlaceholder: NoMessageValues;
+    worktreesDirHint: NoMessageValues;
     toastDurationLabel: NoMessageValues;
     toastDurationHint: NoMessageValues;
     defaultHarnessLabel: NoMessageValues;
@@ -288,6 +291,19 @@ export const messages = defineMessages<Messages>(
             id: 'settings.devDirHint',
             defaultMessage:
                 'Absolute path to the folder that contains your git repositories. New sessions list every repository found under this path.',
+        },
+        worktreesDirLabel: {
+            id: 'settings.worktreesDirLabel',
+            defaultMessage: 'Worktrees directory',
+        },
+        worktreesDirPlaceholder: {
+            id: 'settings.worktreesDirPlaceholder',
+            defaultMessage: '/home/you/.tether/worktrees',
+        },
+        worktreesDirHint: {
+            id: 'settings.worktreesDirHint',
+            defaultMessage:
+                'Absolute path where session worktrees are created. Each repository gets a subdirectory under this path. Leave empty to use ~/.tether/worktrees.',
         },
         toastDurationLabel: {
             id: 'settings.toastDurationLabel',

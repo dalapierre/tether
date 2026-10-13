@@ -1,6 +1,8 @@
 export { createHost, type TetherHost } from './createHost.js';
 export type { HubClient } from './libs/hubClient.js';
 
+export { resolveAbsoluteUserPath } from './libs/paths.js';
+
 export { isAgentId, listAvailableAgents, type AgentId, type AgentInfo } from './libs/agents/agents.js';
 
 export {
@@ -35,6 +37,7 @@ export {
     MAX_TOAST_DURATION_SECONDS,
     MIN_TOAST_DURATION_SECONDS,
     normalizeToastDurationSeconds,
+    normalizeWorktreesDir,
     type Settings,
     type StoredRepository,
 } from './libs/settings/store.js';

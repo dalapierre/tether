@@ -435,14 +435,14 @@ function normalizeWorkingDirectory(input: string | undefined): string {
 }
 
 /**
- * Parent directory for session worktrees. Empty/undefined uses
- * `~/.tether/worktrees/<projectName>`; otherwise requires an absolute path
- * (leading `~` is expanded).
+ * Parent directory for session worktrees.
+ * - Empty/undefined override → `<configuredRoot|~/.tether/worktrees>/<projectName>`
+ * - Override → absolute path as-is (leading `~` expanded; no project nesting)
  */
-function resolveWorktreesRoot(projectName: string, override: string | undefined): string {
+function resolveWorktreesRoot(projectName: string, override: string | undefined, configuredRoot?: string): string {
     const trimmed = override?.trim() ?? '';
     if (!trimmed) {
-        return getRepositoryWorktreesDir(projectName);
+        return getRepositoryWorktreesDir(projectName, configuredRoot);
     }
     if (trimmed.includes('\0')) {
         throw new Error('Invalid worktree location');
@@ -1113,6 +1113,7 @@ async function createWorktree(
     leaf: string,
     branchName: string,
     worktreesDir?: string,
+    configuredWorktreesRoot?: string,
 ): Promise<{
     branch: string;
     worktreePath: string;
@@ -1137,7 +1138,7 @@ async function createWorktree(
     });
     const baseSha = headStdout.trim();
 
-    const worktreesRoot = resolveWorktreesRoot(projectName, worktreesDir);
+    const worktreesRoot = resolveWorktreesRoot(projectName, worktreesDir, configuredWorktreesRoot);
     const worktreePath = path.join(worktreesRoot, leaf);
     await mkdir(worktreesRoot, { recursive: true });
     await pruneStaleWorktrees(repoPath);
@@ -1238,7 +1239,7 @@ export async function createSession(input: {
     repositoryId?: string;
     branch?: string;
     workingDirectory?: string;
-    /** Override parent dir for worktrees (default `~/.tether/worktrees/<repo>`). */
+    /** Override parent dir for worktrees (default `<settings.worktreesDir>/<repo>`). */
     worktreesDir?: string;
 }): Promise<Session> {
     const name = input.name.trim();
@@ -1252,6 +1253,7 @@ export async function createSession(input: {
     const useWorktrees = typeof input.useWorktrees === 'boolean' ? input.useWorktrees : settings.defaultUseWorktrees;
     const workingDirectory = normalizeWorkingDirectory(input.workingDirectory);
     const worktreesDir = input.worktreesDir?.trim() || undefined;
+    const configuredWorktreesRoot = settings.worktreesDir;
 
     const repositoryId = input.repositoryId?.trim() ?? '';
     if (!repositoryId) {
@@ -1264,7 +1266,7 @@ export async function createSession(input: {
             throw new Error('Branch is required');
         }
         // Validate early so create fails before the session appears.
-        resolveWorktreesRoot(repositoryId, worktreesDir);
+        resolveWorktreesRoot(repositoryId, worktreesDir, configuredWorktreesRoot);
         return createCodingSession({
             name,
             agent,
@@ -1274,6 +1276,7 @@ export async function createSession(input: {
             branch,
             workingDirectory,
             worktreesDir,
+            configuredWorktreesRoot,
         });
     }
 
@@ -1318,6 +1321,7 @@ async function finalizeCodingSession(
         branch?: string;
         workingDirectory: string;
         worktreesDir?: string;
+        configuredWorktreesRoot?: string;
     },
     repository: { id: string; path: string },
 ): Promise<void> {
@@ -1332,6 +1336,7 @@ async function finalizeCodingSession(
                     session.id,
                     input.branch ?? '',
                     input.worktreesDir,
+                    input.configuredWorktreesRoot,
                 );
             } catch (err: unknown) {
                 const message = err instanceof Error ? err.message : 'Failed to create worktree';
@@ -1425,6 +1430,7 @@ async function createCodingSession(input: {
     branch?: string;
     workingDirectory: string;
     worktreesDir?: string;
+    configuredWorktreesRoot?: string;
 }): Promise<Session> {
     const repository = await getRepository(input.repositoryId);
     if (!repository) {
@@ -1445,7 +1451,9 @@ async function createCodingSession(input: {
     }
 
     const takenIds = new Set(sessions.keys());
-    const worktreesRoot = input.useWorktrees ? resolveWorktreesRoot(repository.id, input.worktreesDir) : null;
+    const worktreesRoot = input.useWorktrees
+        ? resolveWorktreesRoot(repository.id, input.worktreesDir, input.configuredWorktreesRoot)
+        : null;
     if (input.useWorktrees && worktreesRoot) {
         await pruneStaleWorktrees(repository.path);
         for (const leaf of await listWorktreeLeaves(worktreesRoot)) {

@@ -11,7 +11,7 @@ export type Settings = {
     defaultYoloMode: boolean;
     defaultUseWorktrees: boolean;
     keybinds: Keybinds;
-    /** Absolute default worktrees root (`$HOME/.tether/worktrees`). Read-only. */
+    /** Absolute default worktrees root (default `$HOME/.tether/worktrees`). */
     worktreesDir: string;
 };
 
@@ -47,7 +47,7 @@ export async function getSettings(): Promise<Settings> {
     return normalizeSettings(data.settings);
 }
 
-export async function updateSettings(settings: Omit<Settings, 'worktreesDir'>): Promise<Settings> {
+export async function updateSettings(settings: Settings): Promise<Settings> {
     const res = await apiFetch('/api/settings', {
         method: 'PUT',
         body: JSON.stringify(settings),

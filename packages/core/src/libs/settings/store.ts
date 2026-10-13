@@ -5,6 +5,7 @@ import {
     getSettingsFilePath,
     getTetherHomeDir,
     getWorktreesDir,
+    resolveAbsoluteUserPath,
 } from '@core/libs/paths.js';
 import { DEFAULT_KEYBINDS, normalizeKeybinds, type Keybinds } from '@core/libs/settings/keybinds.js';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
@@ -26,12 +27,12 @@ export type Settings = {
     defaultYoloMode: boolean;
     defaultUseWorktrees: boolean;
     keybinds: Keybinds;
-    /** Absolute default worktrees root (`$HOME/.tether/worktrees`). Read-only. */
+    /** Absolute default worktrees root (default `$HOME/.tether/worktrees`). */
     worktreesDir: string;
 };
 
 /** Current settings.json schema version. Bump when the on-disk shape changes. */
-const SETTINGS_FILE_VERSION = 1;
+const SETTINGS_FILE_VERSION = 2;
 
 export const DEFAULT_TOAST_DURATION_SECONDS = 10;
 export const MIN_TOAST_DURATION_SECONDS = 1;
@@ -45,6 +46,8 @@ type SettingsFile = {
     defaultYoloMode: boolean;
     defaultUseWorktrees: boolean;
     keybinds: Keybinds;
+    /** Absolute default worktrees root; empty/missing normalizes to `~/.tether/worktrees`. */
+    worktreesDir: string;
     /** Persisted added repositories — not exposed via the settings API/UI. */
     repositories: StoredRepository[];
 };
@@ -64,6 +67,7 @@ const defaultSettingsFile: SettingsFile = {
     defaultYoloMode: DEFAULT_YOLO_MODE,
     defaultUseWorktrees: DEFAULT_USE_WORKTREES,
     keybinds: DEFAULT_KEYBINDS,
+    worktreesDir: getWorktreesDir(),
     repositories: [],
 };
 
@@ -134,6 +138,18 @@ export function normalizeToastDurationSeconds(value: unknown): number {
     return DEFAULT_TOAST_DURATION_SECONDS;
 }
 
+/** Empty/invalid → `~/.tether/worktrees`; expands leading `~`. */
+export function normalizeWorktreesDir(value: unknown): string {
+    if (typeof value !== 'string' || !value.trim()) {
+        return getWorktreesDir();
+    }
+    try {
+        return resolveAbsoluteUserPath(value);
+    } catch {
+        return getWorktreesDir();
+    }
+}
+
 function toPublicSettings(file: SettingsFile): Settings {
     return {
         devDir: file.devDir,
@@ -145,7 +161,7 @@ function toPublicSettings(file: SettingsFile): Settings {
             home: { ...file.keybinds.home },
             session: { ...file.keybinds.session },
         },
-        worktreesDir: getWorktreesDir(),
+        worktreesDir: normalizeWorktreesDir(file.worktreesDir),
     };
 }
 
@@ -174,6 +190,7 @@ function normalizeSettingsFile(value: unknown): SettingsFile {
         DEFAULT_USE_WORKTREES,
     );
     const keybinds = normalizeKeybinds(record.keybinds);
+    const worktreesDir = normalizeWorktreesDir(record.worktreesDir);
     const repositories = Array.isArray(record.repositories) ? record.repositories.filter(isStoredRepository) : [];
 
     return {
@@ -184,6 +201,7 @@ function normalizeSettingsFile(value: unknown): SettingsFile {
         defaultYoloMode,
         defaultUseWorktrees,
         keybinds,
+        worktreesDir,
         repositories,
     };
 }
@@ -269,6 +287,7 @@ export async function updateSettings(patch: {
     defaultYoloMode?: boolean;
     defaultUseWorktrees?: boolean;
     keybinds?: Keybinds;
+    worktreesDir?: string;
 }): Promise<Settings> {
     const current = await readSettingsFile();
     const defaultAgent = resolveDefaultAgent(patch.defaultAgent ?? current.defaultAgent);
@@ -285,15 +304,19 @@ export async function updateSettings(patch: {
         patch.toastDurationSeconds !== undefined
             ? normalizeToastDurationSeconds(patch.toastDurationSeconds)
             : current.toastDurationSeconds;
+    const worktreesDir =
+        patch.worktreesDir !== undefined ? normalizeWorktreesDir(patch.worktreesDir) : current.worktreesDir;
 
     const next: SettingsFile = {
         ...current,
+        version: SETTINGS_FILE_VERSION,
         devDir: typeof patch.devDir === 'string' ? patch.devDir : current.devDir,
         toastDurationSeconds,
         defaultAgent,
         defaultYoloMode,
         defaultUseWorktrees,
         keybinds,
+        worktreesDir,
     };
     await writeSettingsFile(next);
     return toPublicSettings(next);

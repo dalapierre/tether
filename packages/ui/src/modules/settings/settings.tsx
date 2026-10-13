@@ -64,12 +64,14 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
     const isDesktop = useIsDesktop();
     const [view, setView] = useState<SettingsView>('root');
     const [devDir, setDevDir] = useState('');
+    const [worktreesDir, setWorktreesDir] = useState('');
     const [toastDurationSeconds, setToastDurationSecondsState] = useState(DEFAULT_TOAST_DURATION_SECONDS);
     const [defaultAgent, setDefaultAgent] = useState<AgentId>('cursor');
     const [defaultYoloMode, setDefaultYoloMode] = useState(false);
     const [defaultUseWorktrees, setDefaultUseWorktrees] = useState(true);
     const [keybinds, setKeybinds] = useState<Keybinds>(() => cloneKeybinds(DEFAULT_KEYBINDS));
     const [savedDevDir, setSavedDevDir] = useState('');
+    const [savedWorktreesDir, setSavedWorktreesDir] = useState('');
     const [savedToastDurationSeconds, setSavedToastDurationSeconds] = useState(DEFAULT_TOAST_DURATION_SECONDS);
     const [savedDefaultAgent, setSavedDefaultAgent] = useState<AgentId>('cursor');
     const [savedDefaultYoloMode, setSavedDefaultYoloMode] = useState(false);
@@ -87,12 +89,14 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
             .then(([settings, agents]) => {
                 if (cancelled) return;
                 setDevDir(settings.devDir);
+                setWorktreesDir(settings.worktreesDir);
                 setToastDurationSecondsState(settings.toastDurationSeconds);
                 setDefaultAgent(settings.defaultAgent);
                 setDefaultYoloMode(settings.defaultYoloMode);
                 setDefaultUseWorktrees(settings.defaultUseWorktrees);
                 setKeybinds(cloneKeybinds(settings.keybinds));
                 setSavedDevDir(settings.devDir);
+                setSavedWorktreesDir(settings.worktreesDir);
                 setSavedToastDurationSeconds(settings.toastDurationSeconds);
                 setSavedDefaultAgent(settings.defaultAgent);
                 setSavedDefaultYoloMode(settings.defaultYoloMode);
@@ -128,7 +132,10 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
         onClose();
     }, [onClose, view]);
 
-    const generalDirty = devDir.trim() !== savedDevDir || toastDurationSeconds !== savedToastDurationSeconds;
+    const generalDirty =
+        devDir.trim() !== savedDevDir ||
+        worktreesDir.trim() !== savedWorktreesDir ||
+        toastDurationSeconds !== savedToastDurationSeconds;
     const agentsDirty =
         defaultAgent !== savedDefaultAgent ||
         defaultYoloMode !== savedDefaultYoloMode ||
@@ -142,6 +149,7 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
     function discardChanges() {
         if (view === 'general') {
             setDevDir(savedDevDir);
+            setWorktreesDir(savedWorktreesDir);
             setToastDurationSecondsState(savedToastDurationSeconds);
         } else if (view === 'agents') {
             setDefaultAgent(savedDefaultAgent);
@@ -198,6 +206,7 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
         try {
             const settings = await updateSettings({
                 devDir: devDir.trim(),
+                worktreesDir: worktreesDir.trim(),
                 toastDurationSeconds,
                 defaultAgent,
                 defaultYoloMode,
@@ -205,12 +214,14 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
                 keybinds,
             });
             setDevDir(settings.devDir);
+            setWorktreesDir(settings.worktreesDir);
             setToastDurationSecondsState(settings.toastDurationSeconds);
             setDefaultAgent(settings.defaultAgent);
             setDefaultYoloMode(settings.defaultYoloMode);
             setDefaultUseWorktrees(settings.defaultUseWorktrees);
             setKeybinds(cloneKeybinds(settings.keybinds));
             setSavedDevDir(settings.devDir);
+            setSavedWorktreesDir(settings.worktreesDir);
             setSavedToastDurationSeconds(settings.toastDurationSeconds);
             setSavedDefaultAgent(settings.defaultAgent);
             setSavedDefaultYoloMode(settings.defaultYoloMode);
@@ -383,6 +394,22 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
                             />
                         </label>
                         <p className={styles.hint}>{intl.formatMessage(messages.devDirHint)}</p>
+
+                        <label className={styles.label}>
+                            {intl.formatMessage(messages.worktreesDirLabel)}
+                            <input
+                                className={styles.input}
+                                type='text'
+                                value={worktreesDir}
+                                onChange={(event) => setWorktreesDir(event.target.value)}
+                                placeholder={intl.formatMessage(messages.worktreesDirPlaceholder)}
+                                autoComplete='off'
+                                autoCapitalize='off'
+                                autoCorrect='off'
+                                spellCheck={false}
+                            />
+                        </label>
+                        <p className={styles.hint}>{intl.formatMessage(messages.worktreesDirHint)}</p>
 
                         <label className={styles.inlineField}>
                             <span className={styles.inlineFieldText}>

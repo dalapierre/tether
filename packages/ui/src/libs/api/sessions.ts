@@ -280,7 +280,7 @@ export async function createSession(input: {
     repositoryId?: string;
     branch?: string;
     workingDirectory?: string;
-    /** Override parent dir for worktrees (default `~/.tether/worktrees/<repo>`). */
+    /** Override parent dir for worktrees (default `<settings.worktreesDir>/<repo>`). */
     worktreesDir?: string;
 }): Promise<Session> {
     const res = await apiFetch('/api/sessions', {

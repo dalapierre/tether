@@ -7,6 +7,8 @@ import {
     MIN_TOAST_DURATION_SECONDS,
     normalizeKeybinds,
     normalizeToastDurationSeconds,
+    normalizeWorktreesDir,
+    resolveAbsoluteUserPath,
     type TetherHost,
 } from '@tether/core';
 import { Router } from 'express';
@@ -31,6 +33,7 @@ export function createSettingsRouter(host: TetherHost): Router {
         const defaultYoloModeRaw = req.body?.defaultYoloMode;
         const defaultUseWorktreesRaw = req.body?.defaultUseWorktrees;
         const keybindsRaw = req.body?.keybinds;
+        const worktreesDirRaw = typeof req.body?.worktreesDir === 'string' ? req.body.worktreesDir.trim() : undefined;
 
         if (devDir === undefined) {
             res.status(400).json({ error: 'devDir is required' });
@@ -75,6 +78,19 @@ export function createSettingsRouter(host: TetherHost): Router {
             return;
         }
 
+        if (worktreesDirRaw === undefined) {
+            res.status(400).json({ error: 'worktreesDir is required' });
+            return;
+        }
+
+        let worktreesDir: string;
+        try {
+            worktreesDir = worktreesDirRaw ? resolveAbsoluteUserPath(worktreesDirRaw) : normalizeWorktreesDir('');
+        } catch {
+            res.status(400).json({ error: 'worktreesDir must be an absolute path' });
+            return;
+        }
+
         try {
             const settings = await host.updateSettings({
                 devDir,
@@ -83,6 +99,7 @@ export function createSettingsRouter(host: TetherHost): Router {
                 defaultYoloMode: defaultYoloModeRaw,
                 defaultUseWorktrees: defaultUseWorktreesRaw,
                 keybinds: keybindsRaw !== undefined ? normalizeKeybinds(keybindsRaw) : undefined,
+                worktreesDir,
             });
             res.json({ settings });
         } catch (err: unknown) {

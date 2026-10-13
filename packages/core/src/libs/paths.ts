@@ -25,9 +25,38 @@ export function getWorktreesDir(): string {
     return path.join(getTetherHomeDir(), 'worktrees');
 }
 
-/** Directory for a project's session worktrees: `~/.tether/worktrees/<project-name>`. */
-export function getRepositoryWorktreesDir(projectName: string): string {
-    return path.join(getWorktreesDir(), projectName);
+/**
+ * Expand a leading `~` and require an absolute path.
+ * Throws if the value is empty, contains a null byte, or is not absolute after expansion.
+ */
+export function resolveAbsoluteUserPath(value: string): string {
+    const trimmed = value.trim();
+    if (!trimmed) {
+        throw new Error('Path is required');
+    }
+    if (trimmed.includes('\0')) {
+        throw new Error('Invalid path');
+    }
+    let candidate = trimmed;
+    if (candidate === '~') {
+        candidate = getHomeDir();
+    } else if (candidate.startsWith('~/') || candidate.startsWith('~\\')) {
+        candidate = path.join(getHomeDir(), candidate.slice(2));
+    }
+    if (!path.isAbsolute(candidate)) {
+        throw new Error('Path must be an absolute path');
+    }
+    return path.resolve(candidate);
+}
+
+/**
+ * Directory for a project's session worktrees.
+ * Defaults to `~/.tether/worktrees/<project-name>`; `worktreesRoot` replaces the
+ * `~/.tether/worktrees` segment when provided (already-absolute preferred).
+ */
+export function getRepositoryWorktreesDir(projectName: string, worktreesRoot?: string): string {
+    const root = worktreesRoot?.trim() || getWorktreesDir();
+    return path.join(root, projectName);
 }
 
 /** Root directory for conversation-agent session workspaces. */
