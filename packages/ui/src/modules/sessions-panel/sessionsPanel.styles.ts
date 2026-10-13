@@ -46,8 +46,6 @@ export const styles = {
         'relative w-full rounded-md border border-zinc-700 bg-zinc-800 px-2.5 py-2 pr-8 text-left outline-none transition-colors focus-visible:border-aura-green disabled:cursor-not-allowed disabled:opacity-60',
     sessionButtonSelected:
         'relative w-full rounded-md border border-aura-green bg-zinc-800/80 px-2.5 py-2 pr-8 text-left outline-none transition-colors focus-visible:border-aura-green disabled:cursor-not-allowed disabled:opacity-60',
-    initializingStatus: 'flex items-center gap-1.5',
-    initializingLabel: 'text-[10px] font-medium text-zinc-400',
     initializingSpinner: 'flex shrink-0 items-center justify-center',
     sessionTitle: 'truncate text-sm font-bold text-zinc-100',
     sessionMeta: 'mt-0.5 min-w-0 truncate text-xs text-zinc-400',

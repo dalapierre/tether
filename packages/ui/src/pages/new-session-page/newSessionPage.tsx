@@ -19,11 +19,8 @@ export function NewSessionPage() {
                 onClose={onClose}
                 onStarted={(session) => {
                     upsertSession(session);
-                    // Stay on the list while workspace/agent setup finishes in the background.
-                    if (session.status === 'initializing') {
-                        navigate(getPanelReturnPath(location.state), { replace: true });
-                        return;
-                    }
+                    // Open the session immediately so it is selected/focused while
+                    // workspace/agent setup may still be finishing in the background.
                     navigate(`/sessions/${session.id}`, { replace: true });
                 }}
             />

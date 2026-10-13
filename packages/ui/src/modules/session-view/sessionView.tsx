@@ -1383,22 +1383,11 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         title={
                             <>
                                 <span className={styles.agentTitleName}>{agentTitle}</span>
-                                {displaySession.status === 'initializing' ? (
-                                    <span className={styles.statusInitializing} role='status' aria-label={statusLabel}>
-                                        <span className={styles.statusInitializingLabel}>{statusLabel}</span>
-                                        <Spinner
-                                            size='sm'
-                                            label={statusLabel}
-                                            className={styles.statusInitializingSpinner}
-                                        />
-                                    </span>
-                                ) : (
-                                    <span
-                                        className={`${styles.statusDot} ${statusDotClass}`}
-                                        role='status'
-                                        aria-label={statusLabel}
-                                    />
-                                )}
+                                <span
+                                    className={`${styles.statusDot} ${statusDotClass}`}
+                                    role='status'
+                                    aria-label={statusLabel}
+                                />
                             </>
                         }
                         toolbarActions={
@@ -1430,6 +1419,24 @@ export function SessionView({ sessionId }: SessionViewProps) {
                     >
                         <div className={styles.terminalWrap}>
                             <div ref={terminalRef} className={styles.terminal} />
+                            {displaySession.status === 'initializing' ? (
+                                <div
+                                    className={styles.initializingOverlay}
+                                    role='status'
+                                    aria-live='polite'
+                                    aria-busy='true'
+                                    aria-label={intl.formatMessage(messages.statusInitializing)}
+                                >
+                                    <Spinner
+                                        size='lg'
+                                        label={intl.formatMessage(messages.statusInitializing)}
+                                        className={styles.initializingSpinner}
+                                    />
+                                    <span className={styles.initializingLabel}>
+                                        {intl.formatMessage(messages.statusInitializing)}
+                                    </span>
+                                </div>
+                            ) : null}
                         </div>
                     </Panel>
                     {isDesktop && showDesktopReview && !showDesktopReviewFullscreen && reviewVisited ? (
