@@ -135,17 +135,9 @@ function readSelectionComment(
     if (!editorDom) return null;
 
     const startPos = selection.getStartPosition();
-    const endPos = selection.getEndPosition();
     const startVisible = editor.getScrolledVisiblePosition(startPos);
     if (!startVisible) return null;
 
-    const endColumnOnStartLine =
-        startPos.lineNumber === endPos.lineNumber ? endPos.column : model.getLineMaxColumn(startPos.lineNumber);
-    const endVisible = editor.getScrolledVisiblePosition({
-        lineNumber: startPos.lineNumber,
-        column: endColumnOnStartLine,
-    });
-    const right = endVisible?.left ?? startVisible.left;
     const { startLine, endLine } = selectionLineRange(selection);
 
     // getScrolledVisiblePosition is relative to the modified editor pane. In split
@@ -159,8 +151,15 @@ function readSelectionComment(
     // Keep the floating button inside the wrap: above the selection when there is
     // room, otherwise just below the first highlighted line.
     const buttonHeight = 36;
+    const buttonWidth = 96;
     const gap = 4;
+    const edgePad = 8;
     const placeAbove = selectionTop >= buttonHeight + gap;
+    // Anchor to the start of the highlight (near the cursor), not the midpoint of
+    // a long selected line — same idea as Tooltip's wide-trigger positioning.
+    const rawLeft = offsetLeft + startVisible.left;
+    const maxLeft = Math.max(edgePad, overlayRect.width - buttonWidth - edgePad);
+    const left = Math.min(Math.max(edgePad, rawLeft), maxLeft);
 
     return {
         content,
@@ -168,7 +167,7 @@ function readSelectionComment(
         startLine,
         endLine,
         top: placeAbove ? selectionTop - gap : selectionTop + selectionHeight + gap,
-        left: offsetLeft + (startVisible.left + right) / 2,
+        left,
         placeAbove,
     };
 }

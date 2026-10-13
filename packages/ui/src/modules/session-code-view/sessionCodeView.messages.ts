@@ -153,7 +153,7 @@ export const messages = defineMessages<Messages>(
         },
         commentSelection: {
             id: 'sessionCodeView.commentSelection',
-            defaultMessage: 'Add comment',
+            defaultMessage: 'Comment',
         },
         reviewed: {
             id: 'sessionCodeView.reviewed',
