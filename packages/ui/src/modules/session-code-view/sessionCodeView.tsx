@@ -1095,8 +1095,10 @@ export function SessionCodeView({
                     showToast('generic-error', state.error);
                     return;
                 }
-                // Keep prior files while a cold refresh is still pending with an empty placeholder.
-                if (state.pending && (!state.summary || state.summary.files.length === 0) && hadFiles) {
+                // Keep prior files only when the store has no summary yet (cold start).
+                // An empty summary is authoritative — tip advances publish [] under a new
+                // baseSha while pending, and the store already filters same-base placeholders.
+                if (state.pending && !state.summary && hadFiles) {
                     // Restore signature so a later empty apply is not confused with "never had files".
                     filesSignatureRef.current = previousSignature;
                     return;

@@ -1112,8 +1112,10 @@ export function SessionView({ sessionId }: SessionViewProps) {
         ensureSessionDiff(session.id, generation)
             .then((state) => {
                 if (cancelled) return;
-                // Cold/pending empty responses should not clear a previously known review tab.
-                if (state.pending && (!state.summary || state.summary.files.length === 0)) {
+                // Same-base cold/pending empties should not drive the review tab.
+                // Tip advances publish an authoritative empty under a new baseSha; the
+                // store accepts those, and an empty file list correctly skips opening.
+                if (state.pending && !state.summary) {
                     return;
                 }
                 const hasFiles = (state.summary?.files.length ?? 0) > 0;

@@ -95,10 +95,17 @@ export function ensureSessionDiff(sessionId: string, generation: number): Promis
                     error: entry.error,
                 };
             }
-            // Don't clobber a known file list with a cold empty/pending placeholder,
-            // but do accept an empty list once the server says the refresh finished
-            // (pending=false) so commits/stashes can clear the hierarchy.
-            if (result.pending && result.diff.files.length === 0 && entry.summary && entry.summary.files.length > 0) {
+            // Don't clobber a known file list with a same-base cold empty/pending
+            // placeholder (cache still warming). Tip advances publish empty under a
+            // new baseSha — accept that so commits/stashes clear the hierarchy even
+            // while the background refresh is still pending.
+            const isColdEmptyPlaceholder =
+                result.pending &&
+                result.diff.files.length === 0 &&
+                entry.summary != null &&
+                entry.summary.files.length > 0 &&
+                result.diff.baseSha === entry.summary.baseSha;
+            if (isColdEmptyPlaceholder) {
                 entry.pending = true;
             } else {
                 entry.summary = result.diff;
@@ -163,8 +170,8 @@ export function clearSessionDiff(sessionId: string): void {
 
 /**
  * Optimistically replace the cached file list (e.g. after discard).
- * Must run before the next ensureSessionDiff for that session so an empty+pending
- * refetch cannot revive paths the store would otherwise preserve.
+ * Must run before the next ensureSessionDiff for that session so a same-base
+ * empty+pending refetch cannot revive paths the store would otherwise preserve.
  */
 export function replaceSessionDiffFiles(sessionId: string, files: SessionDiffSummary['files']): void {
     const entry = getOrCreate(sessionId);
