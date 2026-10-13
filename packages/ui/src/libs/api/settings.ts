@@ -11,6 +11,8 @@ export type Settings = {
     defaultYoloMode: boolean;
     defaultUseWorktrees: boolean;
     keybinds: Keybinds;
+    /** Absolute default worktrees root (`$HOME/.tether/worktrees`). Read-only. */
+    worktreesDir: string;
 };
 
 type SettingsResponse = {
@@ -29,6 +31,7 @@ function normalizeSettings(settings: Settings): Settings {
         ...settings,
         toastDurationSeconds: normalizeToastDurationSeconds(settings.toastDurationSeconds),
         keybinds: settings.keybinds ? cloneKeybinds(settings.keybinds) : cloneKeybinds(DEFAULT_KEYBINDS),
+        worktreesDir: typeof settings.worktreesDir === 'string' ? settings.worktreesDir : '',
     };
 }
 
@@ -44,7 +47,7 @@ export async function getSettings(): Promise<Settings> {
     return normalizeSettings(data.settings);
 }
 
-export async function updateSettings(settings: Settings): Promise<Settings> {
+export async function updateSettings(settings: Omit<Settings, 'worktreesDir'>): Promise<Settings> {
     const res = await apiFetch('/api/settings', {
         method: 'PUT',
         body: JSON.stringify(settings),

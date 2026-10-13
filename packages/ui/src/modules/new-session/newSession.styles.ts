@@ -6,6 +6,7 @@ export const styles = {
     fields: 'mt-6 flex flex-col gap-4',
     label: 'block text-sm text-zinc-400',
     input: 'mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-base text-zinc-100 outline-none focus:border-aura-green',
+    fieldHint: 'mt-1.5 block text-xs text-zinc-500',
     advanced: 'flex flex-col gap-3',
     advancedToggle:
         'flex w-full items-center justify-between gap-2 rounded-md py-1 text-left text-sm text-zinc-400 outline-none transition-colors active:text-zinc-200 md:hover:text-zinc-200',

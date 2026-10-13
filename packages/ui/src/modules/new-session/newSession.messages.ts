@@ -24,6 +24,8 @@ type Messages = {
     yoloModeHint: NoMessageValues;
     useWorktreesLabel: NoMessageValues;
     useWorktreesHint: NoMessageValues;
+    worktreesDirLabel: NoMessageValues;
+    worktreesDirHint: NoMessageValues;
     start: NoMessageValues;
     starting: NoMessageValues;
     startFailed: NoMessageValues;
@@ -122,6 +124,14 @@ export const messages = defineMessages<Messages>(
         useWorktreesHint: {
             id: 'newSession.useWorktreesHint',
             defaultMessage: 'When off, the session runs directly in the repository instead of a separate worktree.',
+        },
+        worktreesDirLabel: {
+            id: 'newSession.worktreesDirLabel',
+            defaultMessage: 'Worktree location',
+        },
+        worktreesDirHint: {
+            id: 'newSession.worktreesDirHint',
+            defaultMessage: 'Parent directory for this session worktree. Leave empty to use the default.',
         },
         start: {
             id: 'newSession.start',

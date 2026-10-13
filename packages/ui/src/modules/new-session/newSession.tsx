@@ -48,6 +48,8 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
     const [branches, setBranches] = useState<string[]>([]);
     const [workingDirectory, setWorkingDirectory] = useState(DEFAULT_WORKING_DIRECTORY);
     const [directories, setDirectories] = useState<string[]>([DEFAULT_WORKING_DIRECTORY]);
+    const [worktreesDir, setWorktreesDir] = useState('');
+    const [defaultWorktreesDir, setDefaultWorktreesDir] = useState('');
     const [advancedOpen, setAdvancedOpen] = useState(false);
     const [repositories, setRepositories] = useState<Repository[]>([]);
     const [loading, setLoading] = useState(true);
@@ -62,6 +64,7 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                 setAgent(settings.defaultAgent);
                 setYoloMode(settings.defaultYoloMode);
                 setUseWorktrees(settings.defaultUseWorktrees);
+                setDefaultWorktreesDir(settings.worktreesDir);
                 setRepositories(items);
                 if (items.length === 1) {
                     setRepositoryId(items[0].id);
@@ -169,6 +172,7 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
         if (!repositoryId) return;
 
         const trimmedWorkingDirectory = workingDirectory.trim() || DEFAULT_WORKING_DIRECTORY;
+        const trimmedWorktreesDir = worktreesDir.trim();
 
         if (useWorktrees) {
             const trimmedBranch = branch.trim();
@@ -188,6 +192,7 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                     repositoryId,
                     branch: trimmedBranch,
                     workingDirectory: trimmedWorkingDirectory,
+                    worktreesDir: trimmedWorktreesDir || undefined,
                 });
                 onStarted(session);
             } catch (err: unknown) {
@@ -365,6 +370,27 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                                         disabled={starting}
                                         onChange={setUseWorktrees}
                                     />
+
+                                    {useWorktrees ? (
+                                        <label className={styles.label}>
+                                            {intl.formatMessage(messages.worktreesDirLabel)}
+                                            <input
+                                                className={styles.input}
+                                                type='text'
+                                                value={worktreesDir}
+                                                onChange={(event) => setWorktreesDir(event.target.value)}
+                                                placeholder={defaultWorktreesDir}
+                                                autoComplete='off'
+                                                autoCapitalize='off'
+                                                autoCorrect='off'
+                                                spellCheck={false}
+                                                disabled={starting}
+                                            />
+                                            <span className={styles.fieldHint}>
+                                                {intl.formatMessage(messages.worktreesDirHint)}
+                                            </span>
+                                        </label>
+                                    ) : null}
                                 </div>
                             ) : null}
                         </div>

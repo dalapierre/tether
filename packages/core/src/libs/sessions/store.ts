@@ -1,6 +1,6 @@
 import { isAgentId, type AgentId } from '@core/libs/agents/agents.js';
 import { logger } from '@core/libs/logger.js';
-import { getRepositoryWorktreesDir, getSessionsFilePath, getTetherHomeDir } from '@core/libs/paths.js';
+import { getHomeDir, getRepositoryWorktreesDir, getSessionsFilePath, getTetherHomeDir } from '@core/libs/paths.js';
 import {
     fetchRemoteDefault,
     getBehindRemoteDefault,
@@ -428,6 +428,31 @@ function normalizeWorkingDirectory(input: string | undefined): string {
         throw new Error('Invalid working directory');
     }
     return `/${parts.join('/')}`;
+}
+
+/**
+ * Parent directory for session worktrees. Empty/undefined uses
+ * `~/.tether/worktrees/<projectName>`; otherwise requires an absolute path
+ * (leading `~` is expanded).
+ */
+function resolveWorktreesRoot(projectName: string, override: string | undefined): string {
+    const trimmed = override?.trim() ?? '';
+    if (!trimmed) {
+        return getRepositoryWorktreesDir(projectName);
+    }
+    if (trimmed.includes('\0')) {
+        throw new Error('Invalid worktree location');
+    }
+    let candidate = trimmed;
+    if (candidate === '~') {
+        candidate = getHomeDir();
+    } else if (candidate.startsWith('~/') || candidate.startsWith('~\\')) {
+        candidate = path.join(getHomeDir(), candidate.slice(2));
+    }
+    if (!path.isAbsolute(candidate)) {
+        throw new Error('Worktree location must be an absolute path');
+    }
+    return path.resolve(candidate);
 }
 
 /** Absolute cwd for agent/shell inside the session worktree. */
@@ -986,6 +1011,7 @@ async function createWorktree(
     repoPath: string,
     leaf: string,
     branchName: string,
+    worktreesDir?: string,
 ): Promise<{
     branch: string;
     worktreePath: string;
@@ -1010,7 +1036,7 @@ async function createWorktree(
     });
     const baseSha = headStdout.trim();
 
-    const worktreesRoot = getRepositoryWorktreesDir(projectName);
+    const worktreesRoot = resolveWorktreesRoot(projectName, worktreesDir);
     const worktreePath = path.join(worktreesRoot, leaf);
     await mkdir(worktreesRoot, { recursive: true });
     await pruneStaleWorktrees(repoPath);
@@ -1111,6 +1137,8 @@ export async function createSession(input: {
     repositoryId?: string;
     branch?: string;
     workingDirectory?: string;
+    /** Override parent dir for worktrees (default `~/.tether/worktrees/<repo>`). */
+    worktreesDir?: string;
 }): Promise<Session> {
     const name = input.name.trim();
     if (!name) {
@@ -1122,6 +1150,7 @@ export async function createSession(input: {
     const yoloMode = typeof input.yoloMode === 'boolean' ? input.yoloMode : settings.defaultYoloMode;
     const useWorktrees = typeof input.useWorktrees === 'boolean' ? input.useWorktrees : settings.defaultUseWorktrees;
     const workingDirectory = normalizeWorkingDirectory(input.workingDirectory);
+    const worktreesDir = input.worktreesDir?.trim() || undefined;
 
     const repositoryId = input.repositoryId?.trim() ?? '';
     if (!repositoryId) {
@@ -1133,6 +1162,8 @@ export async function createSession(input: {
         if (!branch) {
             throw new Error('Branch is required');
         }
+        // Validate early so create fails before the session appears.
+        resolveWorktreesRoot(repositoryId, worktreesDir);
         return createCodingSession({
             name,
             agent,
@@ -1141,6 +1172,7 @@ export async function createSession(input: {
             repositoryId,
             branch,
             workingDirectory,
+            worktreesDir,
         });
     }
 
@@ -1184,6 +1216,7 @@ async function finalizeCodingSession(
         useWorktrees: boolean;
         branch?: string;
         workingDirectory: string;
+        worktreesDir?: string;
     },
     repository: { id: string; path: string },
 ): Promise<void> {
@@ -1192,7 +1225,13 @@ async function finalizeCodingSession(
     try {
         if (input.useWorktrees) {
             try {
-                workspace = await createWorktree(repository.id, repository.path, session.id, input.branch ?? '');
+                workspace = await createWorktree(
+                    repository.id,
+                    repository.path,
+                    session.id,
+                    input.branch ?? '',
+                    input.worktreesDir,
+                );
             } catch (err: unknown) {
                 const message = err instanceof Error ? err.message : 'Failed to create worktree';
                 throw new Error(
@@ -1284,6 +1323,7 @@ async function createCodingSession(input: {
     repositoryId: string;
     branch?: string;
     workingDirectory: string;
+    worktreesDir?: string;
 }): Promise<Session> {
     const repository = await getRepository(input.repositoryId);
     if (!repository) {
@@ -1301,8 +1341,8 @@ async function createCodingSession(input: {
     }
 
     const takenIds = new Set(sessions.keys());
-    if (input.useWorktrees) {
-        const worktreesRoot = getRepositoryWorktreesDir(repository.id);
+    const worktreesRoot = input.useWorktrees ? resolveWorktreesRoot(repository.id, input.worktreesDir) : null;
+    if (input.useWorktrees && worktreesRoot) {
         await pruneStaleWorktrees(repository.path);
         for (const leaf of await listWorktreeLeaves(worktreesRoot)) {
             takenIds.add(leaf);
@@ -1322,7 +1362,7 @@ async function createCodingSession(input: {
     }
 
     const id = await allocateSessionId(takenIds, input.name);
-    const worktreePath = input.useWorktrees ? path.join(getRepositoryWorktreesDir(repository.id), id) : repository.path;
+    const worktreePath = input.useWorktrees && worktreesRoot ? path.join(worktreesRoot, id) : repository.path;
 
     const session: RuntimeSession = {
         id,

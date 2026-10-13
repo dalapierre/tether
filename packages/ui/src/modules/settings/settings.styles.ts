@@ -34,9 +34,9 @@ export const styles = {
     keybindLabel: 'text-sm text-zinc-100',
     keybindConflict: 'text-xs text-amber-400',
     keybindButton:
-        'shrink-0 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-1.5 text-xs text-zinc-200 outline-none active:bg-zinc-800 md:hover:bg-zinc-800',
+        'shrink-0 rounded-md border border-zinc-700 bg-zinc-950 px-3 py-1.5 font-mono text-xs text-zinc-200 outline-none active:bg-zinc-800 md:hover:bg-zinc-800',
     keybindButtonRecording:
-        'shrink-0 rounded-md border border-aura-green bg-aura-green/15 px-3 py-1.5 text-xs text-aura-green outline-none',
+        'shrink-0 rounded-md border border-aura-green bg-aura-green/15 px-3 py-1.5 font-mono text-xs text-aura-green outline-none',
     keybindButtonConflict:
-        'shrink-0 rounded-md border border-amber-700 bg-zinc-950 px-3 py-1.5 text-xs text-amber-200 outline-none active:bg-zinc-800 md:hover:bg-zinc-800',
+        'shrink-0 rounded-md border border-amber-700 bg-zinc-950 px-3 py-1.5 font-mono text-xs text-amber-200 outline-none active:bg-zinc-800 md:hover:bg-zinc-800',
 };

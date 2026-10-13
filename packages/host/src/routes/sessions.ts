@@ -147,6 +147,7 @@ export function createSessionsRouter(host: TetherHost): Router {
         const repositoryId = typeof req.body?.repositoryId === 'string' ? req.body.repositoryId.trim() : '';
         const branch = typeof req.body?.branch === 'string' ? req.body.branch.trim() : '';
         const workingDirectory = typeof req.body?.workingDirectory === 'string' ? req.body.workingDirectory.trim() : '';
+        const worktreesDir = typeof req.body?.worktreesDir === 'string' ? req.body.worktreesDir.trim() : '';
 
         if (!name) {
             res.status(400).json({ error: 'Name is required' });
@@ -177,6 +178,7 @@ export function createSessionsRouter(host: TetherHost): Router {
                 repositoryId: repositoryId || undefined,
                 branch: branch || undefined,
                 workingDirectory: workingDirectory || undefined,
+                worktreesDir: worktreesDir || undefined,
             });
             res.status(201).json({ session });
         } catch (err: unknown) {
@@ -189,6 +191,8 @@ export function createSessionsRouter(host: TetherHost): Router {
                 message === 'Invalid branch name' ||
                 message === 'Invalid working directory' ||
                 message === 'Working directory not found' ||
+                message === 'Invalid worktree location' ||
+                message === 'Worktree location must be an absolute path' ||
                 message.startsWith('Failed to create worktree')
                     ? 400
                     : 500;

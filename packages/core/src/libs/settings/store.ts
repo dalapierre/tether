@@ -1,5 +1,11 @@
 import { isAgentId, type AgentId } from '@core/libs/agents/agents.js';
-import { getHomeDir, getLegacyServerDataDir, getSettingsFilePath, getTetherHomeDir } from '@core/libs/paths.js';
+import {
+    getHomeDir,
+    getLegacyServerDataDir,
+    getSettingsFilePath,
+    getTetherHomeDir,
+    getWorktreesDir,
+} from '@core/libs/paths.js';
 import { DEFAULT_KEYBINDS, normalizeKeybinds, type Keybinds } from '@core/libs/settings/keybinds.js';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -20,6 +26,8 @@ export type Settings = {
     defaultYoloMode: boolean;
     defaultUseWorktrees: boolean;
     keybinds: Keybinds;
+    /** Absolute default worktrees root (`$HOME/.tether/worktrees`). Read-only. */
+    worktreesDir: string;
 };
 
 /** Current settings.json schema version. Bump when the on-disk shape changes. */
@@ -137,6 +145,7 @@ function toPublicSettings(file: SettingsFile): Settings {
             home: { ...file.keybinds.home },
             session: { ...file.keybinds.session },
         },
+        worktreesDir: getWorktreesDir(),
     };
 }
 
