@@ -5,6 +5,8 @@ type Messages = {
     genericErrorMessage: { detail: string };
     invalidBranchTitle: NoMessageValues;
     invalidBranchMessage: NoMessageValues;
+    branchInUseTitle: NoMessageValues;
+    branchInUseMessage: NoMessageValues;
     settingsSavedTitle: NoMessageValues;
     settingsSavedMessage: NoMessageValues;
     sessionReadyTitle: { name: string };
@@ -31,6 +33,14 @@ export const messages = defineMessages<Messages>(
         invalidBranchMessage: {
             id: 'toast.invalidBranch.message',
             defaultMessage: 'Branch names must follow git naming rules.',
+        },
+        branchInUseTitle: {
+            id: 'toast.branchInUse.title',
+            defaultMessage: 'Branch already in use',
+        },
+        branchInUseMessage: {
+            id: 'toast.branchInUse.message',
+            defaultMessage: 'Another worktree already has this branch checked out.',
         },
         settingsSavedTitle: {
             id: 'toast.settingsSaved.title',

@@ -22,6 +22,11 @@ export const TOASTS = {
         title: messages.invalidBranchTitle,
         message: messages.invalidBranchMessage,
     },
+    'branch-in-use': {
+        type: 'error',
+        title: messages.branchInUseTitle,
+        message: messages.branchInUseMessage,
+    },
     'settings-saved': {
         type: 'success',
         title: messages.settingsSavedTitle,

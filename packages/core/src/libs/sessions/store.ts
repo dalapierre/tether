@@ -1046,6 +1046,36 @@ async function listGitWorktreeLeaves(repoPath: string, worktreesRoot: string): P
     }
 }
 
+/** True when any git worktree (including the main checkout) has `branch` checked out. */
+async function isBranchCheckedOutInGitWorktree(repoPath: string, branch: string): Promise<boolean> {
+    try {
+        const { stdout } = await execFileAsync('git', ['worktree', 'list', '--porcelain'], { cwd: repoPath });
+        const expected = `refs/heads/${branch}`;
+        for (const line of stdout.split('\n')) {
+            if (!line.startsWith('branch ')) continue;
+            if (line.slice('branch '.length).trim() === expected) {
+                return true;
+            }
+        }
+        return false;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * True when the branch is already claimed by a live worktree session or checked out
+ * in a git worktree. Used to fail create before the session is listed.
+ */
+async function isBranchInUseByWorktree(repositoryId: string, repoPath: string, branch: string): Promise<boolean> {
+    for (const session of sessions.values()) {
+        if (session.repositoryId === repositoryId && session.useWorktrees && session.branch === branch) {
+            return true;
+        }
+    }
+    return isBranchCheckedOutInGitWorktree(repoPath, branch);
+}
+
 async function pruneStaleWorktrees(repoPath: string): Promise<void> {
     await execFileAsync('git', ['worktree', 'prune'], { cwd: repoPath }).catch(() => undefined);
 }
@@ -1408,6 +1438,9 @@ async function createCodingSession(input: {
         }
         if (!isValidBranchName(requestedBranch)) {
             throw new Error('Invalid branch name');
+        }
+        if (await isBranchInUseByWorktree(repository.id, repository.path, requestedBranch)) {
+            throw new Error('Branch is already checked out in another worktree');
         }
     }
 

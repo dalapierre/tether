@@ -5,12 +5,8 @@ import { Spinner } from '@ui/components/spinner';
 import { Toggle } from '@ui/components/toggle';
 import { agentLabelMessage, isAgentId, type AgentId } from '@ui/libs/agents/agents';
 import { listAvailableAgents, type AvailableAgent } from '@ui/libs/api/agents';
-import {
-    listRepositories,
-    listRepositoryBranches,
-    prefetchRepositoryDirectories,
-    type Repository,
-} from '@ui/libs/api/repositories';
+import { ApiError } from '@ui/libs/api/client';
+import { listRepositories, prefetchRepositoryDirectories, type Repository } from '@ui/libs/api/repositories';
 import { createSession } from '@ui/libs/api/sessions';
 import { getSettings } from '@ui/libs/api/settings';
 import { isValidBranchName } from '@ui/libs/git/branchName';
@@ -54,7 +50,6 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
     const [useWorktrees, setUseWorktrees] = useState(true);
     const [repositoryId, setRepositoryId] = useState('');
     const [branch, setBranch] = useState('');
-    const [branches, setBranches] = useState<string[]>([]);
     const [workingDirectory, setWorkingDirectory] = useState(DEFAULT_WORKING_DIRECTORY);
     const [directories, setDirectories] = useState<string[]>([DEFAULT_WORKING_DIRECTORY]);
     const [worktreesDir, setWorktreesDir] = useState('');
@@ -102,32 +97,14 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
 
     useEffect(() => {
         if (!repositoryId) {
-            setBranches([]);
             setDirectories([DEFAULT_WORKING_DIRECTORY]);
             setWorkingDirectory(DEFAULT_WORKING_DIRECTORY);
             return;
         }
 
         let cancelled = false;
-        setBranches([]);
         setDirectories([DEFAULT_WORKING_DIRECTORY]);
         setWorkingDirectory(DEFAULT_WORKING_DIRECTORY);
-
-        listRepositoryBranches(repositoryId)
-            .then((branchItems) => {
-                if (!cancelled) {
-                    setBranches(branchItems);
-                }
-            })
-            .catch((err: unknown) => {
-                if (!cancelled) {
-                    setBranches([]);
-                    showToast(
-                        'generic-error',
-                        err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed),
-                    );
-                }
-            });
 
         // Warm directory options in the background so Advanced is ready on large monorepos.
         prefetchRepositoryDirectories(repositoryId)
@@ -145,7 +122,7 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
         return () => {
             cancelled = true;
         };
-    }, [repositoryId, intl]);
+    }, [repositoryId]);
 
     useEffect(() => {
         function onKeyDown(event: KeyboardEvent) {
@@ -165,11 +142,6 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
     const repositoryOptions = useMemo(
         () => repositories.map((repository) => ({ value: repository.id, label: repository.name })),
         [repositories],
-    );
-
-    const branchOptions = useMemo(
-        () => branches.map((branchName) => ({ value: branchName, label: branchName })),
-        [branches],
     );
 
     const directoryOptions = useMemo(
@@ -209,10 +181,14 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                 });
                 onStarted(session);
             } catch (err: unknown) {
-                showToast(
-                    'generic-error',
-                    err instanceof Error ? err.message : intl.formatMessage(messages.startFailed),
-                );
+                if (err instanceof ApiError && err.message === 'Branch is already checked out in another worktree') {
+                    showToast('branch-in-use');
+                } else {
+                    showToast(
+                        'generic-error',
+                        err instanceof Error ? err.message : intl.formatMessage(messages.startFailed),
+                    );
+                }
                 setStarting(false);
             }
             return;
@@ -321,19 +297,21 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                         </div>
 
                         {useWorktrees ? (
-                            <div>
-                                <p className={styles.label}>{intl.formatMessage(messages.branchLabel)}</p>
-                                <SearchSelect
-                                    options={branchOptions}
+                            <label className={styles.label}>
+                                {intl.formatMessage(messages.branchLabel)}
+                                <input
+                                    className={styles.input}
+                                    type='text'
                                     value={branch}
-                                    allowCustom
-                                    onChange={setBranch}
-                                    onSelect={(option) => setBranch(option.value)}
+                                    onChange={(event) => setBranch(event.target.value)}
                                     placeholder={intl.formatMessage(messages.branchPlaceholder)}
+                                    autoComplete='off'
+                                    autoCapitalize='off'
+                                    autoCorrect='off'
+                                    spellCheck={false}
                                     disabled={starting || !repositoryId}
-                                    ariaLabel={intl.formatMessage(messages.branchLabel)}
                                 />
-                            </div>
+                            </label>
                         ) : null}
 
                         <div className={styles.advanced}>
