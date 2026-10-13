@@ -451,6 +451,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
     const reviewPaneVisible = isDesktop ? showDesktopReview : tab === 'review';
     const shellPaneVisible = isDesktop ? showDesktopShell : tab === 'terminal';
     const sessionReady = Boolean(session && !loading && !failed);
+    const isInitializing = displaySession?.status === 'initializing';
 
     reviewPaneWidthPctRef.current = reviewPaneWidthPct;
     shellPaneHeightPctRef.current = shellPaneHeightPct;
@@ -791,7 +792,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
     }, [isDesktop, loading, failed, session]);
 
     useEffect(() => {
-        if (loading || failed || !session || !terminalRef.current) {
+        if (loading || failed || !session || isInitializing || !terminalRef.current) {
             return;
         }
 
@@ -994,7 +995,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
             fitAddonRef.current = null;
             setConnection('disconnected');
         };
-    }, [loading, failed, session, intl]);
+    }, [loading, failed, session, intl, isInitializing]);
 
     function focusTerminal() {
         const term = termRef.current;
@@ -1425,10 +1426,9 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         }
                     >
                         <div className={styles.terminalWrap}>
-                            <div ref={terminalRef} className={styles.terminal} />
-                            {displaySession.status === 'initializing' ? (
+                            {isInitializing ? (
                                 <div
-                                    className={styles.initializingOverlay}
+                                    className={styles.initializing}
                                     role='status'
                                     aria-live='polite'
                                     aria-busy='true'
@@ -1443,7 +1443,9 @@ export function SessionView({ sessionId }: SessionViewProps) {
                                         {intl.formatMessage(messages.statusInitializing)}
                                     </span>
                                 </div>
-                            ) : null}
+                            ) : (
+                                <div ref={terminalRef} className={styles.terminal} />
+                            )}
                         </div>
                     </Panel>
                     {isDesktop && showDesktopReview && !showDesktopReviewFullscreen && reviewVisited ? (

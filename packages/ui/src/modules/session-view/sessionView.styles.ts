@@ -13,8 +13,7 @@ export const styles = {
     statusDotReady: 'bg-emerald-500',
     statusDotBusy: 'bg-amber-400',
     statusDotError: 'bg-red-500',
-    initializingOverlay:
-        'pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-zinc-950/80',
+    initializing: 'flex h-full min-h-0 flex-1 flex-col items-center justify-center gap-3',
     initializingSpinner: 'flex items-center justify-center',
     initializingLabel: 'text-sm font-medium text-zinc-400',
     // Mobile: under tabs. Desktop: pinned below the main panes (flex order-last).
