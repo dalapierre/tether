@@ -1,6 +1,12 @@
+import { Spinner } from '@ui/components/spinner';
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { styles } from './searchSelect.styles';
 import type { SearchSelectOption, SearchSelectProps } from './searchSelect.types';
+
+/** Cap DOM nodes so opening large option lists (e.g. monorepo directories) stays responsive. */
+const MAX_VISIBLE_OPTIONS = 100;
+/** Avoid spinner flash when options resolve from cache almost immediately. */
+const LOADING_SPINNER_DELAY_MS = 150;
 
 export function SearchSelect<T extends string>({
     options,
@@ -11,8 +17,10 @@ export function SearchSelect<T extends string>({
     placeholder,
     emptyMessage,
     noResultsMessage,
+    limitMessage,
     disabled = false,
     loading = false,
+    loadingLabel,
     ariaLabel,
 }: SearchSelectProps<T>) {
     const listboxId = useId();
@@ -22,6 +30,7 @@ export function SearchSelect<T extends string>({
     const [open, setOpen] = useState(false);
     /** -1 means no option highlighted (creatable: Enter submits typed text). */
     const [activeIndex, setActiveIndex] = useState(allowCustom ? -1 : 0);
+    const [showLoadingSpinner, setShowLoadingSpinner] = useState(false);
 
     const selectedOption = useMemo(
         () => (value ? (options.find((option) => option.value === value) ?? null) : null),
@@ -32,9 +41,13 @@ export function SearchSelect<T extends string>({
 
     const filtered = useMemo(() => {
         const normalized = filterSource.trim().toLowerCase();
-        if (!normalized) return options;
+        // Root `/` matches every path via includes; treat it as "no filter".
+        if (!normalized || normalized === '/') return options;
         return options.filter((option) => option.label.toLowerCase().includes(normalized));
     }, [options, filterSource]);
+
+    const visible = useMemo(() => filtered.slice(0, MAX_VISIBLE_OPTIONS), [filtered]);
+    const truncated = filtered.length > visible.length;
 
     // While open, show the filter query; while closed, show the selected label.
     const inputValue = allowCustom ? (value ?? '') : open ? query : selectedOption?.label || '';
@@ -42,6 +55,15 @@ export function SearchSelect<T extends string>({
     useEffect(() => {
         setActiveIndex(allowCustom ? -1 : 0);
     }, [filterSource, options, allowCustom]);
+
+    useEffect(() => {
+        if (!loading) {
+            setShowLoadingSpinner(false);
+            return;
+        }
+        const timer = window.setTimeout(() => setShowLoadingSpinner(true), LOADING_SPINNER_DELAY_MS);
+        return () => window.clearTimeout(timer);
+    }, [loading]);
 
     useEffect(() => {
         if (!open || activeIndex < 0) return;
@@ -91,10 +113,10 @@ export function SearchSelect<T extends string>({
             // Arrows only navigate after Enter (or click/type) opens the list.
             if (!open) return;
             event.preventDefault();
-            if (filtered.length === 0) return;
+            if (visible.length === 0) return;
             setActiveIndex((current) => {
                 if (allowCustom && current < 0) return 0;
-                return (current + 1) % filtered.length;
+                return (current + 1) % visible.length;
             });
             return;
         }
@@ -102,10 +124,10 @@ export function SearchSelect<T extends string>({
         if (event.key === 'ArrowUp') {
             if (!open) return;
             event.preventDefault();
-            if (filtered.length === 0) return;
+            if (visible.length === 0) return;
             setActiveIndex((current) => {
-                if (allowCustom && current < 0) return filtered.length - 1;
-                return (current - 1 + filtered.length) % filtered.length;
+                if (allowCustom && current < 0) return visible.length - 1;
+                return (current - 1 + visible.length) % visible.length;
             });
             return;
         }
@@ -142,7 +164,7 @@ export function SearchSelect<T extends string>({
             }
 
             event.preventDefault();
-            const option = filtered[activeIndex];
+            const option = visible[activeIndex];
             if (option) {
                 selectOption(option);
             }
@@ -165,84 +187,98 @@ export function SearchSelect<T extends string>({
     }
 
     // Creatable inputs hide the list when nothing matches (free text = create new).
-    const showDropdown = open && !disabled && !loading && (!allowCustom || filtered.length > 0);
+    // Keep the list available while loading so a spinner + status can appear without blocking.
+    const showDropdown = open && !disabled && (loading || !allowCustom || filtered.length > 0);
     const activeOptionId =
-        showDropdown && activeIndex >= 0 && filtered.length > 0 ? `${listboxId}-option-${activeIndex}` : undefined;
+        showDropdown && activeIndex >= 0 && visible.length > 0 ? `${listboxId}-option-${activeIndex}` : undefined;
+
+    const inputClassName = showLoadingSpinner ? `${styles.input} ${styles.inputWithSpinner}` : styles.input;
 
     return (
         <div ref={rootRef} className={styles.root}>
-            <input
-                ref={inputRef}
-                className={styles.input}
-                type='text'
-                role='combobox'
-                aria-expanded={showDropdown}
-                aria-controls={listboxId}
-                aria-autocomplete='list'
-                aria-activedescendant={activeOptionId}
-                aria-label={ariaLabel}
-                value={inputValue}
-                placeholder={placeholder}
-                disabled={disabled || loading}
-                autoComplete='off'
-                autoCapitalize='off'
-                autoCorrect='off'
-                spellCheck={false}
-                onChange={(event) => {
-                    const next = event.target.value;
-                    if (allowCustom) {
-                        onChange?.(next);
-                    } else {
-                        setQuery(next);
-                    }
-                    setOpen(true);
-                }}
-                onFocus={() => {
-                    if (!allowCustom) {
-                        setQuery('');
-                    }
-                }}
-                onBlur={(event) => {
-                    const next = event.relatedTarget as Node | null;
-                    if (rootRef.current?.contains(next)) return;
-                    closeDropdown();
-                }}
-                onClick={() => {
-                    if (!disabled && !loading) {
+            <div className={styles.inputWrap}>
+                <input
+                    ref={inputRef}
+                    className={inputClassName}
+                    type='text'
+                    role='combobox'
+                    aria-expanded={showDropdown}
+                    aria-controls={listboxId}
+                    aria-autocomplete='list'
+                    aria-activedescendant={activeOptionId}
+                    aria-busy={loading || undefined}
+                    aria-label={ariaLabel}
+                    value={inputValue}
+                    placeholder={placeholder}
+                    disabled={disabled}
+                    autoComplete='off'
+                    autoCapitalize='off'
+                    autoCorrect='off'
+                    spellCheck={false}
+                    onChange={(event) => {
+                        const next = event.target.value;
+                        if (allowCustom) {
+                            onChange?.(next);
+                        } else {
+                            setQuery(next);
+                        }
                         setOpen(true);
-                    }
-                }}
-                onKeyDown={handleKeyDown}
-            />
+                    }}
+                    onFocus={() => {
+                        if (!allowCustom) {
+                            setQuery('');
+                        }
+                    }}
+                    onBlur={(event) => {
+                        const next = event.relatedTarget as Node | null;
+                        if (rootRef.current?.contains(next)) return;
+                        closeDropdown();
+                    }}
+                    onClick={() => {
+                        if (!disabled) {
+                            setOpen(true);
+                        }
+                    }}
+                    onKeyDown={handleKeyDown}
+                />
+                {showLoadingSpinner ? (
+                    <Spinner size='sm' label={loadingLabel ?? ariaLabel ?? 'Loading'} className={styles.spinner} />
+                ) : null}
+            </div>
             {showDropdown ? (
                 <div id={listboxId} className={styles.dropdown} role='listbox' aria-label={ariaLabel}>
-                    {options.length === 0 ? (
+                    {loading && options.length <= 1 ? (
+                        <p className={styles.status}>{loadingLabel ?? 'Loading…'}</p>
+                    ) : options.length === 0 ? (
                         <p className={styles.status}>{emptyMessage}</p>
                     ) : filtered.length === 0 ? (
                         <p className={styles.status}>{noResultsMessage}</p>
                     ) : (
-                        filtered.map((option, index) => {
-                            const active = index === activeIndex;
-                            return (
-                                <button
-                                    key={option.value}
-                                    id={`${listboxId}-option-${index}`}
-                                    type='button'
-                                    role='option'
-                                    tabIndex={-1}
-                                    aria-selected={active}
-                                    className={`${styles.option}${active ? ` ${styles.optionActive}` : ''}`}
-                                    onMouseEnter={() => setActiveIndex(index)}
-                                    onMouseDown={(event) => {
-                                        // Keep focus on the input; selecting must not blur first.
-                                        event.preventDefault();
-                                        selectOption(option);
-                                    }}
-                                >
-                                    {option.label}
-                                </button>
-                            );
-                        })
+                        <>
+                            {visible.map((option, index) => {
+                                const active = index === activeIndex;
+                                return (
+                                    <button
+                                        key={option.value}
+                                        id={`${listboxId}-option-${index}`}
+                                        type='button'
+                                        role='option'
+                                        tabIndex={-1}
+                                        aria-selected={active}
+                                        className={`${styles.option}${active ? ` ${styles.optionActive}` : ''}`}
+                                        onMouseEnter={() => setActiveIndex(index)}
+                                        onMouseDown={(event) => {
+                                            // Keep focus on the input; selecting must not blur first.
+                                            event.preventDefault();
+                                            selectOption(option);
+                                        }}
+                                    >
+                                        {option.label}
+                                    </button>
+                                );
+                            })}
+                            {truncated && limitMessage ? <p className={styles.status}>{limitMessage}</p> : null}
+                        </>
                     )}
                 </div>
             ) : null}

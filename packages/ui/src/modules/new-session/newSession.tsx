@@ -52,6 +52,7 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
     const [branch, setBranch] = useState('');
     const [workingDirectory, setWorkingDirectory] = useState(DEFAULT_WORKING_DIRECTORY);
     const [directories, setDirectories] = useState<string[]>([DEFAULT_WORKING_DIRECTORY]);
+    const [directoriesLoading, setDirectoriesLoading] = useState(false);
     const [worktreesDir, setWorktreesDir] = useState('');
     const [defaultWorktreesDir, setDefaultWorktreesDir] = useState('');
     const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -99,12 +100,14 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
         if (!repositoryId) {
             setDirectories([DEFAULT_WORKING_DIRECTORY]);
             setWorkingDirectory(DEFAULT_WORKING_DIRECTORY);
+            setDirectoriesLoading(false);
             return;
         }
 
         let cancelled = false;
         setDirectories([DEFAULT_WORKING_DIRECTORY]);
         setWorkingDirectory(DEFAULT_WORKING_DIRECTORY);
+        setDirectoriesLoading(true);
 
         // Warm directory options in the background so Advanced is ready on large monorepos.
         prefetchRepositoryDirectories(repositoryId)
@@ -116,6 +119,11 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
             .catch(() => {
                 if (!cancelled) {
                     setDirectories([DEFAULT_WORKING_DIRECTORY]);
+                }
+            })
+            .finally(() => {
+                if (!cancelled) {
+                    setDirectoriesLoading(false);
                 }
             });
 
@@ -405,7 +413,10 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                                             placeholder={intl.formatMessage(messages.workingDirectoryPlaceholder)}
                                             emptyMessage={intl.formatMessage(messages.workingDirectoryEmpty)}
                                             noResultsMessage={intl.formatMessage(messages.workingDirectoryNoResults)}
+                                            limitMessage={intl.formatMessage(messages.workingDirectoryLimit)}
                                             disabled={starting || !repositoryId}
+                                            loading={directoriesLoading}
+                                            loadingLabel={intl.formatMessage(messages.loading)}
                                             ariaLabel={intl.formatMessage(messages.workingDirectoryLabel)}
                                         />
                                         <span className={styles.fieldHint}>

@@ -1,6 +1,9 @@
 export const styles = {
     root: 'relative',
-    input: 'mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-base text-zinc-100 outline-none focus:border-aura-green disabled:opacity-50',
+    inputWrap: 'relative mt-1',
+    input: 'w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2.5 text-base text-zinc-100 outline-none focus:border-aura-green disabled:opacity-50',
+    inputWithSpinner: 'pr-10',
+    spinner: 'pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 items-center justify-center',
     dropdown:
         'panel-scroll absolute left-0 right-0 z-30 mt-1 max-h-56 overflow-auto rounded-md border border-zinc-700 bg-zinc-900 shadow-lg shadow-black/40',
     option: 'w-full border-0 bg-transparent px-3 py-2.5 text-left text-sm text-zinc-100 transition-colors hover:bg-zinc-800 focus:bg-zinc-800 focus:outline-none disabled:opacity-50',

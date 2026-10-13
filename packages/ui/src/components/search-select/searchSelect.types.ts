@@ -21,7 +21,15 @@ export type SearchSelectProps<T extends string = string> = {
     placeholder?: string;
     emptyMessage?: string;
     noResultsMessage?: string;
+    /** Shown in the list when matches exceed the visible cap. */
+    limitMessage?: string;
     disabled?: boolean;
+    /**
+     * When true, keeps the input usable and shows a right-side spinner after a short delay.
+     * Does not block typing or opening the dropdown.
+     */
     loading?: boolean;
+    /** Accessible label for the loading spinner. */
+    loadingLabel?: string;
     ariaLabel?: string;
 };

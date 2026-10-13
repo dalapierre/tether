@@ -28,6 +28,7 @@ type Messages = {
     workingDirectoryPlaceholder: NoMessageValues;
     workingDirectoryEmpty: NoMessageValues;
     workingDirectoryNoResults: NoMessageValues;
+    workingDirectoryLimit: NoMessageValues;
     workingDirectoryHint: NoMessageValues;
     start: NoMessageValues;
     starting: NoMessageValues;
@@ -143,6 +144,10 @@ export const messages = defineMessages<Messages>(
         workingDirectoryNoResults: {
             id: 'newSession.workingDirectoryNoResults',
             defaultMessage: 'No matching directories.',
+        },
+        workingDirectoryLimit: {
+            id: 'newSession.workingDirectoryLimit',
+            defaultMessage: 'Showing the first matches. Type to narrow.',
         },
         workingDirectoryHint: {
             id: 'newSession.workingDirectoryHint',
