@@ -160,3 +160,18 @@ export function clearSessionDiff(sessionId: string): void {
     entries.delete(sessionId);
     emit();
 }
+
+/**
+ * Optimistically replace the cached file list (e.g. after discard).
+ * Must run before the next ensureSessionDiff for that session so an empty+pending
+ * refetch cannot revive paths the store would otherwise preserve.
+ */
+export function replaceSessionDiffFiles(sessionId: string, files: SessionDiffSummary['files']): void {
+    const entry = getOrCreate(sessionId);
+    entry.summary = {
+        baseSha: entry.summary?.baseSha ?? '',
+        files,
+    };
+    entry.error = null;
+    emit();
+}

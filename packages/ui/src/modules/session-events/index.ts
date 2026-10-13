@@ -1,5 +1,11 @@
 export { SessionEventsProvider } from './sessionEventsProvider';
-export { clearSessionDiff, ensureSessionDiff, getSessionDiffState, subscribeSessionDiff } from './sessionDiffStore';
+export {
+    clearSessionDiff,
+    ensureSessionDiff,
+    getSessionDiffState,
+    replaceSessionDiffFiles,
+    subscribeSessionDiff,
+} from './sessionDiffStore';
 export type { SessionDiffState } from './sessionDiffStore';
 export {
     applySessionBranch,

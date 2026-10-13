@@ -36,6 +36,7 @@ import {
     bumpDiffGeneration,
     ensureSessionDiff,
     getDiffGeneration,
+    replaceSessionDiffFiles,
     subscribe as subscribeSessionEvents,
 } from '@ui/modules/session-events';
 import { showToast } from '@ui/modules/toast';
@@ -1814,13 +1815,17 @@ export function SessionCodeView({
             await discardSessionDiffFile(sessionId, path);
             // Drop any in-flight request that may still carry a pre-discard file list.
             diffFilesRequestIdRef.current += 1;
-            bumpDiffGeneration(sessionId);
-            const state = await ensureSessionDiff(sessionId, getDiffGeneration(sessionId));
+            const nextFiles = files.filter((file) => file.path !== path);
+            // Update the shared store before bumping generation. Otherwise an
+            // empty+pending refetch keeps the previous non-empty summary and the
+            // effect re-applies the discarded path into the hierarchy.
+            replaceSessionDiffFiles(sessionId, nextFiles);
             // Force apply even if the signature somehow matches the previous list.
             // Use null (not '') — '' is the empty-tree signature and would no-op.
             filesSignatureRef.current = null;
-            applyDiffFiles(state.summary?.files ?? []);
+            applyDiffFiles(nextFiles);
             setPendingDiscardPath(null);
+            bumpDiffGeneration(sessionId);
         } catch (err: unknown) {
             showToast('generic-error', err instanceof Error ? err.message : intl.formatMessage(messages.discardFailed));
         } finally {
