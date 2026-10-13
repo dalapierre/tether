@@ -23,7 +23,7 @@ import {
     type SessionDiffSummary,
     type SessionFileDiff,
 } from '@core/libs/sessions/diff.js';
-import { isGitMetaWatchPath } from '@core/libs/sessions/gitMetaWatch.js';
+import { GIT_REF_WATCH_SUBDIRS, isGitMetaWatchPath } from '@core/libs/sessions/gitMetaWatch.js';
 import { createAgentSessionId, ensureWorkspaceTrusted, resolveHarnessLaunch } from '@core/libs/sessions/harness.js';
 import { sampleProcessTrees, usageFromSamples, type ProcessTreeSample } from '@core/libs/sessions/processUsage.js';
 import {
@@ -583,29 +583,50 @@ async function resolveGitHeadPath(worktreePath: string): Promise<string | null> 
     return null;
 }
 
+type GitWatchTarget = {
+    dir: string;
+    /** Nested ref tips need recursion; gitdir roots stay flat to avoid `objects/` noise. */
+    recursive: boolean;
+};
+
 /**
- * Directories to watch for tip/index updates. Linked worktrees store refs in the
- * common gitdir, so watching only `worktrees/<name>/` misses same-branch commits
- * that only touch packed-refs / refs/heads/* there.
+ * Watch targets for tip/index/behind updates. Linked worktrees store refs in the common
+ * gitdir, and loose ref updates are nested under `refs/` / `logs/` — a flat watch on the
+ * gitdir root never sees those, so we add recursive watches on just those subtrees.
  */
-async function resolveGitWatchDirs(worktreePath: string): Promise<string[]> {
+async function resolveGitWatchTargets(worktreePath: string): Promise<GitWatchTarget[]> {
     const headPath = await resolveGitHeadPath(worktreePath);
     if (!headPath) return [];
 
     const gitDir = path.dirname(headPath);
-    const dirs = [gitDir];
+    const bases = [gitDir];
     try {
         const common = (await readFile(path.join(gitDir, 'commondir'), 'utf8')).trim();
         if (common) {
             const commonDir = path.resolve(gitDir, common);
             if (commonDir !== gitDir) {
-                dirs.push(commonDir);
+                bases.push(commonDir);
             }
         }
     } catch {
         // Regular checkouts have no commondir.
     }
-    return dirs;
+
+    const targets: GitWatchTarget[] = [];
+    const seen = new Set<string>();
+    for (const base of bases) {
+        if (!seen.has(base)) {
+            seen.add(base);
+            targets.push({ dir: base, recursive: false });
+        }
+        for (const sub of GIT_REF_WATCH_SUBDIRS) {
+            const dir = path.join(base, sub);
+            if (seen.has(dir) || !(await pathExists(dir))) continue;
+            seen.add(dir);
+            targets.push({ dir, recursive: true });
+        }
+    }
+    return targets;
 }
 
 async function readCurrentBranch(worktreePath: string): Promise<string | null> {
@@ -635,7 +656,9 @@ async function behindForSession(
         void refreshSessionBehindFromRemote(session);
     }
 
-    const behind = await getBehindRemoteDefault(session.worktreePath, session.branch);
+    // Count against the worktree checkout (HEAD), not the persisted branch name — the
+    // name can lag a shell checkout, and HEAD is what the user actually merged into.
+    const behind = await getBehindRemoteDefault(session.worktreePath, 'HEAD');
     return { behindDefault: behind.behind, defaultBranch: behind.defaultBranch };
 }
 
@@ -649,7 +672,7 @@ async function refreshSessionBehindFromRemote(session: RuntimeSession): Promise<
             if (live.repositoryId !== session.repositoryId || live.type !== 'coding' || !live.branch) {
                 continue;
             }
-            const behind = await getBehindRemoteDefault(live.worktreePath, live.branch);
+            const behind = await getBehindRemoteDefault(live.worktreePath, 'HEAD');
             broadcastSessionBranch({
                 sessionId: live.id,
                 branch: live.branch,
@@ -736,11 +759,12 @@ async function startWatchingHead(session: RuntimeSession): Promise<void> {
     stopWatchingHead(session.id);
     if (session.type !== 'coding') return;
 
-    const watchDirs = await resolveGitWatchDirs(session.worktreePath);
-    if (watchDirs.length === 0) return;
+    const watchTargets = await resolveGitWatchTargets(session.worktreePath);
+    if (watchTargets.length === 0) return;
 
     // Watch gitdir(s), not HEAD itself: atomic renames replace the inode and miss file watches.
-    // Include the common gitdir for linked worktrees so refs/packed-refs tip updates are seen.
+    // Flat roots catch index/HEAD/packed-refs; recursive refs/ + logs/ catch nested tip and
+    // origin/* updates that never bubble to the gitdir root (AME-310 / AME-312).
     const state: HeadWatcher = {
         watchers: [],
         lastTipSha: session.baseSha || null,
@@ -749,7 +773,6 @@ async function startWatchingHead(session: RuntimeSession): Promise<void> {
     };
 
     const onGitMetaEvent = (_eventType: string, filename: string | Buffer | null | undefined) => {
-        if (!isGitMetaWatchPath(filename)) return;
         const current = headWatchers.get(session.id);
         if (!current) return;
         if (current.debounce) {
@@ -770,15 +793,10 @@ async function startWatchingHead(session: RuntimeSession): Promise<void> {
                         const nextTip = await syncReviewBase(active);
                         still.lastTipSha = nextTip;
                         const branchChanged = await syncSessionBranch(active);
-                        // Branch switches already schedule a refresh inside syncSessionBranch.
-                        if (branchChanged) {
-                            return;
-                        }
-                        // Tip advanced (commit/reset/pull): drop the pre-tip file list immediately
-                        // so the hierarchy does not keep showing committed paths, and push an
-                        // updated behind-default count (e.g. after merging origin/main).
-                        if (nextTip !== prevTip) {
-                            publishEmptyDiffCache(active.id, nextTip);
+                        // Always recompute behind: merging origin/main advances the tip, but
+                        // `git fetch` alone only moves refs/remotes — tip unchanged, count still
+                        // changes. Client applySessionBranch no-ops when values are identical.
+                        if (!branchChanged) {
                             const { behindDefault, defaultBranch } = await behindForSession(active);
                             broadcastSessionBranch({
                                 sessionId: active.id,
@@ -786,6 +804,15 @@ async function startWatchingHead(session: RuntimeSession): Promise<void> {
                                 behindDefault,
                                 defaultBranch,
                             });
+                        }
+                        // Branch switches already schedule a refresh inside syncSessionBranch.
+                        if (branchChanged) {
+                            return;
+                        }
+                        // Tip advanced (commit/reset/pull): drop the pre-tip file list immediately
+                        // so the hierarchy does not keep showing committed paths.
+                        if (nextTip !== prevTip) {
+                            publishEmptyDiffCache(active.id, nextTip);
                             return;
                         }
                         // Index-only changes (stash, mixed reset, `git add`, etc.) — tip
@@ -803,8 +830,13 @@ async function startWatchingHead(session: RuntimeSession): Promise<void> {
     };
 
     try {
-        for (const watchDir of watchDirs) {
-            const watcher = watch(watchDir, onGitMetaEvent);
+        for (const target of watchTargets) {
+            const watcher = watch(target.dir, { recursive: target.recursive }, (eventType, filename) => {
+                // Recursive refs/logs watches are already scoped; accept all events there.
+                // Flat gitdir watches still filter to HEAD/index/packed-refs/FETCH_HEAD/…
+                if (!target.recursive && !isGitMetaWatchPath(filename)) return;
+                onGitMetaEvent(eventType, filename);
+            });
             watcher.on('error', () => {
                 stopWatchingHead(session.id);
             });
