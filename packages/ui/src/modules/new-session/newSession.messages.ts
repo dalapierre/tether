@@ -16,16 +16,19 @@ type Messages = {
     branchLabel: NoMessageValues;
     branchPlaceholder: NoMessageValues;
     advancedToggle: NoMessageValues;
-    workingDirectoryLabel: NoMessageValues;
-    workingDirectoryPlaceholder: NoMessageValues;
-    workingDirectoryEmpty: NoMessageValues;
-    workingDirectoryNoResults: NoMessageValues;
+    harnessLabel: NoMessageValues;
+    harnessesEmpty: NoMessageValues;
     yoloModeLabel: NoMessageValues;
     yoloModeHint: NoMessageValues;
     useWorktreesLabel: NoMessageValues;
     useWorktreesHint: NoMessageValues;
     worktreesDirLabel: NoMessageValues;
     worktreesDirHint: NoMessageValues;
+    workingDirectoryLabel: NoMessageValues;
+    workingDirectoryPlaceholder: NoMessageValues;
+    workingDirectoryEmpty: NoMessageValues;
+    workingDirectoryNoResults: NoMessageValues;
+    workingDirectoryHint: NoMessageValues;
     start: NoMessageValues;
     starting: NoMessageValues;
     startFailed: NoMessageValues;
@@ -93,21 +96,13 @@ export const messages = defineMessages<Messages>(
             id: 'newSession.advancedToggle',
             defaultMessage: 'Advanced',
         },
-        workingDirectoryLabel: {
-            id: 'newSession.workingDirectoryLabel',
-            defaultMessage: 'Working directory',
+        harnessLabel: {
+            id: 'newSession.harnessLabel',
+            defaultMessage: 'Harness',
         },
-        workingDirectoryPlaceholder: {
-            id: 'newSession.workingDirectoryPlaceholder',
-            defaultMessage: 'Search directories…',
-        },
-        workingDirectoryEmpty: {
-            id: 'newSession.workingDirectoryEmpty',
-            defaultMessage: 'Select a repository to browse directories.',
-        },
-        workingDirectoryNoResults: {
-            id: 'newSession.workingDirectoryNoResults',
-            defaultMessage: 'No matching directories.',
+        harnessesEmpty: {
+            id: 'newSession.harnessesEmpty',
+            defaultMessage: 'No harnesses available',
         },
         yoloModeLabel: {
             id: 'newSession.yoloModeLabel',
@@ -132,6 +127,26 @@ export const messages = defineMessages<Messages>(
         worktreesDirHint: {
             id: 'newSession.worktreesDirHint',
             defaultMessage: 'Parent directory for this session worktree. Leave empty to use the default.',
+        },
+        workingDirectoryLabel: {
+            id: 'newSession.workingDirectoryLabel',
+            defaultMessage: 'Working directory',
+        },
+        workingDirectoryPlaceholder: {
+            id: 'newSession.workingDirectoryPlaceholder',
+            defaultMessage: 'Search directories…',
+        },
+        workingDirectoryEmpty: {
+            id: 'newSession.workingDirectoryEmpty',
+            defaultMessage: 'Select a repository to browse directories.',
+        },
+        workingDirectoryNoResults: {
+            id: 'newSession.workingDirectoryNoResults',
+            defaultMessage: 'No matching directories.',
+        },
+        workingDirectoryHint: {
+            id: 'newSession.workingDirectoryHint',
+            defaultMessage: 'Useful for large repos when you are only working in a specific domain.',
         },
         start: {
             id: 'newSession.start',

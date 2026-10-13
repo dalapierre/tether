@@ -3,6 +3,8 @@ import { RoutePanel } from '@ui/components/route-panel';
 import { SearchSelect } from '@ui/components/search-select';
 import { Spinner } from '@ui/components/spinner';
 import { Toggle } from '@ui/components/toggle';
+import { agentLabelMessage, isAgentId, type AgentId } from '@ui/libs/agents/agents';
+import { listAvailableAgents, type AvailableAgent } from '@ui/libs/api/agents';
 import {
     listRepositories,
     listRepositoryBranches,
@@ -11,7 +13,6 @@ import {
 } from '@ui/libs/api/repositories';
 import { createSession } from '@ui/libs/api/sessions';
 import { getSettings } from '@ui/libs/api/settings';
-import type { AgentId } from '@ui/libs/agents/agents';
 import { isValidBranchName } from '@ui/libs/git/branchName';
 import { showToast } from '@ui/modules/toast';
 import { useEffect, useMemo, useState } from 'react';
@@ -21,6 +22,14 @@ import { styles } from './newSession.styles';
 import type { NewSessionProps } from './newSession.types';
 
 const DEFAULT_WORKING_DIRECTORY = '/';
+
+function resolveHarnessIds(availableAgents: AvailableAgent[], selectedAgent: AgentId): AgentId[] {
+    const ids = availableAgents.map((agent) => agent.id);
+    if (!ids.includes(selectedAgent) && isAgentId(selectedAgent)) {
+        return [selectedAgent, ...ids];
+    }
+    return ids;
+}
 
 function AdvancedChevron({ open }: { open: boolean }) {
     return (
@@ -52,20 +61,22 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
     const [defaultWorktreesDir, setDefaultWorktreesDir] = useState('');
     const [advancedOpen, setAdvancedOpen] = useState(false);
     const [repositories, setRepositories] = useState<Repository[]>([]);
+    const [availableAgents, setAvailableAgents] = useState<AvailableAgent[]>([]);
     const [loading, setLoading] = useState(true);
     const [starting, setStarting] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
 
-        Promise.all([getSettings(), listRepositories()])
-            .then(([settings, items]) => {
+        Promise.all([getSettings(), listRepositories(), listAvailableAgents()])
+            .then(([settings, items, agents]) => {
                 if (cancelled) return;
                 setAgent(settings.defaultAgent);
                 setYoloMode(settings.defaultYoloMode);
                 setUseWorktrees(settings.defaultUseWorktrees);
                 setDefaultWorktreesDir(settings.worktreesDir);
                 setRepositories(items);
+                setAvailableAgents(agents);
                 if (items.length === 1) {
                     setRepositoryId(items[0].id);
                 }
@@ -165,6 +176,8 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
         () => directories.map((directory) => ({ value: directory, label: directory })),
         [directories],
     );
+
+    const harnessOptions = useMemo(() => resolveHarnessIds(availableAgents, agent), [availableAgents, agent]);
 
     async function handleStart() {
         const trimmedName = name.trim();
@@ -337,23 +350,32 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
 
                             {advancedOpen ? (
                                 <div className={styles.advancedFields}>
-                                    <div>
-                                        <p className={styles.label}>
-                                            {intl.formatMessage(messages.workingDirectoryLabel)}
-                                        </p>
-                                        <SearchSelect
-                                            options={directoryOptions}
-                                            value={workingDirectory}
-                                            allowCustom
-                                            onChange={setWorkingDirectory}
-                                            onSelect={(option) => setWorkingDirectory(option.value)}
-                                            placeholder={intl.formatMessage(messages.workingDirectoryPlaceholder)}
-                                            emptyMessage={intl.formatMessage(messages.workingDirectoryEmpty)}
-                                            noResultsMessage={intl.formatMessage(messages.workingDirectoryNoResults)}
-                                            disabled={starting || !repositoryId}
-                                            ariaLabel={intl.formatMessage(messages.workingDirectoryLabel)}
-                                        />
-                                    </div>
+                                    <label className={styles.label}>
+                                        {intl.formatMessage(messages.harnessLabel)}
+                                        <select
+                                            className={styles.select}
+                                            value={agent}
+                                            onChange={(event) => {
+                                                const next = event.target.value;
+                                                if (harnessOptions.includes(next as AgentId)) {
+                                                    setAgent(next as AgentId);
+                                                }
+                                            }}
+                                            disabled={starting || harnessOptions.length === 0}
+                                        >
+                                            {harnessOptions.length === 0 ? (
+                                                <option value={agent}>
+                                                    {intl.formatMessage(messages.harnessesEmpty)}
+                                                </option>
+                                            ) : (
+                                                harnessOptions.map((agentId) => (
+                                                    <option key={agentId} value={agentId}>
+                                                        {intl.formatMessage(agentLabelMessage(agentId))}
+                                                    </option>
+                                                ))
+                                            )}
+                                        </select>
+                                    </label>
 
                                     <Toggle
                                         label={intl.formatMessage(messages.yoloModeLabel)}
@@ -391,6 +413,27 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                                             </span>
                                         </label>
                                     ) : null}
+
+                                    <div>
+                                        <p className={styles.label}>
+                                            {intl.formatMessage(messages.workingDirectoryLabel)}
+                                        </p>
+                                        <SearchSelect
+                                            options={directoryOptions}
+                                            value={workingDirectory}
+                                            allowCustom
+                                            onChange={setWorkingDirectory}
+                                            onSelect={(option) => setWorkingDirectory(option.value)}
+                                            placeholder={intl.formatMessage(messages.workingDirectoryPlaceholder)}
+                                            emptyMessage={intl.formatMessage(messages.workingDirectoryEmpty)}
+                                            noResultsMessage={intl.formatMessage(messages.workingDirectoryNoResults)}
+                                            disabled={starting || !repositoryId}
+                                            ariaLabel={intl.formatMessage(messages.workingDirectoryLabel)}
+                                        />
+                                        <span className={styles.fieldHint}>
+                                            {intl.formatMessage(messages.workingDirectoryHint)}
+                                        </span>
+                                    </div>
                                 </div>
                             ) : null}
                         </div>
