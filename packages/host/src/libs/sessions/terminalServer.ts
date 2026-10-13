@@ -19,8 +19,8 @@ export function attachTerminalServer(server: HttpServer, host: TetherHost): void
         const shellMatch = SHELL_PATH.exec(pathname);
         const isEvents = pathname === EVENTS_PATH;
 
+        // Leave non-app upgrades alone so Vite HMR (same HTTP server) can handle them.
         if (!terminalMatch && !shellMatch && !isEvents) {
-            socket.destroy();
             return;
         }
 
