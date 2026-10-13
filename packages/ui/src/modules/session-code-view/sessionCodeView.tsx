@@ -10,6 +10,7 @@ import { ConfirmDialog } from '@ui/components/confirm-dialog';
 import { PaneToolbar } from '@ui/components/pane-toolbar';
 import { PanelResizeHandle, panelResizeHandleMessages } from '@ui/components/panel-resize-handle';
 import { Spinner } from '@ui/components/spinner';
+import { Tooltip } from '@ui/components/tooltip';
 import { useIsDesktop } from '@ui/libs/dom/useMediaQuery';
 import {
     eventMatchesKeybind,
@@ -643,17 +644,17 @@ function DiffViewModeControls({ mode, onChange }: { mode: DiffViewMode; onChange
             {options.map((option) => {
                 const active = option.value === mode;
                 return (
-                    <button
-                        key={option.value}
-                        type='button'
-                        className={`${styles.diffViewModeButton}${active ? ` ${styles.diffViewModeButtonActive}` : ''}`}
-                        title={option.label}
-                        aria-label={option.label}
-                        aria-pressed={active}
-                        onClick={() => onChange(option.value)}
-                    >
-                        {option.icon}
-                    </button>
+                    <Tooltip key={option.value} content={option.label}>
+                        <button
+                            type='button'
+                            className={`${styles.diffViewModeButton}${active ? ` ${styles.diffViewModeButtonActive}` : ''}`}
+                            aria-label={option.label}
+                            aria-pressed={active}
+                            onClick={() => onChange(option.value)}
+                        >
+                            {option.icon}
+                        </button>
+                    </Tooltip>
                 );
             })}
         </div>
@@ -717,9 +718,9 @@ function DirRow({
         >
             <ChevronIcon collapsed={collapsed} />
             <FolderIcon />
-            <span className={`${styles.nodeLabel} ${styles.dirLabel}`} title={node.name}>
-                {node.name}
-            </span>
+            <Tooltip content={node.name}>
+                <span className={`${styles.nodeLabel} ${styles.dirLabel}`}>{node.name}</span>
+            </Tooltip>
         </button>
     );
 }
@@ -773,29 +774,32 @@ function FileRow({
                     {statusLabel(file.status, intl.formatMessage)}
                 </span>
                 <span className={styles.fileMeta}>
-                    <span className={styles.fileLabel} title={name}>
-                        {name}
-                    </span>
+                    <Tooltip content={name}>
+                        <span className={styles.fileLabel}>{name}</span>
+                    </Tooltip>
                     {file.oldPath ? (
-                        <span className={styles.renameHint} title={`${file.oldPath} → ${file.path}`}>
-                            {file.oldPath} → {file.path}
-                        </span>
+                        <Tooltip content={`${file.oldPath} → ${file.path}`}>
+                            <span className={styles.renameHint}>
+                                {file.oldPath} → {file.path}
+                            </span>
+                        </Tooltip>
                     ) : null}
                 </span>
             </button>
             <span className={styles.fileActions}>
-                <button
-                    type='button'
-                    className={styles.discardButton}
-                    title={discardLabel}
-                    aria-label={discardLabel}
-                    onClick={(event) => {
-                        event.stopPropagation();
-                        onDiscard(file.path);
-                    }}
-                >
-                    <DiscardIcon />
-                </button>
+                <Tooltip content={discardLabel}>
+                    <button
+                        type='button'
+                        className={styles.discardButton}
+                        aria-label={discardLabel}
+                        onClick={(event) => {
+                            event.stopPropagation();
+                            onDiscard(file.path);
+                        }}
+                    >
+                        <DiscardIcon />
+                    </button>
+                </Tooltip>
                 {!file.binary &&
                 file.additions !== null &&
                 file.deletions !== null &&
@@ -1899,26 +1903,28 @@ export function SessionCodeView({
                         }
                     >
                         {reviewedFingerprints.size > 0 ? (
-                            <button
-                                type='button'
-                                className={styles.collapseAllButton}
-                                title={intl.formatMessage(messages.resetReviews)}
-                                aria-label={intl.formatMessage(messages.resetReviews)}
-                                onClick={resetReviews}
-                            >
-                                <ResetReviewsIcon />
-                            </button>
+                            <Tooltip content={intl.formatMessage(messages.resetReviews)}>
+                                <button
+                                    type='button'
+                                    className={styles.collapseAllButton}
+                                    aria-label={intl.formatMessage(messages.resetReviews)}
+                                    onClick={resetReviews}
+                                >
+                                    <ResetReviewsIcon />
+                                </button>
+                            </Tooltip>
                         ) : null}
                         {dirPaths.length > 0 ? (
-                            <button
-                                type='button'
-                                className={styles.collapseAllButton}
-                                title={intl.formatMessage(messages.collapseAllFolders)}
-                                aria-label={intl.formatMessage(messages.collapseAllFolders)}
-                                onClick={collapseAllFolders}
-                            >
-                                <CollapseAllFoldersIcon />
-                            </button>
+                            <Tooltip content={intl.formatMessage(messages.collapseAllFolders)}>
+                                <button
+                                    type='button'
+                                    className={styles.collapseAllButton}
+                                    aria-label={intl.formatMessage(messages.collapseAllFolders)}
+                                    onClick={collapseAllFolders}
+                                >
+                                    <CollapseAllFoldersIcon />
+                                </button>
+                            </Tooltip>
                         ) : null}
                     </PaneToolbar>
                     {listLoading ? (
@@ -1965,62 +1971,71 @@ export function SessionCodeView({
                     <>
                         <PaneToolbar
                             leading={
-                                <button
-                                    type='button'
-                                    className={styles.backButton}
-                                    title={intl.formatMessage(messages.backToFiles)}
-                                    aria-label={intl.formatMessage(messages.backToFiles)}
-                                    onClick={() => selectPath(null)}
-                                >
-                                    <BackIcon />
-                                </button>
+                                <Tooltip content={intl.formatMessage(messages.backToFiles)}>
+                                    <button
+                                        type='button'
+                                        className={styles.backButton}
+                                        aria-label={intl.formatMessage(messages.backToFiles)}
+                                        onClick={() => selectPath(null)}
+                                    >
+                                        <BackIcon />
+                                    </button>
+                                </Tooltip>
                             }
                             title={
-                                <span className={styles.fileHeaderPath} title={selectedPath}>
-                                    {selectedPath}
-                                </span>
+                                <Tooltip content={selectedPath}>
+                                    <span className={styles.fileHeaderPath}>{selectedPath}</span>
+                                </Tooltip>
                             }
                         >
                             {showMarkdownToggle ? (
-                                <button
-                                    type='button'
-                                    className={styles.fileHeaderMode}
-                                    title={intl.formatMessage(
+                                <Tooltip
+                                    content={intl.formatMessage(
                                         markdownViewMode === 'code'
                                             ? messages.showMarkdownPreview
                                             : messages.showCodeView,
                                     )}
-                                    aria-label={intl.formatMessage(
-                                        markdownViewMode === 'code'
-                                            ? messages.showMarkdownPreview
-                                            : messages.showCodeView,
-                                    )}
-                                    onClick={() =>
-                                        handleMarkdownViewModeChange(markdownViewMode === 'code' ? 'preview' : 'code')
-                                    }
                                 >
-                                    {markdownViewMode === 'code' ? (
-                                        <MarkdownPreviewViewIcon />
-                                    ) : (
-                                        <MarkdownCodeViewIcon />
-                                    )}
-                                </button>
+                                    <button
+                                        type='button'
+                                        className={styles.fileHeaderMode}
+                                        aria-label={intl.formatMessage(
+                                            markdownViewMode === 'code'
+                                                ? messages.showMarkdownPreview
+                                                : messages.showCodeView,
+                                        )}
+                                        onClick={() =>
+                                            handleMarkdownViewModeChange(
+                                                markdownViewMode === 'code' ? 'preview' : 'code',
+                                            )
+                                        }
+                                    >
+                                        {markdownViewMode === 'code' ? (
+                                            <MarkdownPreviewViewIcon />
+                                        ) : (
+                                            <MarkdownCodeViewIcon />
+                                        )}
+                                    </button>
+                                </Tooltip>
                             ) : null}
                             {onToggleFullscreen ? (
-                                <button
-                                    type='button'
-                                    className={`${styles.fileHeaderMode}${fullscreen ? ` ${styles.diffViewModeButtonActive}` : ''}`}
-                                    title={intl.formatMessage(
+                                <Tooltip
+                                    content={intl.formatMessage(
                                         fullscreen ? messages.exitFullscreen : messages.enterFullscreen,
                                     )}
-                                    aria-label={intl.formatMessage(
-                                        fullscreen ? messages.exitFullscreen : messages.enterFullscreen,
-                                    )}
-                                    aria-pressed={fullscreen}
-                                    onClick={onToggleFullscreen}
                                 >
-                                    {fullscreen ? <ExitFullscreenIcon /> : <FullscreenIcon />}
-                                </button>
+                                    <button
+                                        type='button'
+                                        className={`${styles.fileHeaderMode}${fullscreen ? ` ${styles.diffViewModeButtonActive}` : ''}`}
+                                        aria-label={intl.formatMessage(
+                                            fullscreen ? messages.exitFullscreen : messages.enterFullscreen,
+                                        )}
+                                        aria-pressed={fullscreen}
+                                        onClick={onToggleFullscreen}
+                                    >
+                                        {fullscreen ? <ExitFullscreenIcon /> : <FullscreenIcon />}
+                                    </button>
+                                </Tooltip>
                             ) : null}
                             <DiffViewModeControls mode={diffViewMode} onChange={handleDiffViewModeChange} />
                             <label

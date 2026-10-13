@@ -4,6 +4,7 @@ import { IconButton } from '@ui/components/icon-button';
 import { Panel } from '@ui/components/panel';
 import { Spinner } from '@ui/components/spinner';
 import { SwipeToDelete } from '@ui/components/swipe-to-delete';
+import { Tooltip } from '@ui/components/tooltip';
 import { listRepositories, type Repository } from '@ui/libs/api/repositories';
 import { deleteSession, restartSession, type Session, type SessionStatus } from '@ui/libs/api/sessions';
 import { useIsDesktop } from '@ui/libs/dom/useMediaQuery';
@@ -489,15 +490,16 @@ export function SessionsPanel({
                 <div className={styles.header}>
                     <div className={effectivelyCollapsed ? styles.logoOffset : styles.logoOffsetInset}>
                         {effectivelyCollapsed ? (
-                            <button
-                                type='button'
-                                className={styles.logoButton}
-                                title={expandLabel}
-                                aria-label={expandLabel}
-                                onClick={expandSidebar}
-                            >
-                                <img className={styles.logoImage} src={logoLight} alt='' />
-                            </button>
+                            <Tooltip content={expandLabel}>
+                                <button
+                                    type='button'
+                                    className={styles.logoButton}
+                                    aria-label={expandLabel}
+                                    onClick={expandSidebar}
+                                >
+                                    <img className={styles.logoImage} src={logoLight} alt='' />
+                                </button>
+                            </Tooltip>
                         ) : (
                             <div className={styles.iconSlot} aria-label={intl.formatMessage(messages.logo)} role='img'>
                                 <img className={styles.logoImage} src={logoLight} alt='' />
@@ -559,19 +561,21 @@ export function SessionsPanel({
                                             }}
                                         />
                                         {searchQuery ? (
-                                            <button
-                                                type='button'
-                                                className={styles.searchClear}
-                                                aria-label={intl.formatMessage(messages.clearSearch)}
-                                                tabIndex={effectivelyCollapsed ? -1 : undefined}
-                                                onClick={() => {
-                                                    setSearchQuery('');
-                                                    setSelectedIndex(null);
-                                                    searchInputRef.current?.focus();
-                                                }}
-                                            >
-                                                <ClearSearchIcon />
-                                            </button>
+                                            <Tooltip content={intl.formatMessage(messages.clearSearch)}>
+                                                <button
+                                                    type='button'
+                                                    className={styles.searchClear}
+                                                    aria-label={intl.formatMessage(messages.clearSearch)}
+                                                    tabIndex={effectivelyCollapsed ? -1 : undefined}
+                                                    onClick={() => {
+                                                        setSearchQuery('');
+                                                        setSelectedIndex(null);
+                                                        searchInputRef.current?.focus();
+                                                    }}
+                                                >
+                                                    <ClearSearchIcon />
+                                                </button>
+                                            </Tooltip>
                                         ) : null}
                                     </div>
                                 </div>
@@ -669,27 +673,30 @@ export function SessionsPanel({
                                                               </button>
                                                               <div className={styles.trailing}>
                                                                   {session.status === 'error' ? (
-                                                                      <button
-                                                                          type='button'
-                                                                          className={styles.restartButton}
-                                                                          aria-label={intl.formatMessage(
+                                                                      <Tooltip
+                                                                          content={intl.formatMessage(
                                                                               messages.restartSession,
                                                                           )}
-                                                                          title={intl.formatMessage(
-                                                                              messages.restartSession,
-                                                                          )}
-                                                                          disabled={restartingId === session.id}
-                                                                          tabIndex={
-                                                                              effectivelyCollapsed ? -1 : undefined
-                                                                          }
-                                                                          onClick={(event) => {
-                                                                              event.preventDefault();
-                                                                              event.stopPropagation();
-                                                                              void handleRestart(session);
-                                                                          }}
                                                                       >
-                                                                          <RestartIcon />
-                                                                      </button>
+                                                                          <button
+                                                                              type='button'
+                                                                              className={styles.restartButton}
+                                                                              aria-label={intl.formatMessage(
+                                                                                  messages.restartSession,
+                                                                              )}
+                                                                              disabled={restartingId === session.id}
+                                                                              tabIndex={
+                                                                                  effectivelyCollapsed ? -1 : undefined
+                                                                              }
+                                                                              onClick={(event) => {
+                                                                                  event.preventDefault();
+                                                                                  event.stopPropagation();
+                                                                                  void handleRestart(session);
+                                                                              }}
+                                                                          >
+                                                                              <RestartIcon />
+                                                                          </button>
+                                                                      </Tooltip>
                                                                   ) : null}
                                                                   {isInitializing ? (
                                                                       <Spinner
@@ -707,38 +714,48 @@ export function SessionsPanel({
                                                                   )}
                                                               </div>
                                                               <div className={styles.moreActions}>
-                                                                  <button
-                                                                      type='button'
-                                                                      data-session-actions-trigger={session.id}
-                                                                      className={
-                                                                          actionsMenu?.session.id === session.id
-                                                                              ? styles.moreButtonOpen
-                                                                              : styles.moreButton
-                                                                      }
-                                                                      aria-label={intl.formatMessage(
+                                                                  <Tooltip
+                                                                      content={intl.formatMessage(
                                                                           messages.sessionActions,
                                                                       )}
-                                                                      aria-haspopup='menu'
-                                                                      aria-expanded={
-                                                                          actionsMenu?.session.id === session.id
-                                                                      }
-                                                                      title={intl.formatMessage(
-                                                                          messages.sessionActions,
-                                                                      )}
-                                                                      disabled={deletingId === session.id}
-                                                                      tabIndex={effectivelyCollapsed ? -1 : undefined}
-                                                                      onClick={(event) => {
-                                                                          event.preventDefault();
-                                                                          event.stopPropagation();
-                                                                          if (actionsMenu?.session.id === session.id) {
-                                                                              closeActionsMenu();
-                                                                              return;
-                                                                          }
-                                                                          openActionsMenu(session, event.currentTarget);
-                                                                      }}
                                                                   >
-                                                                      <MoreIcon />
-                                                                  </button>
+                                                                      <button
+                                                                          type='button'
+                                                                          data-session-actions-trigger={session.id}
+                                                                          className={
+                                                                              actionsMenu?.session.id === session.id
+                                                                                  ? styles.moreButtonOpen
+                                                                                  : styles.moreButton
+                                                                          }
+                                                                          aria-label={intl.formatMessage(
+                                                                              messages.sessionActions,
+                                                                          )}
+                                                                          aria-haspopup='menu'
+                                                                          aria-expanded={
+                                                                              actionsMenu?.session.id === session.id
+                                                                          }
+                                                                          disabled={deletingId === session.id}
+                                                                          tabIndex={
+                                                                              effectivelyCollapsed ? -1 : undefined
+                                                                          }
+                                                                          onClick={(event) => {
+                                                                              event.preventDefault();
+                                                                              event.stopPropagation();
+                                                                              if (
+                                                                                  actionsMenu?.session.id === session.id
+                                                                              ) {
+                                                                                  closeActionsMenu();
+                                                                                  return;
+                                                                              }
+                                                                              openActionsMenu(
+                                                                                  session,
+                                                                                  event.currentTarget,
+                                                                              );
+                                                                          }}
+                                                                      >
+                                                                          <MoreIcon />
+                                                                      </button>
+                                                                  </Tooltip>
                                                               </div>
                                                           </div>
                                                       </SwipeToDelete>
@@ -769,38 +786,41 @@ export function SessionsPanel({
                         className={effectivelyCollapsed ? styles.collapsedRail : styles.collapsedRailHidden}
                         aria-hidden={!effectivelyCollapsed || undefined}
                     >
-                        <button
-                            type='button'
-                            className={styles.railIcon}
-                            title={newSessionLabel}
-                            aria-label={newSessionLabel}
-                            tabIndex={effectivelyCollapsed ? undefined : -1}
-                            onClick={openNewSession}
-                        >
-                            <PlusIcon />
-                        </button>
-                        <button
-                            type='button'
-                            className={styles.railIcon}
-                            title={showSessionsLabel}
-                            aria-label={showSessionsLabel}
-                            tabIndex={effectivelyCollapsed ? undefined : -1}
-                            onClick={expandSidebar}
-                        >
-                            <ListIcon />
-                        </button>
-                        <div className={styles.railSpacer} />
-                        <div className={styles.settingsRail}>
+                        <Tooltip content={newSessionLabel}>
                             <button
                                 type='button'
                                 className={styles.railIcon}
-                                title={settingsLabel}
-                                aria-label={settingsLabel}
+                                aria-label={newSessionLabel}
                                 tabIndex={effectivelyCollapsed ? undefined : -1}
-                                onClick={openSettings}
+                                onClick={openNewSession}
                             >
-                                <SettingsIcon />
+                                <PlusIcon />
                             </button>
+                        </Tooltip>
+                        <Tooltip content={showSessionsLabel}>
+                            <button
+                                type='button'
+                                className={styles.railIcon}
+                                aria-label={showSessionsLabel}
+                                tabIndex={effectivelyCollapsed ? undefined : -1}
+                                onClick={expandSidebar}
+                            >
+                                <ListIcon />
+                            </button>
+                        </Tooltip>
+                        <div className={styles.railSpacer} />
+                        <div className={styles.settingsRail}>
+                            <Tooltip content={settingsLabel}>
+                                <button
+                                    type='button'
+                                    className={styles.railIcon}
+                                    aria-label={settingsLabel}
+                                    tabIndex={effectivelyCollapsed ? undefined : -1}
+                                    onClick={openSettings}
+                                >
+                                    <SettingsIcon />
+                                </button>
+                            </Tooltip>
                         </div>
                     </div>
                 </div>

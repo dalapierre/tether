@@ -1,4 +1,5 @@
 import { Panel } from '@ui/components/panel';
+import { Tooltip } from '@ui/components/tooltip';
 import { Fragment } from 'react';
 import { useIntl } from 'react-intl';
 import { messages } from './routePanel.messages';
@@ -71,17 +72,15 @@ export function RoutePanel({
 }: RoutePanelProps) {
     const intl = useIntl();
     const toolbarTitle = crumbs && crumbs.length > 0 ? <RoutePanelCrumbs crumbs={crumbs} /> : title;
+    const resolvedBackLabel = backLabel ?? intl.formatMessage(messages.back);
     const leading =
         toolbarLeading ??
         (onBack ? (
-            <button
-                type='button'
-                className={styles.backButton}
-                aria-label={backLabel ?? intl.formatMessage(messages.back)}
-                onClick={onBack}
-            >
-                <BackIcon />
-            </button>
+            <Tooltip content={resolvedBackLabel}>
+                <button type='button' className={styles.backButton} aria-label={resolvedBackLabel} onClick={onBack}>
+                    <BackIcon />
+                </button>
+            </Tooltip>
         ) : undefined);
 
     return (
@@ -91,15 +90,17 @@ export function RoutePanel({
                 title={toolbarTitle}
                 toolbarLeading={leading}
                 toolbarActions={
-                    <button
-                        type='button'
-                        className={styles.closeButton}
-                        aria-label={closeLabel}
-                        disabled={closeDisabled}
-                        onClick={onClose}
-                    >
-                        ×
-                    </button>
+                    <Tooltip content={closeLabel}>
+                        <button
+                            type='button'
+                            className={styles.closeButton}
+                            aria-label={closeLabel}
+                            disabled={closeDisabled}
+                            onClick={onClose}
+                        >
+                            ×
+                        </button>
+                    </Tooltip>
                 }
                 aria-label={ariaLabel}
             >

@@ -1,5 +1,6 @@
 import { Panel } from '@ui/components/panel';
 import { PanelResizeHandle, panelResizeHandleMessages } from '@ui/components/panel-resize-handle';
+import { Tooltip } from '@ui/components/tooltip';
 import { killSessionShell, MAX_SESSION_SHELLS } from '@ui/libs/api/sessions';
 import {
     clampShellListWidthPx,
@@ -306,44 +307,49 @@ export function SessionShellPanel({
             toolbarClassName='relative z-10'
             toolbarActions={
                 <div className={styles.shellToolbarActions}>
-                    <button
-                        type='button'
-                        className={styles.shellToolbarButton}
-                        title={splitLabel}
-                        aria-label={splitLabel}
-                        disabled={!canSplit}
-                        onClick={splitShell}
-                    >
-                        <SplitShellIcon />
-                    </button>
-                    <span className={styles.shellToolbarSeparator} aria-hidden='true' />
-                    {isDesktop && onToggleFullscreen ? (
+                    <Tooltip content={splitLabel}>
                         <button
                             type='button'
-                            className={`${styles.shellToolbarButton}${
-                                fullscreen ? ` ${styles.shellToolbarButtonActive}` : ''
-                            }`}
-                            title={intl.formatMessage(
-                                fullscreen ? messages.exitFullscreenTerminal : messages.enterFullscreenTerminal,
-                            )}
-                            aria-label={intl.formatMessage(
-                                fullscreen ? messages.exitFullscreenTerminal : messages.enterFullscreenTerminal,
-                            )}
-                            aria-pressed={fullscreen}
-                            onClick={onToggleFullscreen}
+                            className={styles.shellToolbarButton}
+                            aria-label={splitLabel}
+                            disabled={!canSplit}
+                            onClick={splitShell}
                         >
-                            {fullscreen ? <ExitFullscreenShellIcon /> : <FullscreenShellIcon />}
+                            <SplitShellIcon />
                         </button>
+                    </Tooltip>
+                    <span className={styles.shellToolbarSeparator} aria-hidden='true' />
+                    {isDesktop && onToggleFullscreen ? (
+                        <Tooltip
+                            content={intl.formatMessage(
+                                fullscreen ? messages.exitFullscreenTerminal : messages.enterFullscreenTerminal,
+                            )}
+                        >
+                            <button
+                                type='button'
+                                className={`${styles.shellToolbarButton}${
+                                    fullscreen ? ` ${styles.shellToolbarButtonActive}` : ''
+                                }`}
+                                aria-label={intl.formatMessage(
+                                    fullscreen ? messages.exitFullscreenTerminal : messages.enterFullscreenTerminal,
+                                )}
+                                aria-pressed={fullscreen}
+                                onClick={onToggleFullscreen}
+                            >
+                                {fullscreen ? <ExitFullscreenShellIcon /> : <FullscreenShellIcon />}
+                            </button>
+                        </Tooltip>
                     ) : null}
-                    <button
-                        type='button'
-                        className={styles.shellToolbarButton}
-                        title={intl.formatMessage(messages.closeTerminal)}
-                        aria-label={intl.formatMessage(messages.closeTerminal)}
-                        onClick={onClose}
-                    >
-                        <CloseShellIcon />
-                    </button>
+                    <Tooltip content={intl.formatMessage(messages.closeTerminal)}>
+                        <button
+                            type='button'
+                            className={styles.shellToolbarButton}
+                            aria-label={intl.formatMessage(messages.closeTerminal)}
+                            onClick={onClose}
+                        >
+                            <CloseShellIcon />
+                        </button>
+                    </Tooltip>
                 </div>
             }
         >
@@ -393,39 +399,41 @@ export function SessionShellPanel({
                                         selected ? ` ${styles.shellListItemActive}` : ''
                                     }`}
                                 >
-                                    <button
-                                        type='button'
-                                        role='tab'
-                                        aria-selected={selected}
-                                        className={styles.shellListTab}
-                                        title={shell.title}
-                                        onClick={() => selectShell(shell.id)}
-                                        onMouseDown={(event) => {
-                                            // Prevent the browser autoscroll cursor on middle-click.
-                                            if (event.button === 1) {
+                                    <Tooltip content={shell.title}>
+                                        <button
+                                            type='button'
+                                            role='tab'
+                                            aria-selected={selected}
+                                            className={styles.shellListTab}
+                                            onClick={() => selectShell(shell.id)}
+                                            onMouseDown={(event) => {
+                                                // Prevent the browser autoscroll cursor on middle-click.
+                                                if (event.button === 1) {
+                                                    event.preventDefault();
+                                                }
+                                            }}
+                                            onAuxClick={(event) => {
+                                                if (event.button !== 1) return;
                                                 event.preventDefault();
-                                            }
-                                        }}
-                                        onAuxClick={(event) => {
-                                            if (event.button !== 1) return;
-                                            event.preventDefault();
-                                            killShell(shell.id);
-                                        }}
-                                    >
-                                        <span className={styles.shellListTabLabel}>{shell.title}</span>
-                                    </button>
-                                    <button
-                                        type='button'
-                                        className={styles.shellListKill}
-                                        title={killLabel}
-                                        aria-label={killLabel}
-                                        onClick={(event) => {
-                                            event.stopPropagation();
-                                            killShell(shell.id);
-                                        }}
-                                    >
-                                        <KillShellIcon />
-                                    </button>
+                                                killShell(shell.id);
+                                            }}
+                                        >
+                                            <span className={styles.shellListTabLabel}>{shell.title}</span>
+                                        </button>
+                                    </Tooltip>
+                                    <Tooltip content={killLabel}>
+                                        <button
+                                            type='button'
+                                            className={styles.shellListKill}
+                                            aria-label={killLabel}
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                killShell(shell.id);
+                                            }}
+                                        >
+                                            <KillShellIcon />
+                                        </button>
+                                    </Tooltip>
                                 </div>
                             );
                         })}

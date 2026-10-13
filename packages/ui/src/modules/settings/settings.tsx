@@ -2,6 +2,7 @@ import { Button } from '@ui/components/button';
 import { ConfirmDialog } from '@ui/components/confirm-dialog';
 import { RoutePanel } from '@ui/components/route-panel';
 import { Toggle } from '@ui/components/toggle';
+import { Tooltip } from '@ui/components/tooltip';
 import { agentLabelMessage, isAgentId, type AgentId } from '@ui/libs/agents/agents';
 import { listAvailableAgents, type AvailableAgent } from '@ui/libs/api/agents';
 import { ApiError } from '@ui/libs/api/client';
@@ -318,14 +319,16 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
                     <div className={styles.sectionHeader}>
                         <div className={styles.sectionTitleRow}>
                             {isDesktop && view !== 'root' ? (
-                                <button
-                                    type='button'
-                                    className={styles.sectionBack}
-                                    aria-label={intl.formatMessage(messages.back)}
-                                    onClick={goBack}
-                                >
-                                    <BackIcon />
-                                </button>
+                                <Tooltip content={intl.formatMessage(messages.back)}>
+                                    <button
+                                        type='button'
+                                        className={styles.sectionBack}
+                                        aria-label={intl.formatMessage(messages.back)}
+                                        onClick={goBack}
+                                    >
+                                        <BackIcon />
+                                    </button>
+                                </Tooltip>
                             ) : null}
                             <h2 className={styles.sectionTitle}>{sectionHeader.title}</h2>
                         </div>

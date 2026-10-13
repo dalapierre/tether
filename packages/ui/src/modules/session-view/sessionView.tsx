@@ -3,6 +3,8 @@ import { IconButton } from '@ui/components/icon-button';
 import { Panel } from '@ui/components/panel';
 import { PanelResizeHandle, panelResizeHandleMessages } from '@ui/components/panel-resize-handle';
 import { SegmentedControl } from '@ui/components/segmented-control';
+import { Spinner } from '@ui/components/spinner';
+import { Tooltip } from '@ui/components/tooltip';
 import { agentLabelMessage, type AgentId } from '@ui/libs/agents/agents';
 import { getRepository } from '@ui/libs/api/repositories';
 import {
@@ -47,7 +49,6 @@ import { resumeXtermRenderer, resumeXtermRendererIfNeeded } from '@ui/libs/termi
 import { scrollTerminalToBottomNow, writeTerminalHistory } from '@ui/libs/terminal/scroll';
 import { attachTouchScroll } from '@ui/libs/terminal/touchScroll';
 import { AURA_TERMINAL_THEME } from '@ui/libs/theme/aura';
-import { Spinner } from '@ui/components/spinner';
 import {
     clearViewedSessionId,
     ensureSessionDiff,
@@ -1400,27 +1401,29 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         }
                         toolbarActions={
                             <div className={styles.paneToolbarActions}>
-                                <button
-                                    type='button'
-                                    className={styles.paneToggle}
-                                    title={terminalToggleLabel}
-                                    aria-label={terminalToggleLabel}
-                                    aria-pressed={shellPaneVisible}
-                                    onClick={toggleShell}
-                                >
-                                    <TerminalIcon className={styles.paneToggleIcon} />
-                                </button>
-                                {session.type === 'coding' ? (
+                                <Tooltip content={terminalToggleLabel}>
                                     <button
                                         type='button'
                                         className={styles.paneToggle}
-                                        title={reviewToggleLabel}
-                                        aria-label={reviewToggleLabel}
-                                        aria-pressed={desktopReviewOpen}
-                                        onClick={toggleDesktopReview}
+                                        aria-label={terminalToggleLabel}
+                                        aria-pressed={shellPaneVisible}
+                                        onClick={toggleShell}
                                     >
-                                        <ReviewIcon className={styles.paneToggleIcon} />
+                                        <TerminalIcon className={styles.paneToggleIcon} />
                                     </button>
+                                </Tooltip>
+                                {session.type === 'coding' ? (
+                                    <Tooltip content={reviewToggleLabel}>
+                                        <button
+                                            type='button'
+                                            className={styles.paneToggle}
+                                            aria-label={reviewToggleLabel}
+                                            aria-pressed={desktopReviewOpen}
+                                            onClick={toggleDesktopReview}
+                                        >
+                                            <ReviewIcon className={styles.paneToggleIcon} />
+                                        </button>
+                                    </Tooltip>
                                 ) : null}
                             </div>
                         }
