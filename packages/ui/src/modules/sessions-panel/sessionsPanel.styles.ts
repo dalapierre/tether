@@ -59,6 +59,8 @@ export const styles = {
     moreIcon: 'h-3.5 w-3.5',
     actionsMenu:
         'fixed z-50 min-w-32 rounded-md border border-zinc-700 bg-zinc-900 px-1 py-1 shadow-lg shadow-black/40',
+    actionsMenuItem:
+        'block w-full rounded-md px-2.5 py-1.5 text-left text-sm text-zinc-100 outline-none transition-colors hover:bg-zinc-800 focus-visible:bg-zinc-800',
     actionsMenuItemDanger:
         'block w-full rounded-md px-2.5 py-1.5 text-left text-sm text-red-400 outline-none transition-colors hover:bg-zinc-800 focus-visible:bg-zinc-800',
     indicator: 'h-2 w-2 shrink-0 rounded-full',

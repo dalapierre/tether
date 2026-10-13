@@ -8,6 +8,10 @@ type Messages = {
     noMatchingSessions: NoMessageValues;
     loadingSessions: NoMessageValues;
     newSession: NoMessageValues;
+    create: NoMessageValues;
+    createMenu: NoMessageValues;
+    createSession: NoMessageValues;
+    createTerminal: NoMessageValues;
     settings: NoMessageValues;
     sessionsHeading: NoMessageValues;
     sessionList: NoMessageValues;
@@ -55,6 +59,22 @@ export const messages = defineMessages<Messages>(
         newSession: {
             id: 'sessionsPanel.newSession',
             defaultMessage: 'New session',
+        },
+        create: {
+            id: 'sessionsPanel.create',
+            defaultMessage: 'Add',
+        },
+        createMenu: {
+            id: 'sessionsPanel.createMenu',
+            defaultMessage: 'Add',
+        },
+        createSession: {
+            id: 'sessionsPanel.createSession',
+            defaultMessage: 'Session',
+        },
+        createTerminal: {
+            id: 'sessionsPanel.createTerminal',
+            defaultMessage: 'Terminal',
         },
         settings: {
             id: 'sessionsPanel.settings',

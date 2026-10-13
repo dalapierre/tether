@@ -1,5 +1,5 @@
 import { getLocalStorageJson, setLocalStorageJson } from '@ui/libs/storage/localStorage';
-import type { EditorTab, EditorTabId, SessionEditorTab } from './editorTabs.types';
+import type { EditorTab, EditorTabId, SessionEditorTab, TerminalEditorTab } from './editorTabs.types';
 
 const STORAGE_KEY = 'tether.editorTabs';
 
@@ -7,7 +7,13 @@ type Listener = () => void;
 
 function isEditorTab(value: unknown): value is EditorTab {
     if (!value || typeof value !== 'object') return false;
-    const tab = value as { kind?: unknown; id?: unknown; sessionId?: unknown; title?: unknown };
+    const tab = value as {
+        kind?: unknown;
+        id?: unknown;
+        sessionId?: unknown;
+        terminalId?: unknown;
+        title?: unknown;
+    };
     if (tab.kind === 'settings' && tab.id === 'settings') return true;
     if (tab.kind === 'new-session' && tab.id === 'new-session') return true;
     if (
@@ -15,6 +21,15 @@ function isEditorTab(value: unknown): value is EditorTab {
         typeof tab.sessionId === 'string' &&
         tab.sessionId.length > 0 &&
         tab.id === `session:${tab.sessionId}` &&
+        (tab.title === undefined || typeof tab.title === 'string')
+    ) {
+        return true;
+    }
+    if (
+        tab.kind === 'terminal' &&
+        typeof tab.terminalId === 'string' &&
+        tab.terminalId.length > 0 &&
+        tab.id === `terminal:${tab.terminalId}` &&
         (tab.title === undefined || typeof tab.title === 'string')
     ) {
         return true;
@@ -35,6 +50,13 @@ function loadTabs(): EditorTab[] {
                 id: entry.id,
                 kind: 'session',
                 sessionId: entry.sessionId,
+                ...(entry.title ? { title: entry.title } : {}),
+            });
+        } else if (entry.kind === 'terminal') {
+            next.push({
+                id: entry.id,
+                kind: 'terminal',
+                terminalId: entry.terminalId,
                 ...(entry.title ? { title: entry.title } : {}),
             });
         } else {
@@ -82,6 +104,19 @@ export function createSessionTab(sessionId: string, title?: string): SessionEdit
     };
 }
 
+export function terminalTabId(terminalId: string): TerminalEditorTab['id'] {
+    return `terminal:${terminalId}`;
+}
+
+export function createTerminalTab(terminalId: string, title?: string): TerminalEditorTab {
+    return {
+        id: terminalTabId(terminalId),
+        kind: 'terminal',
+        terminalId,
+        ...(title ? { title } : {}),
+    };
+}
+
 export const SETTINGS_TAB: EditorTab = { id: 'settings', kind: 'settings' };
 export const NEW_SESSION_TAB: EditorTab = { id: 'new-session', kind: 'new-session' };
 
@@ -93,6 +128,8 @@ export function pathForEditorTab(tab: EditorTab): string {
             return '/settings';
         case 'new-session':
             return '/new-session';
+        case 'terminal':
+            return `/terminals/${tab.terminalId}`;
     }
 }
 
@@ -100,8 +137,10 @@ export function pathForEditorTab(tab: EditorTab): string {
 export function editorTabFromPath(pathname: string): EditorTab | null {
     if (pathname === '/settings') return SETTINGS_TAB;
     if (pathname === '/new-session') return NEW_SESSION_TAB;
-    const match = /^\/sessions\/([^/]+)$/.exec(pathname);
-    if (match?.[1]) return createSessionTab(match[1]);
+    const sessionMatch = /^\/sessions\/([^/]+)$/.exec(pathname);
+    if (sessionMatch?.[1]) return createSessionTab(sessionMatch[1]);
+    const terminalMatch = /^\/terminals\/([^/]+)$/.exec(pathname);
+    if (terminalMatch?.[1]) return createTerminalTab(terminalMatch[1]);
     return null;
 }
 
@@ -114,10 +153,31 @@ export function openEditorTab(tab: EditorTab): void {
             next[index] = { ...existing, title: tab.title };
             tabs = next;
             emit();
+            return;
+        }
+        if (tab.kind === 'terminal' && existing?.kind === 'terminal' && tab.title && existing.title !== tab.title) {
+            const next = [...tabs];
+            next[index] = { ...existing, title: tab.title };
+            tabs = next;
+            emit();
+            return;
         }
         return;
     }
     tabs = [...tabs, tab];
+    emit();
+}
+
+/** Update a terminal tab's displayed title (e.g. from OSC). */
+export function setTerminalTabTitle(terminalId: string, title: string): void {
+    const id = terminalTabId(terminalId);
+    const index = tabs.findIndex((tab) => tab.id === id);
+    if (index === -1) return;
+    const existing = tabs[index];
+    if (!existing || existing.kind !== 'terminal' || existing.title === title) return;
+    const next = [...tabs];
+    next[index] = { ...existing, title };
+    tabs = next;
     emit();
 }
 

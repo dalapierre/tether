@@ -20,6 +20,7 @@ import {
 import { useSettings } from '@ui/modules/settings';
 import { showToast } from '@ui/modules/toast';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import { useIntl } from 'react-intl';
 import { useMatch, useNavigate } from 'react-router-dom';
 import { messages } from './sessionsPanel.messages';
@@ -154,7 +155,7 @@ export function SessionsPanel({
     const sessionMatch = useMatch('/sessions/:sessionId');
     const activeSessionId = sessionMatch?.params.sessionId;
     const { openSettings } = useSettings();
-    const { openSessionTab, openNewSessionTab } = useEditorTabNavigation();
+    const { openSessionTab, openNewSessionTab, openTerminalTab } = useEditorTabNavigation();
     const [repositories, setRepositories] = useState<Repository[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [pendingDelete, setPendingDelete] = useState<Session | null>(null);
@@ -163,12 +164,14 @@ export function SessionsPanel({
         top: number;
         right: number;
     } | null>(null);
+    const [createMenu, setCreateMenu] = useState<{ top: number; left: number } | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [restartingId, setRestartingId] = useState<string | null>(null);
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const selectedRowRef = useRef<HTMLDivElement | null>(null);
     const searchInputRef = useRef<HTMLInputElement | null>(null);
     const actionsMenuRef = useRef<HTMLDivElement | null>(null);
+    const createMenuRef = useRef<HTMLDivElement | null>(null);
     const filteredSessionsRef = useRef<Session[]>([]);
     const selectedIndexRef = useRef(selectedIndex);
     selectedIndexRef.current = selectedIndex;
@@ -210,7 +213,7 @@ export function SessionsPanel({
 
     // Rail actions stay available while mounted. List navigation only when the list is
     // the primary surface — otherwise arrows/`r` fight session review keybinds.
-    const panelFree = !pendingDelete && !actionsMenu;
+    const panelFree = !pendingDelete && !actionsMenu && !createMenu;
     const railActionsEnabled = panelFree;
     const listActionsEnabled = railActionsEnabled && listVisible;
     const navKeybindsEnabled = listInteractive && listActionsEnabled && !sessionsLoading && filteredSessions.length > 0;
@@ -219,7 +222,12 @@ export function SessionsPanel({
         setActionsMenu(null);
     }, []);
 
+    const closeCreateMenu = useCallback(() => {
+        setCreateMenu(null);
+    }, []);
+
     const openActionsMenu = useCallback((session: Session, anchor: HTMLElement) => {
+        setCreateMenu(null);
         const rect = anchor.getBoundingClientRect();
         setActionsMenu({
             session,
@@ -228,9 +236,24 @@ export function SessionsPanel({
         });
     }, []);
 
+    const openCreateMenu = useCallback((anchor: HTMLElement) => {
+        setActionsMenu(null);
+        const rect = anchor.getBoundingClientRect();
+        setCreateMenu({
+            top: rect.top,
+            left: rect.right + 4,
+        });
+    }, []);
+
     const openNewSession = useCallback(() => {
+        closeCreateMenu();
         openNewSessionTab();
-    }, [openNewSessionTab]);
+    }, [closeCreateMenu, openNewSessionTab]);
+
+    const openNewTerminal = useCallback(() => {
+        closeCreateMenu();
+        openTerminalTab();
+    }, [closeCreateMenu, openTerminalTab]);
 
     function blurSearch() {
         if (document.activeElement === searchInputRef.current) {
@@ -373,10 +396,50 @@ export function SessionsPanel({
     }, [actionsMenu]);
 
     useEffect(() => {
+        if (!createMenu) return;
+
+        function onPointerDown(event: PointerEvent) {
+            const target = event.target as Node | null;
+            if (!target) return;
+            if (createMenuRef.current?.contains(target)) return;
+            if (target instanceof Element && target.closest('[data-create-menu-trigger]')) return;
+            setCreateMenu(null);
+        }
+
+        function onKeyDown(event: KeyboardEvent) {
+            if (event.key !== 'Escape' || event.defaultPrevented || event.repeat) return;
+            event.preventDefault();
+            setCreateMenu(null);
+        }
+
+        function onScroll() {
+            setCreateMenu(null);
+        }
+
+        window.addEventListener('pointerdown', onPointerDown);
+        window.addEventListener('keydown', onKeyDown);
+        window.addEventListener('resize', onScroll);
+        document.addEventListener('scroll', onScroll, true);
+
+        return () => {
+            window.removeEventListener('pointerdown', onPointerDown);
+            window.removeEventListener('keydown', onKeyDown);
+            window.removeEventListener('resize', onScroll);
+            document.removeEventListener('scroll', onScroll, true);
+        };
+    }, [createMenu]);
+
+    useEffect(() => {
         if (!actionsMenu) return;
         const firstItem = actionsMenuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]');
         firstItem?.focus();
     }, [actionsMenu]);
+
+    useEffect(() => {
+        if (!createMenu) return;
+        const firstItem = createMenuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]');
+        firstItem?.focus();
+    }, [createMenu]);
 
     useEffect(() => {
         selectedRowRef.current?.scrollIntoView({ block: 'nearest' });
@@ -452,6 +515,7 @@ export function SessionsPanel({
     const showNoMatches = !sessionsLoading && sessions.length > 0 && filteredSessions.length === 0;
     const bodyClass = showEmpty || sessionsLoading || showNoMatches ? styles.bodyEmpty : styles.body;
     const newSessionLabel = intl.formatMessage(messages.newSession);
+    const createLabel = intl.formatMessage(messages.create);
     const settingsLabel = intl.formatMessage(messages.settings);
     const sessionListLabel = intl.formatMessage(messages.sessionList);
     const sessionsHeading = intl.formatMessage(messages.sessionsHeading);
@@ -644,6 +708,36 @@ export function SessionsPanel({
 
     const dialogs = (
         <>
+            {createMenu
+                ? createPortal(
+                      <div
+                          ref={createMenuRef}
+                          className={styles.actionsMenu}
+                          style={{ top: createMenu.top, left: createMenu.left }}
+                          role='menu'
+                          aria-label={intl.formatMessage(messages.createMenu)}
+                      >
+                          <button
+                              type='button'
+                              role='menuitem'
+                              className={styles.actionsMenuItem}
+                              onClick={openNewSession}
+                          >
+                              {intl.formatMessage(messages.createSession)}
+                          </button>
+                          <button
+                              type='button'
+                              role='menuitem'
+                              className={styles.actionsMenuItem}
+                              onClick={openNewTerminal}
+                          >
+                              {intl.formatMessage(messages.createTerminal)}
+                          </button>
+                      </div>,
+                      document.body,
+                  )
+                : null}
+
             {actionsMenu ? (
                 <div
                     ref={actionsMenuRef}
@@ -693,12 +787,21 @@ export function SessionsPanel({
                             </div>
                         </div>
                         <div className={styles.railBody}>
-                            <Tooltip content={newSessionLabel}>
+                            <Tooltip content={createLabel} disabled={Boolean(createMenu)}>
                                 <button
                                     type='button'
-                                    className={styles.railIcon}
-                                    aria-label={newSessionLabel}
-                                    onClick={openNewSession}
+                                    className={createMenu ? styles.railIconActive : styles.railIcon}
+                                    aria-label={createLabel}
+                                    aria-haspopup='menu'
+                                    aria-expanded={Boolean(createMenu)}
+                                    data-create-menu-trigger=''
+                                    onClick={(event) => {
+                                        if (createMenu) {
+                                            closeCreateMenu();
+                                            return;
+                                        }
+                                        openCreateMenu(event.currentTarget);
+                                    }}
                                 >
                                     <PlusIcon />
                                 </button>

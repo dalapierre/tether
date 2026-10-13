@@ -26,6 +26,7 @@ import {
     restoreSessions,
 } from '@core/libs/sessions/store.js';
 import { getSettings, updateSettings } from '@core/libs/settings/store.js';
+import { attachWorkspaceShell, hasWorkspaceShell, killWorkspaceShell } from '@core/libs/workspace-shells/store.js';
 
 /**
  * Transport-agnostic Host API. Callers (HTTP/WS adapters) wrap this — core never
@@ -58,6 +59,10 @@ export type TetherHost = {
     attachSessionTerminal: typeof attachSessionTerminal;
     attachSessionShell: typeof attachSessionShell;
     attachSessionEvents: typeof attachSessionEvents;
+
+    attachWorkspaceShell: typeof attachWorkspaceShell;
+    killWorkspaceShell: typeof killWorkspaceShell;
+    hasWorkspaceShell: typeof hasWorkspaceShell;
 };
 
 export async function createHost(): Promise<TetherHost> {
@@ -94,5 +99,9 @@ export async function createHost(): Promise<TetherHost> {
         attachSessionTerminal,
         attachSessionShell,
         attachSessionEvents,
+
+        attachWorkspaceShell,
+        killWorkspaceShell,
+        hasWorkspaceShell,
     };
 }

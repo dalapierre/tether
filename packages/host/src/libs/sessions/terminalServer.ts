@@ -5,6 +5,7 @@ import { WebSocketServer } from 'ws';
 
 const TERMINAL_PATH = /^\/api\/sessions\/([^/]+)\/terminal$/;
 const SHELL_PATH = /^\/api\/sessions\/([^/]+)\/shell\/([^/]+)$/;
+const WORKSPACE_SHELL_PATH = /^\/api\/workspace\/shell\/([^/]+)$/;
 const EVENTS_PATH = '/api/sessions/events';
 
 export function attachTerminalServer(server: HttpServer, host: TetherHost): void {
@@ -17,10 +18,11 @@ export function attachTerminalServer(server: HttpServer, host: TetherHost): void
         const loggedUrl = sanitizeUrl(rawUrl);
         const terminalMatch = TERMINAL_PATH.exec(pathname);
         const shellMatch = SHELL_PATH.exec(pathname);
+        const workspaceShellMatch = WORKSPACE_SHELL_PATH.exec(pathname);
         const isEvents = pathname === EVENTS_PATH;
 
         // Leave non-app upgrades alone so Vite HMR (same HTTP server) can handle them.
-        if (!terminalMatch && !shellMatch && !isEvents) {
+        if (!terminalMatch && !shellMatch && !workspaceShellMatch && !isEvents) {
             return;
         }
 
@@ -30,6 +32,29 @@ export function attachTerminalServer(server: HttpServer, host: TetherHost): void
             wss.handleUpgrade(request, socket, head, (ws) => {
                 logger.info(`WS ${pathname} → connected`);
                 host.attachSessionEvents(asHubClient(ws));
+            });
+            return;
+        }
+
+        if (workspaceShellMatch) {
+            const shellId = workspaceShellMatch[1];
+            if (!shellId || !host.hasWorkspaceShell(shellId)) {
+                logger.warn(`WS ${loggedUrl} → 404`);
+                socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+
+            wss.handleUpgrade(request, socket, head, (ws) => {
+                const client = asHubClient(ws);
+                void host.attachWorkspaceShell(shellId, client).then((attached) => {
+                    if (!attached) {
+                        logger.warn(`WS ${pathname} → failed to attach`);
+                        ws.close();
+                        return;
+                    }
+                    logger.info(`WS ${pathname} → connected`);
+                });
             });
             return;
         }

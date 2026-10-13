@@ -3,6 +3,7 @@ import { createAgentsRouter } from '@host/routes/agents.js';
 import { createRepositoriesRouter } from '@host/routes/repositories.js';
 import { createSessionsRouter } from '@host/routes/sessions.js';
 import { createSettingsRouter } from '@host/routes/settings.js';
+import { createWorkspaceRouter } from '@host/routes/workspace.js';
 import type { Express } from 'express';
 
 export function registerHttpRoutes(app: Express, host: TetherHost): void {
@@ -14,6 +15,7 @@ export function registerHttpRoutes(app: Express, host: TetherHost): void {
     app.use('/api/repositories', createRepositoriesRouter(host));
     app.use('/api/agents', createAgentsRouter(host));
     app.use('/api/sessions', createSessionsRouter(host));
+    app.use('/api/workspace', createWorkspaceRouter(host));
 
     app.post('/api/commands', (_req, res) => {
         res.status(501).json({ error: 'Not implemented' });

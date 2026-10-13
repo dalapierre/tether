@@ -51,6 +51,8 @@ function tabLabel(tab: EditorTab, formatMessage: ReturnType<typeof useIntl>['for
             const session = getLiveSession(tab.sessionId);
             return session?.name ?? tab.title ?? formatMessage(messages.sessionFallback);
         }
+        case 'terminal':
+            return tab.title ?? formatMessage(messages.terminalFallback);
     }
 }
 

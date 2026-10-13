@@ -4,6 +4,7 @@ export {
     closeEditorTab,
     closeSessionEditorTab,
     createSessionTab,
+    createTerminalTab,
     editorTabFromPath,
     ensureEditorTabForPath,
     getEditorTabsSnapshot,
@@ -14,9 +15,11 @@ export {
     pruneMissingSessionTabs,
     sessionTabId,
     setEditorTabsOrder,
+    setTerminalTabTitle,
     SETTINGS_TAB,
     subscribeEditorTabs,
     syncSessionTabTitles,
+    terminalTabId,
 } from './editorTabsStore';
 export type { EditorTab, EditorTabId, EditorTabKind } from './editorTabs.types';
-export { useEditorTabNavigation } from './useEditorTabNavigation';
+export { createTerminalId, useEditorTabNavigation } from './useEditorTabNavigation';

@@ -8,6 +8,7 @@ type EditorTabsMessages = {
     newSession: NoMessageValues;
     closeTab: NoMessageValues;
     sessionFallback: NoMessageValues;
+    terminalFallback: NoMessageValues;
 };
 
 export const messages: {
@@ -32,5 +33,9 @@ export const messages: {
     sessionFallback: {
         id: 'editorTabs.sessionFallback',
         defaultMessage: 'Session',
+    },
+    terminalFallback: {
+        id: 'editorTabs.terminalFallback',
+        defaultMessage: 'Terminal',
     },
 });

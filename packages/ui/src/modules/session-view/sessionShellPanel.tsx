@@ -1,7 +1,7 @@
 import { Panel } from '@ui/components/panel';
 import { PanelResizeHandle, panelResizeHandleMessages } from '@ui/components/panel-resize-handle';
 import { Tooltip } from '@ui/components/tooltip';
-import { killSessionShell, MAX_SESSION_SHELLS } from '@ui/libs/api/sessions';
+import { connectSessionShell, killSessionShell, MAX_SESSION_SHELLS } from '@ui/libs/api/sessions';
 import {
     clampShellListWidthPx,
     getShellListWidthPx,
@@ -366,8 +366,8 @@ export function SessionShellPanel({
                             }}
                         >
                             <SessionShellTerminal
-                                sessionId={sessionId}
-                                shellId={shell.id}
+                                shellKey={`${sessionId}:${shell.id}`}
+                                connect={() => connectSessionShell(sessionId, shell.id)}
                                 active={activeShellId === shell.id}
                                 onTitle={(title) => {
                                     setShells((current) =>

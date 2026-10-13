@@ -1,4 +1,4 @@
-export type EditorTabKind = 'session' | 'settings' | 'new-session';
+export type EditorTabKind = 'session' | 'settings' | 'new-session' | 'terminal';
 
 export type SessionEditorTab = {
     id: `session:${string}`;
@@ -18,6 +18,14 @@ export type NewSessionEditorTab = {
     kind: 'new-session';
 };
 
-export type EditorTab = SessionEditorTab | SettingsEditorTab | NewSessionEditorTab;
+export type TerminalEditorTab = {
+    id: `terminal:${string}`;
+    kind: 'terminal';
+    terminalId: string;
+    /** Last known OSC / shell title; persisted so reloads don't flash a fallback label. */
+    title?: string;
+};
+
+export type EditorTab = SessionEditorTab | SettingsEditorTab | NewSessionEditorTab | TerminalEditorTab;
 
 export type EditorTabId = EditorTab['id'];

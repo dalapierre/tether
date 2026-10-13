@@ -18,7 +18,12 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { styles } from './appShell.styles';
 
 function isMainContentRoute(pathname: string): boolean {
-    return pathname.startsWith('/sessions/') || pathname === '/settings' || pathname === '/new-session';
+    return (
+        pathname.startsWith('/sessions/') ||
+        pathname.startsWith('/terminals/') ||
+        pathname === '/settings' ||
+        pathname === '/new-session'
+    );
 }
 
 export function AppShell() {

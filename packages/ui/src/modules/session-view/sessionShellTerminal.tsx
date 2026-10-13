@@ -1,4 +1,4 @@
-import { connectSessionShell, sendTerminalMessage, type ServerShellMessage } from '@ui/libs/api/sessions';
+import { sendTerminalMessage, type ServerShellMessage } from '@ui/libs/api/sessions';
 import { getPanelResizeDragEpoch, isPanelResizeDragging } from '@ui/libs/layout/panelResizeDrag';
 import { clearPtyResize, flushPtyResize, schedulePtyResize } from '@ui/libs/terminal/ptyResize';
 import { resumeXtermRenderer, resumeXtermRendererIfNeeded } from '@ui/libs/terminal/resumeRenderer';
@@ -8,6 +8,7 @@ import { AURA_TERMINAL_THEME } from '@ui/libs/theme/aura';
 import { showToast } from '@ui/modules/toast';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
+import '@xterm/xterm/css/xterm.css';
 import { useEffect, useRef } from 'react';
 import { useIntl } from 'react-intl';
 import { messages } from './sessionView.messages';
@@ -25,8 +26,10 @@ export type SessionShellTerminalHandle = {
 };
 
 export type SessionShellTerminalProps = {
-    sessionId: string;
-    shellId: string;
+    /** Open the WebSocket for this terminal instance. */
+    connect: () => WebSocket;
+    /** Remount key when the underlying shell identity changes. */
+    shellKey: string;
     active: boolean;
     onTitle: (title: string) => void;
     onHandleChange: (handle: SessionShellTerminalHandle | null) => void;
@@ -148,18 +151,20 @@ function syncTerminalLayoutAfterPanelResize(options: {
 }
 
 export function SessionShellTerminal({
-    sessionId,
-    shellId,
+    connect,
+    shellKey,
     active,
     onTitle,
     onHandleChange,
 }: SessionShellTerminalProps) {
     const intl = useIntl();
     const hostRef = useRef<HTMLDivElement | null>(null);
+    const connectRef = useRef(connect);
     const onTitleRef = useRef(onTitle);
     const onHandleChangeRef = useRef(onHandleChange);
     const activeRef = useRef(active);
 
+    connectRef.current = connect;
     onTitleRef.current = onTitle;
     onHandleChangeRef.current = onHandleChange;
     activeRef.current = active;
@@ -184,7 +189,7 @@ export function SessionShellTerminal({
 
         let socket: WebSocket;
         try {
-            socket = connectSessionShell(sessionId, shellId);
+            socket = connectRef.current();
         } catch (err: unknown) {
             showToast('generic-error', err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed));
             term.dispose();
@@ -382,7 +387,7 @@ export function SessionShellTerminal({
             socket.close();
             term.dispose();
         };
-    }, [sessionId, shellId, intl]);
+    }, [shellKey, intl]);
 
     return (
         <div className={styles.shellTerminalPane}>
