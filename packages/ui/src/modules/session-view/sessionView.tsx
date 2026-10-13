@@ -26,6 +26,7 @@ import {
 import {
     clampReviewPaneWidthPct,
     clampShellPaneHeightPct,
+    clearShellRoster,
     deltaPxToPct,
     getReviewPaneWidthPct,
     getReviewPanelFullscreen,
@@ -412,12 +413,13 @@ export function SessionView({ sessionId }: SessionViewProps) {
     const [failed, setFailed] = useState(false);
     const [connection, setConnection] = useState<ConnectionState>('connecting');
     const [tab, setTab] = useState<SessionTab>('agent');
-    const [reviewVisited, setReviewVisited] = useState(false);
-    const [shellVisited, setShellVisited] = useState(false);
-    const [desktopReviewOpen, setDesktopReviewOpen] = useState(false);
-    const [desktopReviewFullscreen, setDesktopReviewFullscreen] = useState(false);
-    const [desktopShellOpen, setDesktopShellOpen] = useState(false);
-    const [desktopShellFullscreen, setDesktopShellFullscreen] = useState(false);
+    const [reviewVisited, setReviewVisited] = useState(() => getReviewPanelOpen(sessionId) === true);
+    const [shellVisited, setShellVisited] = useState(() => getShellPanelOpen(sessionId) === true);
+    const [desktopReviewOpen, setDesktopReviewOpen] = useState(() => getReviewPanelOpen(sessionId) === true);
+    const [desktopReviewFullscreen, setDesktopReviewFullscreen] = useState(() => getReviewPanelFullscreen(sessionId));
+    const [desktopShellOpen, setDesktopShellOpen] = useState(() => getShellPanelOpen(sessionId) === true);
+    const [desktopShellFullscreen, setDesktopShellFullscreen] = useState(() => getShellPanelFullscreen(sessionId));
+    const [prefsSessionId, setPrefsSessionId] = useState(sessionId);
     const [reviewPaneWidthPct, setReviewPaneWidthPctState] = useState(getReviewPaneWidthPct);
     const [shellPaneHeightPct, setShellPaneHeightPctState] = useState(getShellPaneHeightPct);
     const [repositoryName, setRepositoryName] = useState<string | null>(null);
@@ -604,6 +606,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
             setTab('agent');
         }
         setShellVisited(false);
+        clearShellRoster(sessionId);
 
         void killSessionShell(sessionId).catch((err: unknown) => {
             showToast('generic-error', err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed));
@@ -702,7 +705,10 @@ export function SessionView({ sessionId }: SessionViewProps) {
         { enabled: sessionReady },
     );
 
-    useEffect(() => {
+    // Apply per-session panel prefs during render so a session switch never
+    // briefly mounts the previous session's shell/review UI against the new id.
+    if (sessionId !== prefsSessionId) {
+        setPrefsSessionId(sessionId);
         const storedOpen = getReviewPanelOpen(sessionId);
         setDesktopReviewOpen(storedOpen === true);
         setDesktopReviewFullscreen(getReviewPanelFullscreen(sessionId));
@@ -714,7 +720,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
         setDesktopShellFullscreen(getShellPanelFullscreen(sessionId));
         setShellVisited(storedShellOpen === true);
         setTab('agent');
-    }, [sessionId]);
+    }
 
     useEffect(() => {
         let cancelled = false;
@@ -1481,6 +1487,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                 ) : null}
                 {shellVisited ? (
                     <SessionShellPanel
+                        key={sessionId}
                         sessionId={sessionId}
                         apiRef={shellPanelApiRef}
                         isDesktop={isDesktop}

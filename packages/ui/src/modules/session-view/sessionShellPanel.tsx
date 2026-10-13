@@ -4,7 +4,10 @@ import { killSessionShell, MAX_SESSION_SHELLS } from '@ui/libs/api/sessions';
 import {
     clampShellListWidthPx,
     getShellListWidthPx,
+    getShellRoster,
     setShellListWidthPx,
+    setShellRoster,
+    type ShellRosterEntry,
 } from '@ui/libs/layout/reviewLayoutPreferences';
 import { showToast } from '@ui/modules/toast';
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type MutableRefObject } from 'react';
@@ -34,16 +37,35 @@ export type SessionShellPanelProps = {
     apiRef?: MutableRefObject<SessionShellPanelApi | null>;
 };
 
-type ShellEntry = {
-    id: string;
-    title: string;
-};
+type ShellEntry = ShellRosterEntry;
 
 /** Client-side shell ids; avoid `crypto.randomUUID` (secure-context only — fails on LAN HTTP). */
 function createShellId(): string {
     const bytes = new Uint8Array(16);
     crypto.getRandomValues(bytes);
     return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function loadOrCreateShellRoster(
+    sessionId: string,
+    defaultTitle: string,
+): { shells: ShellEntry[]; activeShellId: string } {
+    const stored = getShellRoster(sessionId);
+    if (stored) {
+        return {
+            shells: stored.shells.map((shell) => ({
+                id: shell.id,
+                title: shell.title || defaultTitle,
+            })),
+            activeShellId: stored.activeShellId,
+        };
+    }
+
+    const id = createShellId();
+    const shells = [{ id, title: defaultTitle }];
+    // Persist immediately so a fast session switch still remembers this shell id.
+    setShellRoster(sessionId, { shells, activeShellId: id });
+    return { shells, activeShellId: id };
 }
 
 function SplitShellIcon() {
@@ -147,9 +169,12 @@ export function SessionShellPanel({
 }: SessionShellPanelProps) {
     const intl = useIntl();
     const defaultTitle = intl.formatMessage(messages.terminalView);
-    const initialShellIdRef = useRef(createShellId());
-    const [shells, setShells] = useState<ShellEntry[]>(() => [{ id: initialShellIdRef.current, title: defaultTitle }]);
-    const [activeShellId, setActiveShellId] = useState(initialShellIdRef.current);
+    const initialRosterRef = useRef<{ shells: ShellEntry[]; activeShellId: string } | null>(null);
+    if (initialRosterRef.current === null) {
+        initialRosterRef.current = loadOrCreateShellRoster(sessionId, defaultTitle);
+    }
+    const [shells, setShells] = useState<ShellEntry[]>(() => initialRosterRef.current!.shells);
+    const [activeShellId, setActiveShellId] = useState(() => initialRosterRef.current!.activeShellId);
     const [listWidthPx, setListWidthPx] = useState(getShellListWidthPx);
     const listWidthPxRef = useRef(listWidthPx);
     const handlesRef = useRef(new Map<string, SessionShellTerminalHandle>());
@@ -158,6 +183,10 @@ export function SessionShellPanel({
 
     listWidthPxRef.current = listWidthPx;
     activeShellIdRef.current = activeShellId;
+
+    useEffect(() => {
+        setShellRoster(sessionId, { shells, activeShellId });
+    }, [sessionId, shells, activeShellId]);
 
     const persistListWidth = useCallback(() => {
         setShellListWidthPx(listWidthPxRef.current);

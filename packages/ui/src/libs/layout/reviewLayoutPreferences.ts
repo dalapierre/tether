@@ -39,6 +39,10 @@ export function setDiffViewMode(mode: DiffViewMode): void {
 }
 const SHELL_PANEL_OPEN_SUFFIX = 'shellPanelOpen';
 const SHELL_PANEL_FULLSCREEN_SUFFIX = 'shellPanelFullscreen';
+/** Client shell split roster so reconnect can reattach after session switches. */
+const SHELL_ROSTER_SUFFIX = 'shellRoster';
+const SHELL_ID_RE = /^[a-zA-Z0-9_-]{1,64}$/;
+const MAX_SHELL_ROSTER_ENTRIES = 4;
 /** @deprecated Migrated to reviewPaneWidthPct. */
 const LEGACY_REVIEW_PANE_WIDTH_PX_KEY = 'tether.layout.reviewPaneWidthPx';
 /** @deprecated Migrated back to fileTreeWidthPx. */
@@ -203,6 +207,80 @@ export function getShellPanelFullscreen(sessionId: string): boolean {
 
 export function setShellPanelFullscreen(sessionId: string, fullscreen: boolean): void {
     setSessionLocalStorageItem(sessionId, SHELL_PANEL_FULLSCREEN_SUFFIX, fullscreen ? '1' : '0');
+}
+
+export type ShellRosterEntry = {
+    id: string;
+    title: string;
+};
+
+export type ShellRosterState = {
+    shells: ShellRosterEntry[];
+    activeShellId: string;
+};
+
+function isValidShellRosterId(shellId: string): boolean {
+    return SHELL_ID_RE.test(shellId);
+}
+
+function parseShellRoster(raw: string): ShellRosterState | null {
+    try {
+        const parsed = JSON.parse(raw) as Partial<ShellRosterState>;
+        if (!parsed || !Array.isArray(parsed.shells)) {
+            return null;
+        }
+        const shells: ShellRosterEntry[] = [];
+        for (const entry of parsed.shells) {
+            if (!entry || typeof entry !== 'object') continue;
+            const id = typeof entry.id === 'string' ? entry.id.trim() : '';
+            if (!isValidShellRosterId(id)) continue;
+            if (shells.some((shell) => shell.id === id)) continue;
+            const title = typeof entry.title === 'string' && entry.title.trim() ? entry.title.trim() : '';
+            shells.push({ id, title });
+            if (shells.length >= MAX_SHELL_ROSTER_ENTRIES) break;
+        }
+        if (shells.length === 0) {
+            return null;
+        }
+        const activeRaw = typeof parsed.activeShellId === 'string' ? parsed.activeShellId.trim() : '';
+        const activeShellId = shells.some((shell) => shell.id === activeRaw) ? activeRaw : shells[0].id;
+        return { shells, activeShellId };
+    } catch {
+        return null;
+    }
+}
+
+/** Restore the per-session user-shell split list, or null when none is stored. */
+export function getShellRoster(sessionId: string): ShellRosterState | null {
+    const raw = getSessionLocalStorageItem(sessionId, SHELL_ROSTER_SUFFIX);
+    if (raw === null) {
+        return null;
+    }
+    return parseShellRoster(raw);
+}
+
+export function setShellRoster(sessionId: string, state: ShellRosterState): void {
+    const shells: ShellRosterEntry[] = [];
+    for (const entry of state.shells) {
+        const id = entry.id.trim();
+        if (!isValidShellRosterId(id)) continue;
+        if (shells.some((shell) => shell.id === id)) continue;
+        shells.push({
+            id,
+            title: entry.title.trim(),
+        });
+        if (shells.length >= MAX_SHELL_ROSTER_ENTRIES) break;
+    }
+    if (shells.length === 0) {
+        removeSessionLocalStorageItem(sessionId, SHELL_ROSTER_SUFFIX);
+        return;
+    }
+    const activeShellId = shells.some((shell) => shell.id === state.activeShellId) ? state.activeShellId : shells[0].id;
+    setSessionLocalStorageItem(sessionId, SHELL_ROSTER_SUFFIX, JSON.stringify({ shells, activeShellId }));
+}
+
+export function clearShellRoster(sessionId: string): void {
+    removeSessionLocalStorageItem(sessionId, SHELL_ROSTER_SUFFIX);
 }
 
 export function getFileTreeWidthPx(): number {
