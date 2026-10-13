@@ -23,6 +23,7 @@ import {
     type SessionDiffSummary,
     type SessionFileDiff,
 } from '@core/libs/sessions/diff.js';
+import { isGitMetaWatchPath } from '@core/libs/sessions/gitMetaWatch.js';
 import { createAgentSessionId, ensureWorkspaceTrusted, resolveHarnessLaunch } from '@core/libs/sessions/harness.js';
 import { sampleProcessTrees, usageFromSamples, type ProcessTreeSample } from '@core/libs/sessions/processUsage.js';
 import {
@@ -113,22 +114,16 @@ const USAGE_SAMPLE_INTERVAL_MS = 2000;
 let usageSamplerStarted = false;
 
 type HeadWatcher = {
-    watcher: FSWatcher;
+    watchers: FSWatcher[];
     /** Last observed checkout tip; used to detect same-branch commits. */
     lastTipSha: string | null;
     debounce: ReturnType<typeof setTimeout> | null;
+    /** Serialize tip-sync so an older run cannot clobber lastTipSha after a newer tip. */
+    chain: Promise<void>;
 };
 
 const headWatchers = new Map<string, HeadWatcher>();
 const HEAD_DEBOUNCE_MS = 75;
-
-/** Gitdir children that signal branch switches (HEAD) or commits/resets (index). */
-function isGitMetaWatchPath(filename: string | Buffer | null | undefined): boolean {
-    // Some platforms omit the name; treat as interesting rather than drop the event.
-    if (filename == null || filename === '') return true;
-    const normalized = String(filename).replace(/\\/g, '/');
-    return normalized === 'HEAD' || normalized === 'index';
-}
 
 type DiffWatcher = {
     watcher: FSWatcher;
@@ -588,6 +583,31 @@ async function resolveGitHeadPath(worktreePath: string): Promise<string | null> 
     return null;
 }
 
+/**
+ * Directories to watch for tip/index updates. Linked worktrees store refs in the
+ * common gitdir, so watching only `worktrees/<name>/` misses same-branch commits
+ * that only touch packed-refs / refs/heads/* there.
+ */
+async function resolveGitWatchDirs(worktreePath: string): Promise<string[]> {
+    const headPath = await resolveGitHeadPath(worktreePath);
+    if (!headPath) return [];
+
+    const gitDir = path.dirname(headPath);
+    const dirs = [gitDir];
+    try {
+        const common = (await readFile(path.join(gitDir, 'commondir'), 'utf8')).trim();
+        if (common) {
+            const commonDir = path.resolve(gitDir, common);
+            if (commonDir !== gitDir) {
+                dirs.push(commonDir);
+            }
+        }
+    } catch {
+        // Regular checkouts have no commondir.
+    }
+    return dirs;
+}
+
 async function readCurrentBranch(worktreePath: string): Promise<string | null> {
     try {
         const { stdout } = await execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
@@ -676,7 +696,9 @@ function stopWatchingHead(sessionId: string): void {
     if (existing.debounce) {
         clearTimeout(existing.debounce);
     }
-    existing.watcher.close();
+    for (const watcher of existing.watchers) {
+        watcher.close();
+    }
     headWatchers.delete(sessionId);
 }
 
@@ -714,31 +736,40 @@ async function startWatchingHead(session: RuntimeSession): Promise<void> {
     stopWatchingHead(session.id);
     if (session.type !== 'coding') return;
 
-    const headPath = await resolveGitHeadPath(session.worktreePath);
-    if (!headPath) return;
+    const watchDirs = await resolveGitWatchDirs(session.worktreePath);
+    if (watchDirs.length === 0) return;
 
-    // Watch the gitdir (not HEAD itself): atomic renames replace the inode and miss file watches.
-    // HEAD text is unchanged on same-branch commits; the index updates, so watch both.
-    const watchDir = path.dirname(headPath);
+    // Watch gitdir(s), not HEAD itself: atomic renames replace the inode and miss file watches.
+    // Include the common gitdir for linked worktrees so refs/packed-refs tip updates are seen.
+    const state: HeadWatcher = {
+        watchers: [],
+        lastTipSha: session.baseSha || null,
+        debounce: null,
+        chain: Promise.resolve(),
+    };
 
-    try {
-        const watcher = watch(watchDir, (_eventType, filename) => {
-            if (!isGitMetaWatchPath(filename)) return;
-            const current = headWatchers.get(session.id);
-            if (!current) return;
-            if (current.debounce) {
-                clearTimeout(current.debounce);
-            }
-            current.debounce = setTimeout(() => {
-                current.debounce = null;
-                const live = sessions.get(session.id);
-                if (!live) return;
-                void (async () => {
+    const onGitMetaEvent = (_eventType: string, filename: string | Buffer | null | undefined) => {
+        if (!isGitMetaWatchPath(filename)) return;
+        const current = headWatchers.get(session.id);
+        if (!current) return;
+        if (current.debounce) {
+            clearTimeout(current.debounce);
+        }
+        current.debounce = setTimeout(() => {
+            current.debounce = null;
+            const live = sessions.get(session.id);
+            if (!live) return;
+            current.chain = current.chain
+                .then(async () => {
+                    const still = headWatchers.get(session.id);
+                    if (!still || still !== current) return;
+                    const active = sessions.get(session.id);
+                    if (!active) return;
                     try {
-                        const prevTip = current.lastTipSha ?? live.baseSha;
-                        const nextTip = await syncReviewBase(live);
-                        current.lastTipSha = nextTip;
-                        const branchChanged = await syncSessionBranch(live);
+                        const prevTip = still.lastTipSha ?? active.baseSha;
+                        const nextTip = await syncReviewBase(active);
+                        still.lastTipSha = nextTip;
+                        const branchChanged = await syncSessionBranch(active);
                         // Branch switches already schedule a refresh inside syncSessionBranch.
                         if (branchChanged) {
                             return;
@@ -747,11 +778,11 @@ async function startWatchingHead(session: RuntimeSession): Promise<void> {
                         // so the hierarchy does not keep showing committed paths, and push an
                         // updated behind-default count (e.g. after merging origin/main).
                         if (nextTip !== prevTip) {
-                            publishEmptyDiffCache(live.id, nextTip);
-                            const { behindDefault, defaultBranch } = await behindForSession(live);
+                            publishEmptyDiffCache(active.id, nextTip);
+                            const { behindDefault, defaultBranch } = await behindForSession(active);
                             broadcastSessionBranch({
-                                sessionId: live.id,
-                                branch: live.branch,
+                                sessionId: active.id,
+                                branch: active.branch,
                                 behindDefault,
                                 defaultBranch,
                             });
@@ -760,22 +791,30 @@ async function startWatchingHead(session: RuntimeSession): Promise<void> {
                         // Index-only changes (stash, mixed reset, `git add`, etc.) — tip
                         // unchanged. Skip the client bump when the review summary is identical
                         // so staging does not reopen the review panel.
-                        scheduleDiffRefresh(live.id, { onlyBroadcastIfChanged: true });
+                        scheduleDiffRefresh(active.id, { onlyBroadcastIfChanged: true });
                     } catch (err: unknown) {
                         logger.error(`Failed to sync review base for session ${session.id}`, err);
                     }
-                })();
-            }, HEAD_DEBOUNCE_MS);
-        });
-        watcher.on('error', () => {
-            stopWatchingHead(session.id);
-        });
-        headWatchers.set(session.id, {
-            watcher,
-            lastTipSha: session.baseSha || null,
-            debounce: null,
-        });
+                })
+                .catch((err: unknown) => {
+                    logger.error(`Failed to sync review base for session ${session.id}`, err);
+                });
+        }, HEAD_DEBOUNCE_MS);
+    };
+
+    try {
+        for (const watchDir of watchDirs) {
+            const watcher = watch(watchDir, onGitMetaEvent);
+            watcher.on('error', () => {
+                stopWatchingHead(session.id);
+            });
+            state.watchers.push(watcher);
+        }
+        headWatchers.set(session.id, state);
     } catch (err: unknown) {
+        for (const watcher of state.watchers) {
+            watcher.close();
+        }
         logger.error(`Failed to watch HEAD for session ${session.id}`, err);
     }
 }
