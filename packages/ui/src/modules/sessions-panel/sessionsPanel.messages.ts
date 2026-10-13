@@ -10,9 +10,7 @@ type Messages = {
     newSession: NoMessageValues;
     settings: NoMessageValues;
     sessionsHeading: NoMessageValues;
-    collapseSidebar: NoMessageValues;
-    expandSidebar: NoMessageValues;
-    showSessions: NoMessageValues;
+    sessionList: NoMessageValues;
     conversationSession: NoMessageValues;
     branchLabel: { branch: string };
     cpuLabel: { percent: number };
@@ -66,17 +64,9 @@ export const messages = defineMessages<Messages>(
             id: 'sessionsPanel.sessionsHeading',
             defaultMessage: 'Sessions',
         },
-        collapseSidebar: {
-            id: 'sessionsPanel.collapseSidebar',
-            defaultMessage: 'Collapse sidebar',
-        },
-        expandSidebar: {
-            id: 'sessionsPanel.expandSidebar',
-            defaultMessage: 'Expand sidebar',
-        },
-        showSessions: {
-            id: 'sessionsPanel.showSessions',
-            defaultMessage: 'Show sessions',
+        sessionList: {
+            id: 'sessionsPanel.sessionList',
+            defaultMessage: 'Session list',
         },
         conversationSession: {
             id: 'sessionsPanel.conversationSession',

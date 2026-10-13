@@ -1,32 +1,24 @@
 export const styles = {
-    wrap: 'relative box-border flex h-full min-h-0 w-full flex-col overflow-hidden md:my-2 md:h-[calc(100%-1rem)]',
+    railWrap: 'relative box-border flex h-full min-h-0 w-full flex-col overflow-hidden md:my-2 md:h-[calc(100%-1rem)]',
+    /** Same width as PanelResizeHandle gap between other panels. */
+    railGap: 'w-2 shrink-0',
+    listWrap:
+        'relative box-border flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:my-2 md:h-[calc(100%-1rem)] md:flex-none',
+    listWrapHidden:
+        'pointer-events-none relative box-border flex h-full min-h-0 min-w-0 flex-col overflow-hidden opacity-0 md:my-2 md:h-[calc(100%-1rem)]',
     panel: 'box-border h-full min-h-0 min-w-0 flex-1 overflow-hidden',
-    header: 'relative flex h-11 shrink-0 items-center',
-    logoOffset: 'flex w-full items-center justify-center transition-[margin] duration-200 ease-in-out',
-    logoOffsetInset: 'ml-2 shrink-0 transition-[margin] duration-200 ease-in-out',
-    iconSlot: 'inline-flex h-11 w-12 shrink-0 items-center justify-center',
+    railHeader: 'flex h-11 shrink-0 items-center justify-center',
+    listHeaderMobile: 'relative flex h-11 shrink-0 items-center',
+    logoSlot: 'inline-flex h-11 w-12 shrink-0 items-center justify-center',
     logoImage: 'h-7 w-7',
-    logoButton:
-        'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md outline-none transition-colors focus-visible:ring-1 focus-visible:ring-aura-green active:bg-zinc-800 md:hover:bg-zinc-800',
-    headerActions: 'absolute top-1.5 right-1.5 flex items-center transition-opacity duration-200 ease-in-out',
-    headerActionsHidden:
-        'pointer-events-none absolute top-1.5 right-1.5 flex items-center opacity-0 transition-opacity duration-200 ease-in-out',
-    collapseButton: '!h-8 !w-8',
     railIcon:
         'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-zinc-400 outline-none transition-colors focus-visible:ring-1 focus-visible:ring-aura-green active:bg-zinc-800 active:text-zinc-100 md:hover:bg-zinc-800 md:hover:text-zinc-100',
+    railIconActive:
+        'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-zinc-800 text-zinc-100 outline-none transition-colors focus-visible:ring-1 focus-visible:ring-aura-green',
     plusIcon: 'h-5 w-5',
-    collapseIcon: 'h-5 w-5',
     listIcon: 'h-5 w-5',
-    contentStack: 'relative grid min-h-0 flex-1 grid-cols-1 grid-rows-1 overflow-hidden',
-    expanded:
-        'col-start-1 row-start-1 flex min-h-0 flex-col overflow-hidden transition-opacity duration-200 ease-in-out',
-    expandedHidden:
-        'pointer-events-none col-start-1 row-start-1 flex min-h-0 flex-col overflow-hidden opacity-0 transition-opacity duration-200 ease-in-out',
-    collapsedRail:
-        'col-start-1 row-start-1 flex min-h-0 flex-col items-center gap-0.5 overflow-hidden px-1 transition-opacity duration-200 ease-in-out',
-    collapsedRailHidden:
-        'pointer-events-none col-start-1 row-start-1 flex min-h-0 flex-col items-center gap-0.5 overflow-hidden px-1 opacity-0 transition-opacity duration-200 ease-in-out',
-    mainStack: 'flex min-h-0 flex-1 flex-col gap-3 overflow-hidden',
+    railBody: 'flex min-h-0 flex-1 flex-col items-center gap-0.5 overflow-hidden px-1',
+    mainStack: 'flex min-h-0 flex-1 flex-col gap-3 overflow-hidden md:py-2',
     sessionsSection: 'flex min-h-0 flex-1 flex-col overflow-hidden',
     search: 'shrink-0 px-2 pb-3',
     searchField: 'relative',

@@ -2,11 +2,11 @@ import { PanelResizeHandle, panelResizeHandleMessages } from '@ui/components/pan
 import { useIsDesktop } from '@ui/libs/dom/useMediaQuery';
 import {
     clampSessionsPanelWidthPx,
-    getSessionsPanelCollapsed,
+    getSessionsListOpen,
     getSessionsPanelWidthPx,
-    setSessionsPanelCollapsed,
+    setSessionsListOpen,
     setSessionsPanelWidthPx,
-    SESSIONS_PANEL_COLLAPSED_WIDTH_PX,
+    SESSIONS_RAIL_WIDTH_PX,
 } from '@ui/libs/layout/reviewLayoutPreferences';
 import { SessionsPanel } from '@ui/modules/sessions-panel';
 import { SettingsProvider } from '@ui/modules/settings';
@@ -25,39 +25,32 @@ export function AppShell() {
     const location = useLocation();
     const isDesktop = useIsDesktop();
     const showMainContent = isMainContentRoute(location.pathname);
-    const showPanel = isDesktop || !showMainContent;
+    const showMobileList = !isDesktop && !showMainContent;
+    const showSessionsChrome = isDesktop || showMobileList;
     const showMain = isDesktop || showMainContent;
 
     const [panelWidth, setPanelWidth] = useState(getSessionsPanelWidthPx);
-    const [collapsed, setCollapsed] = useState(() => getSessionsPanelCollapsed());
+    const [sessionListOpen, setSessionListOpenState] = useState(() => getSessionsListOpen());
     const [animateLayout, setAnimateLayout] = useState(false);
     const panelWidthRef = useRef(panelWidth);
     panelWidthRef.current = panelWidth;
-
-    const effectivelyCollapsed = isDesktop && collapsed;
 
     const persistPanelWidth = useCallback(() => {
         setSessionsPanelWidthPx(panelWidthRef.current);
     }, []);
 
-    const collapseSidebar = useCallback(() => {
+    const setSessionListOpen = useCallback((open: boolean) => {
         setAnimateLayout(true);
-        setCollapsed(true);
-        setSessionsPanelCollapsed(true);
-    }, []);
-
-    const expandSidebar = useCallback(() => {
-        setAnimateLayout(true);
-        setCollapsed(false);
-        setSessionsPanelCollapsed(false);
+        setSessionListOpenState(open);
+        setSessionsListOpen(open);
     }, []);
 
     const bodyStyle =
-        isDesktop && showPanel
+        isDesktop && showSessionsChrome
             ? {
-                  gridTemplateColumns: `${
-                      effectivelyCollapsed ? SESSIONS_PANEL_COLLAPSED_WIDTH_PX : panelWidth
-                  }px auto minmax(0, 1fr)`,
+                  gridTemplateColumns: sessionListOpen
+                      ? `${SESSIONS_RAIL_WIDTH_PX}px auto ${panelWidth}px auto minmax(0, 1fr)`
+                      : `${SESSIONS_RAIL_WIDTH_PX}px auto 0px 0px minmax(0, 1fr)`,
               }
             : undefined;
 
@@ -77,19 +70,15 @@ export function AppShell() {
                             }
                         }}
                     >
-                        <div className={showPanel ? styles.panel : styles.panelHidden}>
+                        {showSessionsChrome ? (
                             <SessionsPanel
                                 listInteractive={!showMainContent}
-                                collapsed={effectivelyCollapsed}
-                                expandedWidth={panelWidth}
-                                onCollapse={collapseSidebar}
-                                onExpand={expandSidebar}
+                                sessionListOpen={sessionListOpen}
+                                onSessionListOpenChange={setSessionListOpen}
                             />
-                        </div>
-                        {isDesktop && showPanel ? (
-                            effectivelyCollapsed ? (
-                                <div className={styles.resizeSpacer} aria-hidden='true' />
-                            ) : (
+                        ) : null}
+                        {isDesktop ? (
+                            sessionListOpen ? (
                                 <PanelResizeHandle
                                     placement='gap'
                                     ariaLabel={intl.formatMessage(panelResizeHandleMessages.resizeSessionsPanel)}
@@ -99,6 +88,8 @@ export function AppShell() {
                                     }}
                                     onResizeEnd={persistPanelWidth}
                                 />
+                            ) : (
+                                <div className={styles.resizeSpacer} aria-hidden='true' />
                             )
                         ) : null}
                         <div className={showMain ? styles.main : styles.mainHidden}>

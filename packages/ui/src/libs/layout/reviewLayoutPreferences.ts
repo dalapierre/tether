@@ -18,7 +18,9 @@ const SHELL_PANE_HEIGHT_PCT_KEY = 'tether.layout.shellPaneHeightPct';
 const SHELL_LIST_WIDTH_PX_KEY = 'tether.layout.shellListWidthPx';
 const FILE_TREE_WIDTH_PX_KEY = 'tether.layout.fileTreeWidthPx';
 const SESSIONS_PANEL_WIDTH_PX_KEY = 'tether.layout.sessionsPanelWidthPx';
-const SESSIONS_PANEL_COLLAPSED_KEY = 'tether.layout.sessionsPanelCollapsed';
+const SESSIONS_LIST_OPEN_KEY = 'tether.layout.sessionsListOpen';
+/** @deprecated Migrated to sessionsListOpen (inverted). */
+const LEGACY_SESSIONS_PANEL_COLLAPSED_KEY = 'tether.layout.sessionsPanelCollapsed';
 const DIFF_VIEW_MODE_KEY = 'tether.layout.diffViewMode';
 
 export type DiffViewMode = 'split' | 'negative' | 'positive';
@@ -72,7 +74,7 @@ export const DEFAULT_SHELL_LIST_WIDTH_PX = 140;
 export const DEFAULT_FILE_TREE_WIDTH_PX = 176;
 export const DEFAULT_SESSIONS_PANEL_WIDTH_PX = 320;
 /** Icon rail width (3rem slot) + panel border (1px × 2). */
-export const SESSIONS_PANEL_COLLAPSED_WIDTH_PX = 50;
+export const SESSIONS_RAIL_WIDTH_PX = 50;
 
 const MIN_REVIEW_PANE_WIDTH_PCT = 15;
 const MAX_REVIEW_PANE_WIDTH_PCT = 90;
@@ -314,16 +316,25 @@ export function setSessionsPanelWidthPx(width: number): void {
     setLocalStorageNumber(SESSIONS_PANEL_WIDTH_PX_KEY, clampSessionsPanelWidthPx(width));
 }
 
-export function getSessionsPanelCollapsed(): boolean {
-    const stored = getLocalStorageItem(SESSIONS_PANEL_COLLAPSED_KEY);
-    if (stored === null) {
-        return false;
+export function getSessionsListOpen(): boolean {
+    const stored = getLocalStorageItem(SESSIONS_LIST_OPEN_KEY);
+    if (stored !== null) {
+        return stored === '1';
     }
-    return stored === '1';
+
+    const legacyCollapsed = getLocalStorageItem(LEGACY_SESSIONS_PANEL_COLLAPSED_KEY);
+    if (legacyCollapsed !== null) {
+        const open = legacyCollapsed !== '1';
+        setSessionsListOpen(open);
+        removeLocalStorageItem(LEGACY_SESSIONS_PANEL_COLLAPSED_KEY);
+        return open;
+    }
+
+    return true;
 }
 
-export function setSessionsPanelCollapsed(collapsed: boolean): void {
-    setLocalStorageItem(SESSIONS_PANEL_COLLAPSED_KEY, collapsed ? '1' : '0');
+export function setSessionsListOpen(open: boolean): void {
+    setLocalStorageItem(SESSIONS_LIST_OPEN_KEY, open ? '1' : '0');
 }
 
 function readLegacyReviewPanelOpenMap(): ReviewPanelOpenBySession {
