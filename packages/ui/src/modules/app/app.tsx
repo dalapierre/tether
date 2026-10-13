@@ -12,7 +12,7 @@ const NewSessionPage = lazy(() => import('@ui/pages/new-session-page').then((m) 
 
 export function App() {
     return (
-        <IntlProvider locale='en' defaultLocale='en'>
+        <IntlProvider locale='en-CA' defaultLocale='en-CA'>
             <BrowserRouter>
                 <ToastProvider>
                     <Suspense fallback={<Spinner size='lg' label='Loading' />}>

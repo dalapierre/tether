@@ -65,7 +65,7 @@ function write(level: LogLevel, message: string, err?: unknown): void {
 
 /**
  * Log a catalogued error from `errors` in `errors.ts`.
- * Always pass a catalog entry — do not pass free-form strings.
+ * Always pass a catalogue entry — do not pass free-form strings.
  */
 function logError(definition: CriticalErrorDefinition, values?: CriticalErrorValues, err?: unknown): void;
 function logError(definition: CriticalErrorDefinition, err?: unknown): void;

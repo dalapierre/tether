@@ -1,4 +1,4 @@
-/** Catalog entry for a backend error. Message may use `{placeholder}` vars. */
+/** Catalogue entry for a backend error. Message may use `{placeholder}` vars. */
 export type CriticalErrorDefinition = {
     id: string;
     message: string;

@@ -69,7 +69,7 @@ describe('logger.error', () => {
     });
 });
 
-describe('errors catalog', () => {
+describe('errors catalogue', () => {
     it('uses dotted kebab-case ids', () => {
         for (const entry of Object.values(errors)) {
             expect(entry.id).toMatch(/^[a-z0-9]+(?:[.-][a-z0-9]+)+$/);

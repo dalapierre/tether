@@ -18,7 +18,7 @@ import type { TooltipProps, TooltipSide } from './tooltip.types';
 
 const DEFAULT_DELAY_MS = 350;
 const OFFSET_PX = 6;
-/** Triggers wider than this anchor to the pointer (or leading edge), not the center. */
+/** Triggers wider than this anchor to the pointer (or leading edge), not the centre. */
 const COMPACT_TRIGGER_MAX_PX = 40;
 const HOVER_MEDIA_QUERY = '(hover: hover) and (pointer: fine)';
 
@@ -51,7 +51,7 @@ function positionFor(trigger: DOMRect, bubble: DOMRect, preferred: TooltipSide, 
         // Stay under the pointer for wide rows / truncated labels.
         left = clampLeft(anchorX - bubble.width / 2, bubble.width);
     } else if (trigger.width > COMPACT_TRIGGER_MAX_PX) {
-        // Keyboard focus on a wide control: lead edge, not geometric center.
+        // Keyboard focus on a wide control: lead edge, not geometric centre.
         left = clampLeft(trigger.left, bubble.width);
     } else {
         left = clampLeft(trigger.left + trigger.width / 2 - bubble.width / 2, bubble.width);

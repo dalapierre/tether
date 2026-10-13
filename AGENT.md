@@ -43,14 +43,14 @@ When logging an error:
 2. **Log with** `logger.error(errors.someKey, values?, err?)`. This formats the message and logs `[id] message` plus the underlying error.
 3. Prefer `formatCriticalError` when you need the `{ id, message, err }` shape without logging yet (future incident tooling).
 
-`logger.info` / `logger.warn` may still take plain strings. Whenever you add a catalog entry or change formatting behavior, update `errors.test.ts`.
+`logger.info` / `logger.warn` may still take plain strings. Whenever you add a catalogue entry or change formatting behaviour, update `errors.test.ts`.
 
 ### Core / backend unit tests (required)
 
-`@tether/core` uses Jest (`npm test` / `npm run test -w @tether/core`). **Whenever you add or modify backend/core functionality** (sessions, worktrees, repos, settings, agents, shells, git helpers, Host API behavior, etc.), you **must** add or update colocated unit tests (`*.test.ts` next to the module under `packages/core/src`) in the same change. Do not ship backend behavior changes without tests.
+`@tether/core` uses Jest (`npm test` / `npm run test -w @tether/core`). **Whenever you add or modify backend/core functionality** (sessions, worktrees, repos, settings, agents, shells, git helpers, Host API behaviour, etc.), you **must** add or update colocated unit tests (`*.test.ts` next to the module under `packages/core/src`) in the same change. Do not ship backend behaviour changes without tests.
 
-- Cover the behavior you touched: happy path plus meaningful edge cases (invalid input, migrations, platform branches, empty/missing values, rejection paths).
-- Prefer pure/unit-testable helpers and exported functions; extract logic out of large modules (e.g. `store.ts`) when that makes the new behavior easy to test. Avoid spinning up full session/PTY/git integration unless the change truly requires it.
+- Cover the behaviour you touched: happy path plus meaningful edge cases (invalid input, migrations, platform branches, empty/missing values, rejection paths).
+- Prefer pure/unit-testable helpers and exported functions; extract logic out of large modules (e.g. `store.ts`) when that makes the new behaviour easy to test. Avoid spinning up full session/PTY/git integration unless the change truly requires it.
 - Do not pile on dozens of trivial variants of the same case — a few sharp cases beat exhaustive busywork.
 - Keep Jest ESM setup intact (`jest.config.mjs`, `@core/*` and `.js` import mappers, `node --experimental-vm-modules`).
 - **Before completing a task**, always run the relevant tests. If any fail, investigate and fix the failures (or confirm they are unrelated and already known) before considering the work done — do not hand off with unexplained red tests.
@@ -122,7 +122,7 @@ Every React component in the UI package follows the same structure. Place each c
 | `{componentName}.tsx`         | The React component definition                                                                   |
 | `{componentName}.styles.ts`   | Tailwind CSS class strings and other stylistic rules (keeps style concerns visible and separate) |
 | `{componentName}.types.ts`    | Private and public types for the component. Export public types from `index.ts`                  |
-| `{componentName}.messages.ts` | `defineMessages` catalog for all user-facing strings in the component                            |
+| `{componentName}.messages.ts` | `defineMessages` catalogue for all user-facing strings in the component                          |
 
 Example:
 
@@ -165,15 +165,27 @@ Never hardcode user-facing strings in the UI. All copy — labels, buttons, plac
 - Render with `useIntl().formatMessage(...)` or `<FormattedMessage />`. Do not inline string literals in JSX or props.
 - Prefer message `id`s scoped by component/module (e.g. `settings.save`, `toast.dismiss`).
 - Dynamic values from the user or API (repository names, server error bodies) may be passed as `values` or shown as-is; the surrounding template and any fallback copy must still be a defined message.
-- When a message has ICU placeholders or rich-text tags, declare the values contract and pass `{ typed: true }` (use `MessageTag` for tags, `NoMessageValues` for plain messages in that catalog).
+- When a message has ICU placeholders or rich-text tags, declare the values contract and pass `{ typed: true }` (use `MessageTag` for tags, `NoMessageValues` for plain messages in that catalogue).
+- Keep `IntlProvider` on `locale='en-CA'` / `defaultLocale='en-CA'` (and `html lang="en-CA"`).
+
+### Language and spelling (Canadian English)
+
+All user-facing copy and project prose (messages, README, AGENT.md, error message templates, docs) use **Canadian English**. Prefer Canadian Oxford / federal style spellings over US ones:
+
+- **-our / -re / -ce**: *behaviour*, *colour*, *favour*, *centre*, *metre* (unit), *defence*, *licence* (noun), *practise* (verb)
+- **-ize** (not *-ise*): *organize*, *initialize*, *customize*, *recognize*
+- **Doubled l**: *cancelled*, *travelling*, *labelled*
+- **catalogue** (not *catalog*), **grey** (not *gray*), **cheque** (money)
+
+Do not introduce US spellings (*behavior*, *color*, *center*, *defense*, *canceled*, *catalog*, etc.) in new copy. Leave code identifiers, CSS/Tailwind class names, and ARIA role tokens unchanged when they use US forms (*dialog*, `items-center`, `ConfirmDialog`).
 
 ### UI (phone + desktop)
 
 Tether is primarily accessed from a phone, but the UI also supports desktop browsers. Design and implement the UI **mobile-first**, then enhance for larger viewports:
 
 - **Phone (default)** — layouts, spacing, and touch targets for a small screen. Aim for UI friendliness that mimics a native mobile app: full-bleed screens, sticky primary actions, generous tap targets, and clear visual hierarchy. Prefer simple single-column flows that work well with thumbs.
-- **Desktop (`md` / 768px and up)** — keep the same flows and visual language, but use the extra space: readable max-widths for lists and forms, and multi-pane layouts where they help (e.g. agent terminal beside code review, file tree beside diff). Settings, new session, and similar full-screen flows are route-level panels that render in place of the session/workspace main content (with matching URLs such as `/settings` and `/new-session`), not overlay modals or centered card dialogs; center their content with a max width so it does not stretch edge-to-edge.
-- Do not change phone behavior when adding desktop layouts — desktop enhancements are additive via responsive breakpoints (and `useIsDesktop` when JS must diverge).
+- **Desktop (`md` / 768px and up)** — keep the same flows and visual language, but use the extra space: readable max-widths for lists and forms, and multi-pane layouts where they help (e.g. agent terminal beside code review, file tree beside diff). Settings, new session, and similar full-screen flows are route-level panels that render in place of the session/workspace main content (with matching URLs such as `/settings` and `/new-session`), not overlay modals or centred card dialogues; centre their content with a max width so it does not stretch edge-to-edge.
+- Do not change phone behaviour when adding desktop layouts — desktop enhancements are additive via responsive breakpoints (and `useIsDesktop` when JS must diverge).
 - Avoid hover-only affordances as the sole way to complete a task; desktop may add hover polish, but phone must remain fully usable.
 - **List item backgrounds must inset** — any selectable, hoverable, or otherwise highlighted element inside a list (rows, menu items, options, etc.) must not let its background touch the left or right edges of its parent. Use horizontal margin (and usually a small radius) so hover/active/selected fills leave a visible gap from the container borders.
 

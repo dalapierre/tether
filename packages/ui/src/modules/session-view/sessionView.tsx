@@ -328,7 +328,7 @@ function syncTerminalLayout(options: {
     const stickToBottom = followOutput ?? isScrolledToBottom(term);
     try {
         fitAddon.fit();
-        // Cap cols to the PTY max so a narrower screen can be centered in wide hosts.
+        // Cap cols to the PTY max so a narrower screen can be centred in wide hosts.
         if (term.cols > MAX_TERMINAL_COLS) {
             term.resize(MAX_TERMINAL_COLS, term.rows);
         }
