@@ -15,6 +15,7 @@ import {
 
 const REVIEW_PANE_WIDTH_PCT_KEY = 'tether.layout.reviewPaneWidthPct';
 const SHELL_PANE_HEIGHT_PCT_KEY = 'tether.layout.shellPaneHeightPct';
+const SHELL_LIST_WIDTH_PX_KEY = 'tether.layout.shellListWidthPx';
 const FILE_TREE_WIDTH_PX_KEY = 'tether.layout.fileTreeWidthPx';
 const SESSIONS_PANEL_WIDTH_PX_KEY = 'tether.layout.sessionsPanelWidthPx';
 const SESSIONS_PANEL_COLLAPSED_KEY = 'tether.layout.sessionsPanelCollapsed';
@@ -63,6 +64,7 @@ export type SelectedDiffFileState = {
 
 export const DEFAULT_REVIEW_PANE_WIDTH_PCT = 40;
 export const DEFAULT_SHELL_PANE_HEIGHT_PCT = 30;
+export const DEFAULT_SHELL_LIST_WIDTH_PX = 140;
 export const DEFAULT_FILE_TREE_WIDTH_PX = 176;
 export const DEFAULT_SESSIONS_PANEL_WIDTH_PX = 320;
 /** Icon rail width (3rem slot) + panel border (1px × 2). */
@@ -72,6 +74,8 @@ const MIN_REVIEW_PANE_WIDTH_PCT = 15;
 const MAX_REVIEW_PANE_WIDTH_PCT = 90;
 const MIN_SHELL_PANE_HEIGHT_PCT = 10;
 const MAX_SHELL_PANE_HEIGHT_PCT = 90;
+const MIN_SHELL_LIST_WIDTH_PX = 72;
+const MAX_SHELL_LIST_WIDTH_PX = 320;
 const MIN_FILE_TREE_WIDTH_PX = 120;
 const MAX_FILE_TREE_WIDTH_PX = 420;
 const MIN_SESSIONS_PANEL_WIDTH_PX = 300;
@@ -94,6 +98,10 @@ export function clampReviewPaneWidthPct(pct: number): number {
 
 export function clampShellPaneHeightPct(pct: number): number {
     return Math.min(MAX_SHELL_PANE_HEIGHT_PCT, Math.max(MIN_SHELL_PANE_HEIGHT_PCT, roundPct(pct)));
+}
+
+export function clampShellListWidthPx(width: number): number {
+    return Math.min(MAX_SHELL_LIST_WIDTH_PX, Math.max(MIN_SHELL_LIST_WIDTH_PX, Math.round(width)));
 }
 
 export function clampFileTreeWidthPx(width: number): number {
@@ -164,6 +172,18 @@ export function getShellPaneHeightPct(): number {
 
 export function setShellPaneHeightPct(pct: number): void {
     setLocalStorageNumber(SHELL_PANE_HEIGHT_PCT_KEY, clampShellPaneHeightPct(pct));
+}
+
+export function getShellListWidthPx(): number {
+    const stored = getLocalStorageNumber(SHELL_LIST_WIDTH_PX_KEY);
+    if (stored !== null) {
+        return clampShellListWidthPx(stored);
+    }
+    return DEFAULT_SHELL_LIST_WIDTH_PX;
+}
+
+export function setShellListWidthPx(width: number): void {
+    setLocalStorageNumber(SHELL_LIST_WIDTH_PX_KEY, clampShellListWidthPx(width));
 }
 
 export function getShellPanelOpen(sessionId: string): boolean | null {

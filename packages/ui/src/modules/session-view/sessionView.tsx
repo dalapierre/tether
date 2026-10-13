@@ -6,7 +6,6 @@ import { SegmentedControl } from '@ui/components/segmented-control';
 import { agentLabelMessage, type AgentId } from '@ui/libs/agents/agents';
 import { getRepository } from '@ui/libs/api/repositories';
 import {
-    connectSessionShell,
     connectSessionTerminal,
     getSession,
     killSessionShell,
@@ -74,6 +73,7 @@ import {
 } from 'react';
 import { useIntl } from 'react-intl';
 import { useNavigate } from 'react-router-dom';
+import { SessionShellPanel, type SessionShellPanelApi } from './sessionShellPanel';
 import { messages } from './sessionView.messages';
 import { styles } from './sessionView.styles';
 import type { SessionViewProps } from './sessionView.types';
@@ -183,59 +183,6 @@ function TerminalIcon({ className }: { className?: string }) {
                 strokeLinecap='round'
                 strokeLinejoin='round'
                 d='M6.75 7.5 3 12l3.75 4.5M12.75 16.5h4.5M5.25 4.5h13.5A1.5 1.5 0 0 1 20.25 6v12a1.5 1.5 0 0 1-1.5 1.5H5.25A1.5 1.5 0 0 1 3.75 18V6A1.5 1.5 0 0 1 5.25 4.5Z'
-            />
-        </svg>
-    );
-}
-
-function CloseShellIcon() {
-    return (
-        <svg
-            className={styles.shellToolbarIcon}
-            viewBox='0 0 24 24'
-            fill='none'
-            stroke='currentColor'
-            strokeWidth='2'
-            aria-hidden='true'
-        >
-            <path strokeLinecap='round' strokeLinejoin='round' d='M6 18 18 6M6 6l12 12' />
-        </svg>
-    );
-}
-
-function FullscreenShellIcon() {
-    return (
-        <svg
-            className={styles.shellToolbarIcon}
-            viewBox='0 0 24 24'
-            fill='none'
-            stroke='currentColor'
-            strokeWidth='1.75'
-            aria-hidden='true'
-        >
-            <path
-                strokeLinecap='round'
-                strokeLinejoin='round'
-                d='M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15'
-            />
-        </svg>
-    );
-}
-
-function ExitFullscreenShellIcon() {
-    return (
-        <svg
-            className={styles.shellToolbarIcon}
-            viewBox='0 0 24 24'
-            fill='none'
-            stroke='currentColor'
-            strokeWidth='1.75'
-            aria-hidden='true'
-        >
-            <path
-                strokeLinecap='round'
-                strokeLinejoin='round'
-                d='M9 9V4.5M9 9H4.5M9 9 3.75 3.75M9 15v4.5M9 15H4.5M9 15l-5.25 5.25M15 9h4.5M15 9V4.5M15 9l5.25-5.25M15 15h4.5M15 15v4.5m0-4.5 5.25 5.25'
             />
         </svg>
     );
@@ -481,17 +428,13 @@ export function SessionView({ sessionId }: SessionViewProps) {
     const contentRef = useRef<HTMLDivElement | null>(null);
     const mainRef = useRef<HTMLDivElement | null>(null);
     const terminalRef = useRef<HTMLDivElement | null>(null);
-    const shellTerminalRef = useRef<HTMLDivElement | null>(null);
     const socketRef = useRef<WebSocket | null>(null);
-    const shellSocketRef = useRef<WebSocket | null>(null);
     const termRef = useRef<Terminal | null>(null);
-    const shellTermRef = useRef<Terminal | null>(null);
     const fitAddonRef = useRef<FitAddon | null>(null);
-    const shellFitAddonRef = useRef<FitAddon | null>(null);
     const sendInputRef = useRef<(data: string) => void>(() => {});
     const pasteInputRef = useRef<HTMLTextAreaElement | null>(null);
+    const shellPanelApiRef = useRef<SessionShellPanelApi | null>(null);
     const reviewPaneRef = useRef<HTMLDivElement | null>(null);
-    const prevShellPaneVisibleRef = useRef(false);
     const prevReviewPaneVisibleRef = useRef(false);
     // Tracks the last diff generation observed while this session view is mounted,
     // so we can detect a newly triggered diff (WS bump) vs the initial fetch.
@@ -517,7 +460,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
 
     // Remember follow intent at drag start — by pointer-up the terminal has
     // blurred into the handle, so an at-end check misses "was at the prompt".
-    const shellFollowAfterResizeRef = useRef(true);
+    const shellFollowAfterResizeRef = useRef<Map<string, boolean>>(new Map());
 
     useEffect(() => {
         setViewedSessionId(sessionId);
@@ -528,10 +471,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
 
     useEffect(() => {
         return onPanelResizeDragStart(() => {
-            const shellTerm = shellTermRef.current;
-            shellFollowAfterResizeRef.current = shellTerm
-                ? isTerminalFocused(shellTerm) || isScrolledToBottom(shellTerm)
-                : true;
+            shellFollowAfterResizeRef.current = shellPanelApiRef.current?.captureFollowIntent() ?? new Map();
         });
     }, []);
 
@@ -539,7 +479,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
     // Mid-drag fits reflow scrollback and scrub/jump history.
     useEffect(() => {
         return onPanelResizeDragEnd(() => {
-            const shellFollow = shellFollowAfterResizeRef.current;
+            const shellFollowById = shellFollowAfterResizeRef.current;
             requestAnimationFrame(() => {
                 const agentTerm = termRef.current;
                 const agentFit = fitAddonRef.current;
@@ -554,17 +494,10 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         followOutput: true,
                     });
                 }
-                const shellTerm = shellTermRef.current;
-                const shellFit = shellFitAddonRef.current;
-                if (shellTerm && shellFit) {
-                    syncTerminalLayoutAfterPanelResize({
-                        host: shellTerminalRef.current,
-                        term: shellTerm,
-                        fitAddon: shellFit,
-                        socket: shellSocketRef.current,
-                        followOutput: shellFollow,
-                    });
-                }
+                shellPanelApiRef.current?.fitAll({
+                    afterPanelResize: true,
+                    followById: shellFollowById,
+                });
             });
         });
     }, []);
@@ -753,7 +686,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
         exitInsertChord,
         () => {
             termRef.current?.blur();
-            shellTermRef.current?.blur();
+            shellPanelApiRef.current?.blurActive();
         },
         { enabled: sessionReady && !insertUsesSameChord, requireTerminalInsert: true },
     );
@@ -1050,187 +983,6 @@ export function SessionView({ sessionId }: SessionViewProps) {
         };
     }, [loading, failed, session, intl]);
 
-    useEffect(() => {
-        if (loading || failed || !session || !shellVisited || !shellTerminalRef.current) {
-            return;
-        }
-
-        const term = new Terminal({
-            convertEol: true,
-            disableStdin: false,
-            cursorBlink: true,
-            fontSize: 13,
-            scrollback: 10000,
-            theme: AURA_TERMINAL_THEME,
-        });
-        const fitAddon = new FitAddon();
-        term.loadAddon(fitAddon);
-        term.open(shellTerminalRef.current);
-        fitAddon.fit();
-        prepareMobileTextarea(term);
-        shellTermRef.current = term;
-        shellFitAddonRef.current = fitAddon;
-
-        let socket: WebSocket;
-        try {
-            socket = connectSessionShell(session.id);
-        } catch (err: unknown) {
-            showToast('generic-error', err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed));
-            term.dispose();
-            shellTermRef.current = null;
-            return;
-        }
-
-        shellSocketRef.current = socket;
-
-        let followOutput = isScrolledToBottom(term);
-
-        const scrollToBottomAndFollow = () => {
-            followOutput = true;
-            scrollTerminalToBottomNow(term);
-        };
-
-        const sendInput = (data: string) => {
-            scrollToBottomAndFollow();
-            if (socket.readyState !== WebSocket.OPEN) return;
-            sendTerminalMessage(socket, { type: 'input', data });
-        };
-
-        const dataDisposable = term.onData(sendInput);
-        const scrollDisposable = term.onScroll(() => {
-            followOutput = isScrolledToBottom(term);
-        });
-
-        let focusSettleTimers: number[] = [];
-        const onTerminalFocus = () => {
-            followOutput = true;
-            revealTerminalPrompt(term);
-            for (const timer of focusSettleTimers) {
-                window.clearTimeout(timer);
-            }
-            focusSettleTimers = [50, 300].map((delay) =>
-                window.setTimeout(() => {
-                    if (!isTerminalFocused(term)) return;
-                    followOutput = true;
-                    syncTerminalLayout({
-                        host: shellTerminalRef.current,
-                        term,
-                        fitAddon,
-                        socket,
-                        refresh: true,
-                        followOutput: true,
-                    });
-                }, delay),
-            );
-        };
-        term.textarea?.addEventListener('focus', onTerminalFocus);
-
-        const onResize = () => {
-            const scheduledEpoch = getPanelResizeDragEpoch();
-            requestAnimationFrame(() => {
-                if (shouldSkipTerminalLayoutSync(scheduledEpoch)) return;
-                if (isTerminalFocused(term)) {
-                    followOutput = true;
-                }
-                syncTerminalLayout({
-                    host: shellTerminalRef.current,
-                    term,
-                    fitAddon,
-                    socket,
-                    refresh: isTerminalFocused(term),
-                    followOutput,
-                });
-            });
-        };
-
-        const onVisibilityOrFocus = () => {
-            if (document.visibilityState === 'hidden') return;
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    if (isTerminalFocused(term)) {
-                        followOutput = true;
-                    }
-                    syncTerminalLayout({
-                        host: shellTerminalRef.current,
-                        term,
-                        fitAddon,
-                        socket,
-                        refresh: true,
-                        followOutput,
-                    });
-                });
-            });
-        };
-
-        socket.addEventListener('open', () => {
-            onResize();
-        });
-
-        socket.addEventListener('message', (event) => {
-            let parsed: ServerTerminalMessage;
-            try {
-                parsed = JSON.parse(String(event.data)) as ServerTerminalMessage;
-            } catch {
-                return;
-            }
-
-            if (parsed.type === 'history' || parsed.type === 'output') {
-                const isHistory = parsed.type === 'history';
-                if (isHistory) {
-                    writeTerminalHistory(term, parsed.data, () => {
-                        followOutput = true;
-                        requestAnimationFrame(() => {
-                            syncTerminalLayout({
-                                host: shellTerminalRef.current,
-                                term,
-                                fitAddon,
-                                socket,
-                                refresh: true,
-                                followOutput: true,
-                            });
-                        });
-                    });
-                    return;
-                }
-                const stickToBottom = followOutput;
-                term.write(parsed.data, () => {
-                    if (!stickToBottom && !followOutput) return;
-                    scrollTerminalToBottomNow(term);
-                });
-            }
-        });
-
-        window.addEventListener('resize', onResize);
-        window.addEventListener('focus', onVisibilityOrFocus);
-        document.addEventListener('visibilitychange', onVisibilityOrFocus);
-        const visualViewport = window.visualViewport;
-        visualViewport?.addEventListener('resize', onResize);
-        const observer = new ResizeObserver(onResize);
-        observer.observe(shellTerminalRef.current);
-        const detachTouchScroll = attachTouchScroll(shellTerminalRef.current, term);
-
-        return () => {
-            window.removeEventListener('resize', onResize);
-            window.removeEventListener('focus', onVisibilityOrFocus);
-            document.removeEventListener('visibilitychange', onVisibilityOrFocus);
-            visualViewport?.removeEventListener('resize', onResize);
-            observer.disconnect();
-            detachTouchScroll();
-            term.textarea?.removeEventListener('focus', onTerminalFocus);
-            for (const timer of focusSettleTimers) {
-                window.clearTimeout(timer);
-            }
-            dataDisposable.dispose();
-            scrollDisposable.dispose();
-            clearPtyResize(term);
-            socket.close();
-            shellSocketRef.current = null;
-            term.dispose();
-            shellTermRef.current = null;
-            shellFitAddonRef.current = null;
-        };
-    }, [loading, failed, session, intl, shellVisited]);
-
     function focusTerminal() {
         const term = termRef.current;
         if (!term) return;
@@ -1239,10 +991,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
     }
 
     function focusShellTerminal() {
-        const term = shellTermRef.current;
-        if (!term) return;
-        revealTerminalPrompt(term);
-        term.focus();
+        shellPanelApiRef.current?.focusActive();
     }
 
     function applyPaste(text: string) {
@@ -1426,47 +1175,6 @@ export function SessionView({ sessionId }: SessionViewProps) {
         showDesktopShellFullscreen,
         reviewPaneWidthPct,
         shellPaneHeightPct,
-    ]);
-
-    useEffect(() => {
-        // Focus only when the shell pane becomes visible — not on every layout
-        // sync (e.g. review panel toggle / resize), which would steal focus into insert mode.
-        const becameVisible = shellPaneVisible && !prevShellPaneVisibleRef.current;
-        prevShellPaneVisibleRef.current = shellPaneVisible;
-
-        if (!shellVisited) return;
-        if (!isDesktop && tab !== 'terminal') return;
-        if (isDesktop && !desktopShellOpen) return;
-
-        const fitAddon = shellFitAddonRef.current;
-        const term = shellTermRef.current;
-        if (!fitAddon || !term) return;
-
-        const scheduledEpoch = getPanelResizeDragEpoch();
-        requestAnimationFrame(() => {
-            if (shouldSkipTerminalLayoutSync(scheduledEpoch)) return;
-            const followOutput = isTerminalFocused(term) || isScrolledToBottom(term);
-            syncTerminalLayout({
-                host: shellTerminalRef.current,
-                term,
-                fitAddon,
-                socket: shellSocketRef.current,
-                refresh: true,
-                followOutput,
-            });
-            if (becameVisible) {
-                term.focus();
-            }
-        });
-    }, [
-        tab,
-        isDesktop,
-        desktopShellOpen,
-        shellVisited,
-        shellPaneVisible,
-        shellPaneHeightPct,
-        showDesktopReview,
-        showDesktopShellFullscreen,
     ]);
 
     // If focus was inside the review pane when it hid, the browser may move it
@@ -1772,7 +1480,14 @@ export function SessionView({ sessionId }: SessionViewProps) {
                     />
                 ) : null}
                 {shellVisited ? (
-                    <Panel
+                    <SessionShellPanel
+                        sessionId={sessionId}
+                        apiRef={shellPanelApiRef}
+                        isDesktop={isDesktop}
+                        fullscreen={showDesktopShellFullscreen}
+                        visible={shellPaneVisible}
+                        onToggleFullscreen={isDesktop ? toggleDesktopShellFullscreen : undefined}
+                        onClose={closeShell}
                         className={
                             isDesktop
                                 ? showDesktopShell
@@ -1790,52 +1505,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                                 : undefined
                         }
                         aria-hidden={!shellPaneVisible}
-                        title={intl.formatMessage(messages.terminalView)}
-                        toolbarClassName='relative z-10'
-                        toolbarActions={
-                            <div className={styles.shellToolbarActions}>
-                                {isDesktop ? (
-                                    <button
-                                        type='button'
-                                        className={`${styles.shellToolbarButton}${
-                                            showDesktopShellFullscreen ? ` ${styles.shellToolbarButtonActive}` : ''
-                                        }`}
-                                        title={intl.formatMessage(
-                                            showDesktopShellFullscreen
-                                                ? messages.exitFullscreenTerminal
-                                                : messages.enterFullscreenTerminal,
-                                        )}
-                                        aria-label={intl.formatMessage(
-                                            showDesktopShellFullscreen
-                                                ? messages.exitFullscreenTerminal
-                                                : messages.enterFullscreenTerminal,
-                                        )}
-                                        aria-pressed={showDesktopShellFullscreen}
-                                        onClick={toggleDesktopShellFullscreen}
-                                    >
-                                        {showDesktopShellFullscreen ? (
-                                            <ExitFullscreenShellIcon />
-                                        ) : (
-                                            <FullscreenShellIcon />
-                                        )}
-                                    </button>
-                                ) : null}
-                                <button
-                                    type='button'
-                                    className={styles.shellToolbarButton}
-                                    title={intl.formatMessage(messages.closeTerminal)}
-                                    aria-label={intl.formatMessage(messages.closeTerminal)}
-                                    onClick={closeShell}
-                                >
-                                    <CloseShellIcon />
-                                </button>
-                            </div>
-                        }
-                    >
-                        <div className={styles.shellTerminalWrap}>
-                            <div ref={shellTerminalRef} className={styles.shellTerminal} />
-                        </div>
-                    </Panel>
+                    />
                 ) : null}
             </div>
             {pasteOpen ? (

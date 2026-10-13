@@ -93,6 +93,15 @@ export function createSessionsRouter(host: TetherHost): Router {
         }
     });
 
+    router.delete('/:id/shell/:shellId', (req, res) => {
+        const killed = host.killSessionShell(req.params.id, req.params.shellId);
+        if (!killed) {
+            res.status(404).json({ error: 'Session or shell not found' });
+            return;
+        }
+        res.status(204).send();
+    });
+
     router.delete('/:id/shell', (req, res) => {
         const killed = host.killSessionShell(req.params.id);
         if (!killed) {

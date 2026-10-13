@@ -10,6 +10,7 @@ import {
 } from '@core/libs/repositories/store.js';
 import {
     ensureCursorStatusIndicatorsEnabled,
+    extractOscTitle,
     extractStatusFromOutput,
     type OscTitleParseState,
 } from '@core/libs/sessions/agentStatus.js';
@@ -40,9 +41,11 @@ import {
     attachShellClient,
     attachTerminalClient,
     broadcastStatus,
+    clearAllShells,
     clearShell,
     clearTerminal,
     parseClientMessage,
+    setShellTitle,
 } from '@core/libs/sessions/terminalHub.js';
 import type { Session, SessionStatus, SessionType, StoredSession } from '@core/libs/sessions/types.js';
 import { resolveUserShell } from '@core/libs/sessions/userShell.js';
@@ -76,10 +79,25 @@ type RuntimeSession = Omit<Session, 'behindDefault' | 'defaultBranch'> & {
     agentSessionId: string | null;
     /** Agent-view shell (user shell + harness init command); not a dedicated agent binary PTY. */
     pty: IPty | null;
-    /** Interactive user shell for the built-in terminal pane; lazy-spawned, killed with the session. */
-    shellPty: IPty | null;
+    /** Interactive user shells for the built-in terminal pane (max 4 splits). */
+    shellInstances: Map<string, ShellInstance>;
     oscTitleState: OscTitleParseState;
 };
+
+type ShellInstance = {
+    id: string;
+    pty: IPty;
+    title: string;
+    oscTitleState: OscTitleParseState;
+};
+
+export const MAX_SESSION_SHELLS = 4;
+
+const SHELL_ID_RE = /^[a-zA-Z0-9_-]{1,64}$/;
+
+export function isValidShellId(shellId: string): boolean {
+    return SHELL_ID_RE.test(shellId);
+}
 
 const sessions = new Map<string, RuntimeSession>();
 const sessionsFile = getSessionsFilePath();
@@ -784,8 +802,22 @@ async function toPublic(session: RuntimeSession, options: { syncBranch?: boolean
 function sessionPtyPids(session: RuntimeSession): number[] {
     const pids: number[] = [];
     if (session.pty?.pid) pids.push(session.pty.pid);
-    if (session.shellPty?.pid) pids.push(session.shellPty.pid);
+    for (const shell of session.shellInstances.values()) {
+        if (shell.pty.pid) pids.push(shell.pty.pid);
+    }
     return pids;
+}
+
+function defaultShellTitle(): string {
+    return path.basename(resolveUserShell().file) || 'Terminal';
+}
+
+function killShellPty(term: IPty): void {
+    try {
+        term.kill();
+    } catch {
+        // ignore
+    }
 }
 
 function clearSessionUsage(sessionId: string): void {
@@ -1314,7 +1346,7 @@ async function createCodingSession(input: {
         hadLocalCommits: false,
         agentSessionId: null,
         pty: null,
-        shellPty: null,
+        shellInstances: new Map(),
         oscTitleState: { pending: '' },
     };
 
@@ -1376,7 +1408,7 @@ export async function restoreSessions(): Promise<void> {
             hadLocalCommits: item.hadLocalCommits,
             agentSessionId: item.agentSessionId,
             pty: null,
-            shellPty: null,
+            shellInstances: new Map(),
             oscTitleState: { pending: '' },
         };
 
@@ -1551,16 +1583,29 @@ function clampPtySize(cols: number, rows: number): { cols: number; rows: number 
     };
 }
 
-function spawnUserShell(session: RuntimeSession): void {
-    if (session.shellPty) {
-        return;
+/**
+ * Spawn a user shell for `shellId` if missing.
+ * Returns false when the session cannot accept another shell (cap / invalid / initializing).
+ */
+function spawnUserShell(session: RuntimeSession, shellId: string): boolean {
+    if (!isValidShellId(shellId)) {
+        return false;
+    }
+
+    if (session.shellInstances.has(shellId)) {
+        return true;
+    }
+
+    if (session.shellInstances.size >= MAX_SESSION_SHELLS) {
+        return false;
     }
 
     if (session.status === 'initializing') {
-        return;
+        return false;
     }
 
     const shell = resolveUserShell();
+    const title = defaultShellTitle();
     try {
         const term = pty.spawn(shell.file, shell.args, {
             name: 'xterm-256color',
@@ -1569,24 +1614,39 @@ function spawnUserShell(session: RuntimeSession): void {
             cwd: resolveSessionCwd(session.worktreePath, session.workingDirectory),
             env: process.env as Record<string, string>,
         });
-        session.shellPty = term;
+        const instance: ShellInstance = {
+            id: shellId,
+            pty: term,
+            title,
+            oscTitleState: { pending: '' },
+        };
+        session.shellInstances.set(shellId, instance);
+        setShellTitle(session.id, shellId, title);
 
         term.onData((data) => {
-            appendShellOutput(session.id, data);
+            appendShellOutput(session.id, shellId, data);
+            const oscTitle = extractOscTitle(data, instance.oscTitleState);
+            if (oscTitle && oscTitle !== instance.title) {
+                instance.title = oscTitle;
+                setShellTitle(session.id, shellId, oscTitle);
+            }
         });
 
         term.onExit(() => {
             // Only the live shell should announce exit. After an intentional kill,
-            // shellPty is already cleared (or replaced on reopen) so a late onExit
-            // must not write into a fresh session buffer.
-            if (session.shellPty !== term) return;
-            session.shellPty = null;
-            appendShellOutput(session.id, '\r\n[shell exited]\r\n');
+            // the instance is already removed so a late onExit must not write into
+            // a replacement shell's buffer.
+            const current = session.shellInstances.get(shellId);
+            if (!current || current.pty !== term) return;
+            session.shellInstances.delete(shellId);
+            appendShellOutput(session.id, shellId, '\r\n[shell exited]\r\n');
         });
+        return true;
     } catch (err: unknown) {
-        session.shellPty = null;
+        session.shellInstances.delete(shellId);
         const message = err instanceof Error ? err.message : 'Failed to start shell';
-        appendShellOutput(session.id, `\r\n[failed to start shell: ${message}]\r\n`);
+        appendShellOutput(session.id, shellId, `\r\n[failed to start shell: ${message}]\r\n`);
+        return false;
     }
 }
 
@@ -1650,63 +1710,82 @@ export function attachSessionTerminal(sessionId: string, socket: HubClient): boo
     return true;
 }
 
-/** Kill the interactive user shell only; the agent PTY is left running. */
-export function killSessionShell(sessionId: string): boolean {
+/**
+ * Kill one interactive user shell (`shellId`) or all shells when omitted.
+ * The agent PTY is left running.
+ */
+export function killSessionShell(sessionId: string, shellId?: string): boolean {
     const session = sessions.get(sessionId);
     if (!session) {
         return false;
     }
 
-    const term = session.shellPty;
-    session.shellPty = null;
-    clearShell(sessionId);
-
-    if (term) {
-        try {
-            term.kill();
-        } catch {
-            // ignore
+    if (shellId !== undefined) {
+        if (!isValidShellId(shellId)) {
+            return false;
         }
+        const instance = session.shellInstances.get(shellId);
+        session.shellInstances.delete(shellId);
+        clearShell(sessionId, shellId);
+        if (instance) {
+            killShellPty(instance.pty);
+        }
+        return true;
     }
 
+    const instances = [...session.shellInstances.values()];
+    session.shellInstances.clear();
+    clearAllShells(sessionId);
+    for (const instance of instances) {
+        killShellPty(instance.pty);
+    }
     return true;
 }
 
-/** Attach a client to the session's user shell. Spawns the shell on first connect. */
-export function attachSessionShell(sessionId: string, socket: HubClient): boolean {
+/** Attach a client to a session user shell. Spawns that shell on first connect. */
+export function attachSessionShell(sessionId: string, shellId: string, socket: HubClient): boolean {
     const session = sessions.get(sessionId);
     if (!session) {
         return false;
     }
 
-    spawnUserShell(session);
-    attachShellClient(sessionId, socket);
+    if (!isValidShellId(shellId)) {
+        return false;
+    }
+
+    if (!spawnUserShell(session, shellId)) {
+        return false;
+    }
+
+    attachShellClient(sessionId, shellId, socket);
 
     socket.on('message', (raw) => {
         const text = typeof raw === 'string' ? raw : (raw as { toString(): string }).toString();
         const message = parseClientMessage(text);
         if (!message) return;
 
-        if (!session.shellPty) {
+        let instance = session.shellInstances.get(shellId);
+        if (!instance) {
             // Shell may have exited; respawn on next input/resize so reopen works.
-            spawnUserShell(session);
+            if (!spawnUserShell(session, shellId)) return;
+            instance = session.shellInstances.get(shellId);
         }
-        if (!session.shellPty) return;
+        if (!instance) return;
 
         if (message.type === 'message') {
-            writePtyPromptAndSubmit(session.shellPty, message.text);
+            writePtyPromptAndSubmit(instance.pty, message.text);
             return;
         }
 
         if (message.type === 'input') {
-            session.shellPty.write(message.data);
+            instance.pty.write(message.data);
             return;
         }
 
         if (message.type === 'resize') {
             const { cols, rows } = clampPtySize(message.cols, message.rows);
             try {
-                session.shellPty.resize(cols, rows);
+                instance.pty.resize(cols, rows);
             } catch {
                 // ignore resize errors on exited pty
             }
@@ -1776,11 +1855,10 @@ export function deleteSession(id: string): boolean {
         // ignore
     }
 
-    try {
-        session.shellPty?.kill();
-    } catch {
-        // ignore
+    for (const instance of session.shellInstances.values()) {
+        killShellPty(instance.pty);
     }
+    session.shellInstances.clear();
 
     sessions.delete(id);
     clearSessionUsage(id);

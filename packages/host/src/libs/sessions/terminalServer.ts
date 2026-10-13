@@ -4,7 +4,7 @@ import type { Server as HttpServer } from 'node:http';
 import { WebSocketServer } from 'ws';
 
 const TERMINAL_PATH = /^\/api\/sessions\/([^/]+)\/terminal$/;
-const SHELL_PATH = /^\/api\/sessions\/([^/]+)\/shell$/;
+const SHELL_PATH = /^\/api\/sessions\/([^/]+)\/shell\/([^/]+)$/;
 const EVENTS_PATH = '/api/sessions/events';
 
 export function attachTerminalServer(server: HttpServer, host: TetherHost): void {
@@ -42,11 +42,11 @@ export function attachTerminalServer(server: HttpServer, host: TetherHost): void
             return;
         }
 
-        const isShell = Boolean(shellMatch);
+        const shellId = shellMatch?.[2];
         wss.handleUpgrade(request, socket, head, (ws) => {
             const client = asHubClient(ws);
-            const attached = isShell
-                ? host.attachSessionShell(sessionId, client)
+            const attached = shellId
+                ? host.attachSessionShell(sessionId, shellId, client)
                 : host.attachSessionTerminal(sessionId, client);
             if (!attached) {
                 logger.warn(`WS ${pathname} → failed to attach`);

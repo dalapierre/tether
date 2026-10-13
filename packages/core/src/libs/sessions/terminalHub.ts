@@ -6,7 +6,8 @@ const MAX_BUFFER_CHARS = 200_000;
 export type ServerTerminalMessage =
     { type: 'history'; data: string } | { type: 'output'; data: string } | { type: 'status'; status: SessionStatus };
 
-export type ServerShellMessage = { type: 'history'; data: string } | { type: 'output'; data: string };
+export type ServerShellMessage =
+    { type: 'history'; data: string } | { type: 'output'; data: string } | { type: 'title'; title: string };
 
 export type ClientTerminalMessage =
     | { type: 'message'; text: string }
@@ -16,16 +17,32 @@ export type ClientTerminalMessage =
 type SessionTerminalState = {
     buffer: string;
     clients: Set<HubClient>;
+    title: string;
 };
 
 const terminals = new Map<string, SessionTerminalState>();
-const shells = new Map<string, SessionTerminalState>();
+/** sessionId → shellId → state */
+const shells = new Map<string, Map<string, SessionTerminalState>>();
 
 function getOrCreate(map: Map<string, SessionTerminalState>, sessionId: string): SessionTerminalState {
     let state = map.get(sessionId);
     if (!state) {
-        state = { buffer: '', clients: new Set() };
+        state = { buffer: '', clients: new Set(), title: '' };
         map.set(sessionId, state);
+    }
+    return state;
+}
+
+function getOrCreateShell(sessionId: string, shellId: string): SessionTerminalState {
+    let byShell = shells.get(sessionId);
+    if (!byShell) {
+        byShell = new Map();
+        shells.set(sessionId, byShell);
+    }
+    let state = byShell.get(shellId);
+    if (!state) {
+        state = { buffer: '', clients: new Set(), title: '' };
+        byShell.set(shellId, state);
     }
     return state;
 }
@@ -33,6 +50,16 @@ function getOrCreate(map: Map<string, SessionTerminalState>, sessionId: string):
 function send(socket: HubClient, message: ServerTerminalMessage | ServerShellMessage): void {
     if (socket.readyState === socket.OPEN) {
         socket.send(JSON.stringify(message));
+    }
+}
+
+function closeClients(clients: Set<HubClient>): void {
+    for (const client of [...clients]) {
+        try {
+            client.close();
+        } catch {
+            // ignore
+        }
     }
 }
 
@@ -45,10 +72,20 @@ export function appendOutput(sessionId: string, data: string): void {
     }
 }
 
-export function appendShellOutput(sessionId: string, data: string): void {
-    const state = getOrCreate(shells, sessionId);
+export function appendShellOutput(sessionId: string, shellId: string, data: string): void {
+    const state = getOrCreateShell(sessionId, shellId);
     state.buffer = (state.buffer + data).slice(-MAX_BUFFER_CHARS);
     const message: ServerShellMessage = { type: 'output', data };
+    for (const client of state.clients) {
+        send(client, message);
+    }
+}
+
+export function setShellTitle(sessionId: string, shellId: string, title: string): void {
+    const state = getOrCreateShell(sessionId, shellId);
+    if (state.title === title) return;
+    state.title = title;
+    const message: ServerShellMessage = { type: 'title', title };
     for (const client of state.clients) {
         send(client, message);
     }
@@ -74,34 +111,46 @@ export function attachTerminalClient(sessionId: string, socket: HubClient, statu
     });
 }
 
-export function attachShellClient(sessionId: string, socket: HubClient): void {
-    const state = getOrCreate(shells, sessionId);
+export function attachShellClient(sessionId: string, shellId: string, socket: HubClient): void {
+    const state = getOrCreateShell(sessionId, shellId);
     state.clients.add(socket);
     send(socket, { type: 'history', data: state.buffer });
+    if (state.title) {
+        send(socket, { type: 'title', title: state.title });
+    }
 
     socket.on('close', () => {
         state.clients.delete(socket);
     });
 }
 
-/** Drop shell scrollback and disconnect shell clients. */
-export function clearShell(sessionId: string): void {
-    const state = shells.get(sessionId);
+/** Drop one shell's scrollback and disconnect its clients. */
+export function clearShell(sessionId: string, shellId: string): void {
+    const byShell = shells.get(sessionId);
+    if (!byShell) return;
+    const state = byShell.get(shellId);
     if (state) {
-        for (const client of [...state.clients]) {
-            try {
-                client.close();
-            } catch {
-                // ignore
-            }
-        }
+        closeClients(state.clients);
+        byShell.delete(shellId);
+    }
+    if (byShell.size === 0) {
+        shells.delete(sessionId);
+    }
+}
+
+/** Drop all shells for a session. */
+export function clearAllShells(sessionId: string): void {
+    const byShell = shells.get(sessionId);
+    if (!byShell) return;
+    for (const state of byShell.values()) {
+        closeClients(state.clients);
     }
     shells.delete(sessionId);
 }
 
 export function clearTerminal(sessionId: string): void {
     terminals.delete(sessionId);
-    clearShell(sessionId);
+    clearAllShells(sessionId);
 }
 
 export function parseClientMessage(raw: string): ClientTerminalMessage | null {

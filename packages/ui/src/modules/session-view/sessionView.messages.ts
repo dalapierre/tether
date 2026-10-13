@@ -22,6 +22,8 @@ type Messages = {
     enterFullscreenTerminal: NoMessageValues;
     exitFullscreenTerminal: NoMessageValues;
     closeTerminal: NoMessageValues;
+    splitTerminal: NoMessageValues;
+    killTerminalInstance: { name: string };
     openReview: NoMessageValues;
     closeReview: NoMessageValues;
     goBack: NoMessageValues;
@@ -120,6 +122,14 @@ export const messages = defineMessages<Messages>(
         closeTerminal: {
             id: 'sessionView.closeTerminal',
             defaultMessage: 'Close terminal',
+        },
+        splitTerminal: {
+            id: 'sessionView.splitTerminal',
+            defaultMessage: 'Split terminal',
+        },
+        killTerminalInstance: {
+            id: 'sessionView.killTerminalInstance',
+            defaultMessage: 'Kill {name}',
         },
         openReview: {
             id: 'sessionView.openReview',

@@ -61,6 +61,33 @@ export type OscTitleParseState = {
     pending: string;
 };
 
+/**
+ * Returns the latest OSC 0 window title within a PTY chunk, if any.
+ * Carries incomplete sequences across chunks via `state.pending`.
+ */
+export function extractOscTitle(chunk: string, state: OscTitleParseState): string | null {
+    const combined = state.pending + chunk;
+    state.pending = '';
+
+    let latest: string | null = null;
+    let lastIndex = 0;
+    for (const match of combined.matchAll(OSC_TITLE_RE)) {
+        latest = match[1] ?? '';
+        lastIndex = (match.index ?? 0) + match[0].length;
+    }
+
+    // Keep a trailing partial OSC 0 so split chunks still parse.
+    const remainder = combined.slice(lastIndex);
+    const partialAt = remainder.lastIndexOf('\u001b]0;');
+    if (partialAt >= 0) {
+        state.pending = remainder.slice(partialAt);
+    }
+
+    if (latest === null) return null;
+    const trimmed = latest.trim();
+    return trimmed.length > 0 ? trimmed : null;
+}
+
 /** Returns the latest agent status encoded in OSC titles within a PTY chunk, if any. */
 export function extractStatusFromOutput(chunk: string, state: OscTitleParseState): SessionStatus | null {
     const combined = state.pending + chunk;

@@ -26,6 +26,12 @@ export type Session = {
 export type ServerTerminalMessage =
     { type: 'history'; data: string } | { type: 'output'; data: string } | { type: 'status'; status: SessionStatus };
 
+export type ServerShellMessage =
+    { type: 'history'; data: string } | { type: 'output'; data: string } | { type: 'title'; title: string };
+
+/** Max side-by-side user shells per session (matches host). */
+export const MAX_SESSION_SHELLS = 4;
+
 export type ServerSessionEventMessage =
     | {
           type: 'snapshot';
@@ -305,9 +311,13 @@ export async function deleteSession(id: string): Promise<void> {
     clearSessionLocalStorage(id);
 }
 
-/** Kill the session's built-in user shell (not the agent shell). */
-export async function killSessionShell(id: string): Promise<void> {
-    const res = await apiFetch(`/api/sessions/${encodeURIComponent(id)}/shell`, {
+/** Kill one built-in user shell, or all of them when `shellId` is omitted. */
+export async function killSessionShell(id: string, shellId?: string): Promise<void> {
+    const path =
+        shellId === undefined
+            ? `/api/sessions/${encodeURIComponent(id)}/shell`
+            : `/api/sessions/${encodeURIComponent(id)}/shell/${encodeURIComponent(shellId)}`;
+    const res = await apiFetch(path, {
         method: 'DELETE',
     });
 
@@ -386,9 +396,11 @@ export function connectSessionTerminal(sessionId: string): WebSocket {
     return getTransport().openWebSocket(`/api/sessions/${encodeURIComponent(sessionId)}/terminal`);
 }
 
-/** Connect to the session's built-in user shell (cwd = session workspace). */
-export function connectSessionShell(sessionId: string): WebSocket {
-    return getTransport().openWebSocket(`/api/sessions/${encodeURIComponent(sessionId)}/shell`);
+/** Connect to a session user shell instance (cwd = session workspace). */
+export function connectSessionShell(sessionId: string, shellId: string): WebSocket {
+    return getTransport().openWebSocket(
+        `/api/sessions/${encodeURIComponent(sessionId)}/shell/${encodeURIComponent(shellId)}`,
+    );
 }
 
 export function connectSessionEvents(): WebSocket {

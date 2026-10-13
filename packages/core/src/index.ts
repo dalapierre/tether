@@ -15,7 +15,7 @@ export type { ServerSessionEventMessage } from './libs/sessions/statusHub.js';
 
 export type { DiffFileStatus, SessionDiffFile, SessionDiffSummary, SessionFileDiff } from './libs/sessions/diff.js';
 
-export type { SessionDiffResult } from './libs/sessions/store.js';
+export { isValidShellId, MAX_SESSION_SHELLS, type SessionDiffResult } from './libs/sessions/store.js';
 
 export { DEFAULT_KEYBINDS, isKeybinds, normalizeKeybinds, type Keybinds } from './libs/settings/keybinds.js';
 
