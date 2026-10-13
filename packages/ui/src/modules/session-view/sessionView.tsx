@@ -392,6 +392,29 @@ function syncTerminalLayoutAfterPanelResize(options: {
     }
 }
 
+/**
+ * Large pastes (and paste-sheet / soft-keyboard close) can leave cols/rows or the
+ * painted caret wrong until a fit + PTY flush + reveal — same class as focus settle.
+ */
+function syncTerminalLayoutAfterPaste(options: {
+    host: HTMLElement | null;
+    term: Terminal;
+    fitAddon: FitAddon;
+    socket?: WebSocket | null;
+}): void {
+    const { host, term, fitAddon, socket } = options;
+    syncTerminalLayout({
+        host,
+        term,
+        fitAddon,
+        socket,
+        refresh: true,
+        followOutput: true,
+    });
+    flushPtyResize(term);
+    revealTerminalPrompt(term);
+}
+
 /** Skip layout syncs scheduled before a splitter drag ended (stale rAFs). */
 function shouldSkipTerminalLayoutSync(scheduledEpoch: number): boolean {
     return isPanelResizeDragging() || scheduledEpoch !== getPanelResizeDragEpoch();
@@ -439,6 +462,8 @@ export function SessionView({ sessionId }: SessionViewProps) {
     const fitAddonRef = useRef<FitAddon | null>(null);
     const sendInputRef = useRef<(data: string) => void>(() => {});
     const pasteInputRef = useRef<HTMLTextAreaElement | null>(null);
+    const pasteSettleTimersRef = useRef<number[]>([]);
+    const schedulePasteLayoutSyncRef = useRef<(term: Terminal) => void>(() => {});
     const shellPanelApiRef = useRef<SessionShellPanelApi | null>(null);
     const reviewPaneRef = useRef<HTMLDivElement | null>(null);
     const prevReviewPaneVisibleRef = useRef(false);
@@ -873,7 +898,14 @@ export function SessionView({ sessionId }: SessionViewProps) {
                 }, delay),
             );
         };
+        // Native Ctrl/Cmd+V does not go through applyPaste; re-fit after the
+        // clipboard hits the PTY so the harness input is not left cut off.
+        const onTerminalPaste = () => {
+            followOutput = true;
+            schedulePasteLayoutSyncRef.current(term);
+        };
         term.textarea?.addEventListener('focus', onTerminalFocus);
+        term.textarea?.addEventListener('paste', onTerminalPaste);
 
         const onResize = () => {
             // Wait a frame so bindSessionViewport has applied visualViewport layout.
@@ -982,9 +1014,14 @@ export function SessionView({ sessionId }: SessionViewProps) {
             observer.disconnect();
             detachTouchScroll();
             term.textarea?.removeEventListener('focus', onTerminalFocus);
+            term.textarea?.removeEventListener('paste', onTerminalPaste);
             for (const timer of focusSettleTimers) {
                 window.clearTimeout(timer);
             }
+            for (const timer of pasteSettleTimersRef.current) {
+                window.clearTimeout(timer);
+            }
+            pasteSettleTimersRef.current = [];
             dataDisposable.dispose();
             scrollDisposable.dispose();
             clearPtyResize(term);
@@ -997,6 +1034,38 @@ export function SessionView({ sessionId }: SessionViewProps) {
             setConnection('disconnected');
         };
     }, [loading, failed, session, intl, isInitializing]);
+
+    function schedulePasteLayoutSync(term: Terminal) {
+        const fitAddon = fitAddonRef.current;
+        if (!fitAddon) {
+            revealTerminalPrompt(term);
+            return;
+        }
+
+        for (const timer of pasteSettleTimersRef.current) {
+            window.clearTimeout(timer);
+        }
+        pasteSettleTimersRef.current = [];
+
+        const run = () => {
+            if (termRef.current !== term) return;
+            const addon = fitAddonRef.current;
+            if (!addon) return;
+            syncTerminalLayoutAfterPaste({
+                host: terminalRef.current,
+                term,
+                fitAddon: addon,
+                socket: socketRef.current,
+            });
+        };
+
+        // Wait a frame so paste-sheet close / visualViewport can apply first.
+        requestAnimationFrame(() => {
+            run();
+            pasteSettleTimersRef.current = [50, 300].map((delay) => window.setTimeout(run, delay));
+        });
+    }
+    schedulePasteLayoutSyncRef.current = schedulePasteLayoutSync;
 
     function focusTerminal() {
         const term = termRef.current;
@@ -1015,6 +1084,8 @@ export function SessionView({ sessionId }: SessionViewProps) {
         if (term) {
             term.paste(text);
             term.focus();
+            // term.paste() does not fire a DOM paste event; sync explicitly.
+            schedulePasteLayoutSync(term);
         } else {
             sendInputRef.current(text);
         }
