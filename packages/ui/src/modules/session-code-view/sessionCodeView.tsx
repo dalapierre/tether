@@ -70,6 +70,11 @@ const TREE_BASE_PAD_PX = 12;
 const FILE_SCROLL_PX_PER_SEC = 640;
 /** Coalesce scroll position writes while the user is scrolling. */
 const SCROLL_PERSIST_MS = 150;
+/**
+ * Commits tip-advance to an empty pending diff, then rebroadcast as the refresh
+ * settles. Without a short hold, the hierarchy flickers empty ↔ spinner.
+ */
+const EMPTY_HIERARCHY_SETTLE_MS = 400;
 type SelectionCommentState = {
     content: string;
     fileName: string;
@@ -898,6 +903,7 @@ export function SessionCodeView({
     );
     const [files, setFiles] = useState<SessionDiffFile[]>([]);
     const [loading, setLoading] = useState(true);
+    const [showEmptyHierarchy, setShowEmptyHierarchy] = useState(false);
     const [selectedPath, setSelectedPath] = useState<string | null>(() => getSelectedDiffPath(sessionId));
     const [fileDiff, setFileDiff] = useState<SessionFileDiff | null>(null);
     const [fileLoading, setFileLoading] = useState(false);
@@ -1091,6 +1097,7 @@ export function SessionCodeView({
                 if (cancelled || requestId !== diffFilesRequestIdRef.current) return;
                 if (state.error && !state.summary) {
                     showToast('generic-error', state.error);
+                    setLoading(false);
                     return;
                 }
                 // Keep prior files only when the store has no summary yet (cold start).
@@ -1105,9 +1112,18 @@ export function SessionCodeView({
                     // While pending, update the tree but keep the open file — index-only
                     // changes (git add) can transiently omit paths from torn snapshots.
                     applyDiffFiles(state.summary.files, { clearMissingSelection: !state.pending });
+                    // Tip-advance publishes [] + pending while the refresh recomputes.
+                    // Stay on the spinner rather than flashing the empty hierarchy.
+                    if (state.pending && state.summary.files.length === 0) {
+                        setLoading(true);
+                        return;
+                    }
+                }
+                if (!cancelled && requestId === diffFilesRequestIdRef.current) {
+                    setLoading(false);
                 }
             })
-            .finally(() => {
+            .catch(() => {
                 if (!cancelled && requestId === diffFilesRequestIdRef.current) {
                     setLoading(false);
                 }
@@ -1117,6 +1133,17 @@ export function SessionCodeView({
             cancelled = true;
         };
     }, [sessionId, intl, applyDiffFiles, diffGeneration]);
+
+    // Hold the spinner across rapid empty↔loading flips after commits/stashes so we
+    // don't flash "No code changes yet" between tip-advance and the settled refresh.
+    useEffect(() => {
+        if (files.length > 0 || loading) {
+            setShowEmptyHierarchy(false);
+            return;
+        }
+        const timer = window.setTimeout(() => setShowEmptyHierarchy(true), EMPTY_HIERARCHY_SETTLE_MS);
+        return () => window.clearTimeout(timer);
+    }, [files.length, loading]);
 
     const loadingLabel = intl.formatMessage(messages.loading);
 
@@ -1833,7 +1860,7 @@ export function SessionCodeView({
         }
     }
 
-    const listLoading = loading && files.length === 0;
+    const listLoading = files.length === 0 && !showEmptyHierarchy;
     const editorEmptyMessage = !hasFiles ? intl.formatMessage(messages.empty) : intl.formatMessage(messages.selectFile);
 
     const showEditor = isDesktop || Boolean(selectedPath);

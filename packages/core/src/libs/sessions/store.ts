@@ -308,6 +308,9 @@ async function runDiffRefresh(sessionId: string): Promise<void> {
                     abortIfNeeded(controller.signal);
                     if (baseSha !== previousBase) {
                         publishEmptyDiffCache(sessionId, baseSha, { schedule: false });
+                        // Empty→empty after tip advance would otherwise skip the settled
+                        // broadcast; the client needs that kick to leave the loading spinner.
+                        entry.forceBroadcast = true;
                     }
 
                     const summary = await getSessionDiffSummary(live.worktreePath, baseSha, controller.signal);
