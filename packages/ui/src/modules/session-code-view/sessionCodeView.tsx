@@ -702,7 +702,7 @@ function DirRow({
     return (
         <button
             type='button'
-            className={`${styles.treeRow} ${styles.dirButton}`}
+            className={`${styles.treeRow} ${styles.treeRowHover} ${styles.dirButton}`}
             style={{ paddingLeft: TREE_BASE_PAD_PX + depth * TREE_INDENT_PX }}
             onClick={() => onToggle(node.path)}
             aria-expanded={!collapsed}
@@ -744,14 +744,12 @@ function FileRow({
         ? selected
             ? styles.treeRowSelectedReviewed
             : styles.treeRowReviewed
-        : selected
-          ? styles.treeRowSelected
-          : '';
+        : `${styles.treeRowHover}${selected ? ` ${styles.treeRowSelected}` : ''}`;
 
     return (
         <div
             ref={selected ? selectedRowRef : null}
-            className={`${styles.treeRow} ${styles.fileRow}${rowTone ? ` ${rowTone}` : ''}`}
+            className={`${styles.treeRow} ${styles.fileRow} ${rowTone}`}
             style={{ paddingLeft: TREE_BASE_PAD_PX + depth * TREE_INDENT_PX }}
         >
             <button
