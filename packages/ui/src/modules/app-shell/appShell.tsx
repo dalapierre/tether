@@ -8,6 +8,7 @@ import {
     setSessionsPanelWidthPx,
     SESSIONS_RAIL_WIDTH_PX,
 } from '@ui/libs/layout/reviewLayoutPreferences';
+import { EditorTabBar, EditorTabsSync } from '@ui/modules/editor-tabs';
 import { SessionsPanel } from '@ui/modules/sessions-panel';
 import { SettingsProvider } from '@ui/modules/settings';
 import { SessionEventsProvider } from '@ui/modules/session-events';
@@ -93,6 +94,8 @@ export function AppShell() {
                             )
                         ) : null}
                         <div className={showMain ? styles.main : styles.mainHidden}>
+                            <EditorTabsSync />
+                            <EditorTabBar />
                             <Outlet />
                         </div>
                     </div>

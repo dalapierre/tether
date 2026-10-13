@@ -1,19 +1,17 @@
 import { Button } from '@ui/components/button';
-import { panelLocationState } from '@ui/libs/navigation/panelReturn';
+import { useEditorTabNavigation } from '@ui/modules/editor-tabs';
 import { useCallback } from 'react';
 import { useIntl } from 'react-intl';
-import { useLocation, useNavigate } from 'react-router-dom';
 import { messages } from './workspacePage.messages';
 import { styles } from './workspacePage.styles';
 
 export function WorkspacePage() {
     const intl = useIntl();
-    const navigate = useNavigate();
-    const location = useLocation();
+    const { openNewSessionTab } = useEditorTabNavigation();
 
     const openNewSession = useCallback(() => {
-        navigate('/new-session', { state: panelLocationState(location.pathname, location.search) });
-    }, [location.pathname, location.search, navigate]);
+        openNewSessionTab();
+    }, [openNewSessionTab]);
 
     return (
         <div className={styles.root}>

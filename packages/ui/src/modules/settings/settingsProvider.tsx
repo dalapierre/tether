@@ -1,6 +1,6 @@
 import { DEFAULT_KEYBINDS, KeybindsContext, cloneKeybinds, type Keybinds } from '@ui/libs/keybinds';
 import { getSettings } from '@ui/libs/api/settings';
-import { panelLocationState } from '@ui/libs/navigation/panelReturn';
+import { openEditorTab, SETTINGS_TAB } from '@ui/modules/editor-tabs';
 import { setToastDurationSeconds } from '@ui/modules/toast';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -31,11 +31,12 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     const settingsValue = useMemo(
         () => ({
             openSettings: () => {
+                openEditorTab(SETTINGS_TAB);
                 if (location.pathname === '/settings') return;
-                navigate('/settings', { state: panelLocationState(location.pathname, location.search) });
+                navigate('/settings');
             },
         }),
-        [location.pathname, location.search, navigate],
+        [location.pathname, navigate],
     );
     const keybindsValue = useMemo(() => ({ keybinds, setKeybinds }), [keybinds]);
 

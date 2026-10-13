@@ -20,10 +20,10 @@ When making product or architecture decisions, prefer:
 
 ### Packages
 
-| Package        | Role |
-| -------------- | ---- |
-| `@tether/core` | Domain Host API — sessions, shells/PTYs, settings, repos, agents. No Express/WS/React. |
-| `@tether/ui`   | React UI library (screens, stores, design system). No `index.html`. |
+| Package        | Role                                                                                                 |
+| -------------- | ---------------------------------------------------------------------------------------------------- |
+| `@tether/core` | Domain Host API — sessions, shells/PTYs, settings, repos, agents. No Express/WS/React.               |
+| `@tether/ui`   | React UI library (screens, stores, design system). No `index.html`.                                  |
 | `@tether/host` | Product entry: HTTP/WS adapters over core, owns `index.html`, bundles and serves UI on **one port**. |
 
 Run Tether with `npm run dev` / `npm run start` (both start `@tether/host`). Develop and test the UI through the host — do not run `@tether/ui` as its own Vite app.
@@ -64,13 +64,13 @@ When logging an error:
 
 Use absolute imports via package aliases instead of deep relative paths (`../../../`).
 
-| Alias          | Resolves to             |
-| -------------- | ----------------------- |
-| `@ui/*`        | `packages/ui/src/*`     |
-| `@core/*`      | `packages/core/src/*`   |
-| `@host/*`      | `packages/host/src/*`   |
-| `@tether/core` | core package exports    |
-| `@tether/ui`   | UI library exports      |
+| Alias          | Resolves to           |
+| -------------- | --------------------- |
+| `@ui/*`        | `packages/ui/src/*`   |
+| `@core/*`      | `packages/core/src/*` |
+| `@host/*`      | `packages/host/src/*` |
+| `@tether/core` | core package exports  |
+| `@tether/ui`   | UI library exports    |
 
 Examples:
 
@@ -111,6 +111,7 @@ Treat `components/` as the app's design system. Reusable UI should be defined on
 - **Reuse before reinventing** — when adding UI, check for an existing component first; extend it if it almost fits rather than copying styles into a one-off.
 - **Variants via props** — differences like primary vs secondary, disabled, size, or tone belong on the reusable component's props (and styles keyed off those props), not as separate near-duplicate components or inline redefinitions.
 - **Feature code composes, not restyles** — `modules/` and `pages/` should assemble design-system pieces; keep feature-specific layout there, shared visual language in `components/`.
+- **Always use `Tooltip` from `@ui/components/tooltip`** for hover/focus hint text on controls. Do not use native `title` attributes (or ad-hoc CSS tooltips) as the tooltip UI — wrap the control in `<Tooltip content={...}>`. Reserve `aria-label` for accessibility when the control has no visible text; it is not a substitute for `Tooltip`.
 
 ### React components (UI)
 
@@ -172,12 +173,12 @@ Never hardcode user-facing strings in the UI. All copy — labels, buttons, plac
 
 All user-facing copy and project prose (messages, README, AGENT.md, error message templates, docs) use **Canadian English**. Prefer Canadian Oxford / federal style spellings over US ones:
 
-- **-our / -re / -ce**: *behaviour*, *colour*, *favour*, *centre*, *metre* (unit), *defence*, *licence* (noun), *practise* (verb)
-- **-ize** (not *-ise*): *organize*, *initialize*, *customize*, *recognize*
-- **Doubled l**: *cancelled*, *travelling*, *labelled*
-- **catalogue** (not *catalog*), **grey** (not *gray*), **cheque** (money)
+- **-our / -re / -ce**: _behaviour_, _colour_, _favour_, _centre_, _metre_ (unit), _defence_, _licence_ (noun), _practise_ (verb)
+- **-ize** (not _-ise_): _organize_, _initialize_, _customize_, _recognize_
+- **Doubled l**: _cancelled_, _travelling_, _labelled_
+- **catalogue** (not _catalog_), **grey** (not _gray_), **cheque** (money)
 
-Do not introduce US spellings (*behavior*, *color*, *center*, *defense*, *canceled*, *catalog*, etc.) in new copy. Leave code identifiers, CSS/Tailwind class names, and ARIA role tokens unchanged when they use US forms (*dialog*, `items-center`, `ConfirmDialog`).
+Do not introduce US spellings (_behavior_, _color_, _center_, _defense_, _canceled_, _catalog_, etc.) in new copy. Leave code identifiers, CSS/Tailwind class names, and ARIA role tokens unchanged when they use US forms (_dialog_, `items-center`, `ConfirmDialog`).
 
 ### UI (phone + desktop)
 

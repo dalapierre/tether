@@ -19,6 +19,11 @@ export type RoutePanelProps = {
     backLabel?: string;
     /** Optional control before the title (e.g. custom leading). Overrides `onBack` when set. */
     toolbarLeading?: ReactNode;
+    /**
+     * Hide the panel toolbar (title/crumbs/close). Use when an outer tab bar
+     * already provides title and close controls.
+     */
+    hideToolbar?: boolean;
     /** Optional footer pinned below the scrollable body (e.g. primary action). */
     footer?: ReactNode;
     /** Optional overlay drawn above the panel (e.g. busy state). */

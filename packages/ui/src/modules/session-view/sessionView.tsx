@@ -1287,14 +1287,13 @@ export function SessionView({ sessionId }: SessionViewProps) {
     if (loading) {
         return (
             <div ref={rootRef} className={styles.root}>
-                <Panel className={styles.headerPanel}>
-                    <div className={styles.header}>
-                        <div className={styles.headerStart}>
-                            {backButton}
-                            <h1 className={styles.headerTitle}>{intl.formatMessage(messages.loadingCrumb)}</h1>
+                {!isDesktop ? (
+                    <Panel className={styles.headerPanel}>
+                        <div className={styles.header}>
+                            <div className={styles.headerStart}>{backButton}</div>
                         </div>
-                    </div>
-                </Panel>
+                    </Panel>
+                ) : null}
                 <p className={styles.centered}>{intl.formatMessage(messages.loading)}</p>
             </div>
         );
@@ -1303,14 +1302,13 @@ export function SessionView({ sessionId }: SessionViewProps) {
     if (failed || !session || !displaySession) {
         return (
             <div ref={rootRef} className={styles.root}>
-                <Panel className={styles.headerPanel}>
-                    <div className={styles.header}>
-                        <div className={styles.headerStart}>
-                            {backButton}
-                            <h1 className={styles.headerTitle}>{intl.formatMessage(messages.notFound)}</h1>
+                {!isDesktop ? (
+                    <Panel className={styles.headerPanel}>
+                        <div className={styles.header}>
+                            <div className={styles.headerStart}>{backButton}</div>
                         </div>
-                    </div>
-                </Panel>
+                    </Panel>
+                ) : null}
                 <p className={styles.centered}>{intl.formatMessage(messages.notFound)}</p>
             </div>
         );
@@ -1324,33 +1322,33 @@ export function SessionView({ sessionId }: SessionViewProps) {
 
     return (
         <div ref={rootRef} className={styles.root}>
-            <Panel className={styles.headerPanel}>
-                <div className={styles.header}>
-                    <div className={styles.headerStart}>
-                        {backButton}
-                        <h1 className={styles.headerTitle}>{session.name}</h1>
-                    </div>
-                    <div className={styles.headerActions}>
-                        <div className={styles.mobileActions}>
-                            <IconButton label={intl.formatMessage(messages.arrowUp)} onClick={sendArrowUp}>
-                                <ArrowUpIcon />
-                            </IconButton>
-                            <IconButton label={intl.formatMessage(messages.arrowDown)} onClick={sendArrowDown}>
-                                <ArrowDownIcon />
-                            </IconButton>
-                            <IconButton
-                                label={intl.formatMessage(messages.paste)}
-                                onClick={() => void pasteFromClipboard()}
-                            >
-                                <PasteIcon />
-                            </IconButton>
-                            <IconButton label={intl.formatMessage(messages.clearInput)} onClick={clearPromptInput}>
-                                <ClearInputIcon />
-                            </IconButton>
+            {/* Session title lives in the editor tab bar; keep mobile chrome for back + prompt helpers. */}
+            {!isDesktop ? (
+                <Panel className={styles.headerPanel}>
+                    <div className={styles.header}>
+                        <div className={styles.headerStart}>{backButton}</div>
+                        <div className={styles.headerActions}>
+                            <div className={styles.mobileActions}>
+                                <IconButton label={intl.formatMessage(messages.arrowUp)} onClick={sendArrowUp}>
+                                    <ArrowUpIcon />
+                                </IconButton>
+                                <IconButton label={intl.formatMessage(messages.arrowDown)} onClick={sendArrowDown}>
+                                    <ArrowDownIcon />
+                                </IconButton>
+                                <IconButton
+                                    label={intl.formatMessage(messages.paste)}
+                                    onClick={() => void pasteFromClipboard()}
+                                >
+                                    <PasteIcon />
+                                </IconButton>
+                                <IconButton label={intl.formatMessage(messages.clearInput)} onClick={clearPromptInput}>
+                                    <ClearInputIcon />
+                                </IconButton>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </Panel>
+                </Panel>
+            ) : null}
             {!isDesktop ? (
                 <div className={styles.tabs}>
                     <SegmentedControl

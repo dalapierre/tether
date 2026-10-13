@@ -1,18 +1,16 @@
 import { cloneKeybinds, useKeybinds } from '@ui/libs/keybinds';
-import { getPanelReturnPath } from '@ui/libs/navigation/panelReturn';
+import { useEditorTabNavigation } from '@ui/modules/editor-tabs';
 import { Settings } from '@ui/modules/settings';
 import { useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
 import { styles } from './settingsPage.styles';
 
 export function SettingsPage() {
-    const navigate = useNavigate();
-    const location = useLocation();
     const { setKeybinds } = useKeybinds();
+    const { closeTab } = useEditorTabNavigation();
 
     const onClose = useCallback(() => {
-        navigate(getPanelReturnPath(location.state));
-    }, [location.state, navigate]);
+        closeTab('settings');
+    }, [closeTab]);
 
     return (
         <main className={styles.main}>

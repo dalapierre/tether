@@ -65,6 +65,7 @@ export function RoutePanel({
     onBack,
     backLabel,
     toolbarLeading,
+    hideToolbar = false,
     footer,
     overlay,
     className,
@@ -87,25 +88,27 @@ export function RoutePanel({
         <div className={`${styles.root}${className ? ` ${className}` : ''}`}>
             <Panel
                 className={styles.panel}
-                title={toolbarTitle}
-                toolbarLeading={leading}
+                title={hideToolbar ? undefined : toolbarTitle}
+                toolbarLeading={hideToolbar ? undefined : leading}
                 toolbarActions={
-                    <Tooltip content={closeLabel}>
-                        <button
-                            type='button'
-                            className={styles.closeButton}
-                            aria-label={closeLabel}
-                            disabled={closeDisabled}
-                            onClick={onClose}
-                        >
-                            ×
-                        </button>
-                    </Tooltip>
+                    hideToolbar ? undefined : (
+                        <Tooltip content={closeLabel}>
+                            <button
+                                type='button'
+                                className={styles.closeButton}
+                                aria-label={closeLabel}
+                                disabled={closeDisabled}
+                                onClick={onClose}
+                            >
+                                ×
+                            </button>
+                        </Tooltip>
+                    )
                 }
                 aria-label={ariaLabel}
             >
                 <div className={styles.shell} inert={overlay ? true : undefined}>
-                    <div className={styles.body}>{children}</div>
+                    <div className={hideToolbar ? styles.bodyNoToolbar : styles.body}>{children}</div>
                     {footer ?? null}
                 </div>
             </Panel>

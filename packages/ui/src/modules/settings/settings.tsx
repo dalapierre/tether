@@ -8,7 +8,6 @@ import { listAvailableAgents, type AvailableAgent } from '@ui/libs/api/agents';
 import { ApiError } from '@ui/libs/api/client';
 import { getSettings, updateSettings } from '@ui/libs/api/settings';
 import { DEFAULT_KEYBINDS, cloneKeybinds, keybindsEqual, type Keybinds } from '@ui/libs/keybinds';
-import { useIsDesktop } from '@ui/libs/dom/useMediaQuery';
 import { DEFAULT_TOAST_DURATION_SECONDS, setToastDurationSeconds, showToast } from '@ui/modules/toast';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useIntl } from 'react-intl';
@@ -62,7 +61,6 @@ function resolveHarnessIds(availableAgents: AvailableAgent[], selectedAgent: Age
 
 export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
     const intl = useIntl();
-    const isDesktop = useIsDesktop();
     const [view, setView] = useState<SettingsView>('root');
     const [devDir, setDevDir] = useState('');
     const [worktreesDir, setWorktreesDir] = useState('');
@@ -180,27 +178,6 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
         };
     }, [goBack, hasUnsavedChanges, pendingDiscard]);
 
-    const crumbs = useMemo(() => {
-        const root = {
-            label: intl.formatMessage(messages.crumb),
-            onClick: view === 'root' ? undefined : () => setView('root'),
-        };
-
-        if (view === 'root') {
-            return [root];
-        }
-
-        if (view === 'general') {
-            return [root, { label: intl.formatMessage(messages.categoryGeneralCrumb) }];
-        }
-
-        if (view === 'agents') {
-            return [root, { label: intl.formatMessage(messages.categoryAgentsCrumb) }];
-        }
-
-        return [root, { label: intl.formatMessage(messages.categoryKeybindsCrumb) }];
-    }, [intl, view]);
-
     async function handleSave() {
         setSaving(true);
 
@@ -307,18 +284,16 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
     return (
         <>
             <RoutePanel
-                crumbs={crumbs}
                 onClose={onClose}
                 closeLabel={intl.formatMessage(messages.close)}
-                onBack={!isDesktop && view !== 'root' ? goBack : undefined}
-                backLabel={intl.formatMessage(messages.back)}
+                hideToolbar
                 aria-label={intl.formatMessage(messages.ariaLabel)}
                 footer={footer}
             >
                 {!loading || view === 'root' ? (
                     <div className={styles.sectionHeader}>
                         <div className={styles.sectionTitleRow}>
-                            {isDesktop && view !== 'root' ? (
+                            {view !== 'root' ? (
                                 <Tooltip content={intl.formatMessage(messages.back)}>
                                     <button
                                         type='button'

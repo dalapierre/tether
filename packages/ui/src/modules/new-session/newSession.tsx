@@ -239,6 +239,7 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
                 onClose={onClose}
                 closeLabel={intl.formatMessage(messages.close)}
                 closeDisabled={starting}
+                hideToolbar
                 aria-label={intl.formatMessage(messages.ariaLabel)}
                 footer={
                     <div className={styles.footer}>

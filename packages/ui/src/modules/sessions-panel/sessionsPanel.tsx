@@ -8,7 +8,7 @@ import { listRepositories, type Repository } from '@ui/libs/api/repositories';
 import { deleteSession, restartSession, type Session, type SessionStatus } from '@ui/libs/api/sessions';
 import { useIsDesktop } from '@ui/libs/dom/useMediaQuery';
 import { useKeybind } from '@ui/libs/keybinds';
-import { panelLocationState } from '@ui/libs/navigation/panelReturn';
+import { closeSessionEditorTab, pathForEditorTab, useEditorTabNavigation } from '@ui/modules/editor-tabs';
 import {
     getSessionsSnapshot,
     hasSessionsSnapshot,
@@ -21,7 +21,7 @@ import { useSettings } from '@ui/modules/settings';
 import { showToast } from '@ui/modules/toast';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useIntl } from 'react-intl';
-import { useLocation, useMatch, useNavigate } from 'react-router-dom';
+import { useMatch, useNavigate } from 'react-router-dom';
 import { messages } from './sessionsPanel.messages';
 import { styles } from './sessionsPanel.styles';
 import type { SessionsPanelProps } from './sessionsPanel.types';
@@ -150,11 +150,11 @@ export function SessionsPanel({
 }: SessionsPanelProps) {
     const intl = useIntl();
     const navigate = useNavigate();
-    const location = useLocation();
     const isDesktop = useIsDesktop();
     const sessionMatch = useMatch('/sessions/:sessionId');
     const activeSessionId = sessionMatch?.params.sessionId;
     const { openSettings } = useSettings();
+    const { openSessionTab, openNewSessionTab } = useEditorTabNavigation();
     const [repositories, setRepositories] = useState<Repository[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [pendingDelete, setPendingDelete] = useState<Session | null>(null);
@@ -229,9 +229,8 @@ export function SessionsPanel({
     }, []);
 
     const openNewSession = useCallback(() => {
-        if (location.pathname === '/new-session') return;
-        navigate('/new-session', { state: panelLocationState(location.pathname, location.search) });
-    }, [location.pathname, location.search, navigate]);
+        openNewSessionTab();
+    }, [openNewSessionTab]);
 
     function blurSearch() {
         if (document.activeElement === searchInputRef.current) {
@@ -316,12 +315,12 @@ export function SessionsPanel({
             if (!session) return;
 
             event.preventDefault();
-            navigate(`/sessions/${session.id}`);
+            openSessionTab(session.id);
         }
 
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
-    }, [navKeybindsEnabled, navigate]);
+    }, [navKeybindsEnabled, openSessionTab]);
 
     useEffect(() => {
         setSelectedIndex((current) => {
@@ -409,8 +408,9 @@ export function SessionsPanel({
         setPendingDelete(null);
         removeSession(session.id);
 
+        const fallback = closeSessionEditorTab(session.id);
         if (activeSessionId === session.id) {
-            navigate('/', { replace: true });
+            navigate(fallback ? pathForEditorTab(fallback) : '/', { replace: true });
         }
 
         try {
@@ -532,7 +532,7 @@ export function SessionsPanel({
                                               className={sessionButtonClass(isActive, isSelected)}
                                               tabIndex={!listVisible ? -1 : undefined}
                                               onClick={() => {
-                                                  navigate(`/sessions/${session.id}`);
+                                                  openSessionTab(session.id);
                                               }}
                                           >
                                               <span className={styles.sessionTitle}>{session.name}</span>
