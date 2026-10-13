@@ -27,6 +27,11 @@ import { GIT_REF_WATCH_SUBDIRS, isGitMetaWatchPath } from '@core/libs/sessions/g
 import { createAgentSessionId, ensureWorkspaceTrusted, resolveHarnessLaunch } from '@core/libs/sessions/harness.js';
 import { sampleProcessTrees, usageFromSamples, type ProcessTreeSample } from '@core/libs/sessions/processUsage.js';
 import {
+    BRANCH_IN_USE_BY_WORKTREE_ERROR,
+    isBranchClaimedBySession,
+    isBranchListedInWorktreePorcelain,
+} from '@core/libs/sessions/worktreeBranch.js';
+import {
     attachStatusClient,
     broadcastSessionBranch,
     broadcastSessionDiff,
@@ -1050,14 +1055,7 @@ async function listGitWorktreeLeaves(repoPath: string, worktreesRoot: string): P
 async function isBranchCheckedOutInGitWorktree(repoPath: string, branch: string): Promise<boolean> {
     try {
         const { stdout } = await execFileAsync('git', ['worktree', 'list', '--porcelain'], { cwd: repoPath });
-        const expected = `refs/heads/${branch}`;
-        for (const line of stdout.split('\n')) {
-            if (!line.startsWith('branch ')) continue;
-            if (line.slice('branch '.length).trim() === expected) {
-                return true;
-            }
-        }
-        return false;
+        return isBranchListedInWorktreePorcelain(stdout, branch);
     } catch {
         return false;
     }
@@ -1068,10 +1066,8 @@ async function isBranchCheckedOutInGitWorktree(repoPath: string, branch: string)
  * in a git worktree. Used to fail create before the session is listed.
  */
 async function isBranchInUseByWorktree(repositoryId: string, repoPath: string, branch: string): Promise<boolean> {
-    for (const session of sessions.values()) {
-        if (session.repositoryId === repositoryId && session.useWorktrees && session.branch === branch) {
-            return true;
-        }
+    if (isBranchClaimedBySession(sessions.values(), repositoryId, branch)) {
+        return true;
     }
     return isBranchCheckedOutInGitWorktree(repoPath, branch);
 }
@@ -1440,7 +1436,7 @@ async function createCodingSession(input: {
             throw new Error('Invalid branch name');
         }
         if (await isBranchInUseByWorktree(repository.id, repository.path, requestedBranch)) {
-            throw new Error('Branch is already checked out in another worktree');
+            throw new Error(BRANCH_IN_USE_BY_WORKTREE_ERROR);
         }
     }
 

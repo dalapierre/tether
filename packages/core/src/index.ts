@@ -17,6 +17,8 @@ export type { DiffFileStatus, SessionDiffFile, SessionDiffSummary, SessionFileDi
 
 export { isValidShellId, MAX_SESSION_SHELLS, type SessionDiffResult } from './libs/sessions/store.js';
 
+export { BRANCH_IN_USE_BY_WORKTREE_ERROR } from './libs/sessions/worktreeBranch.js';
+
 export { DEFAULT_KEYBINDS, isKeybinds, normalizeKeybinds, type Keybinds } from './libs/settings/keybinds.js';
 
 export {

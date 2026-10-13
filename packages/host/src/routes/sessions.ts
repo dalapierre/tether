@@ -1,4 +1,4 @@
-import { isAgentId, logger, type TetherHost } from '@tether/core';
+import { BRANCH_IN_USE_BY_WORKTREE_ERROR, isAgentId, logger, type TetherHost } from '@tether/core';
 import { Router } from 'express';
 
 export function createSessionsRouter(host: TetherHost): Router {
@@ -189,7 +189,7 @@ export function createSessionsRouter(host: TetherHost): Router {
                 message === 'Repository is required' ||
                 message === 'Repository not found' ||
                 message === 'Invalid branch name' ||
-                message === 'Branch is already checked out in another worktree' ||
+                message === BRANCH_IN_USE_BY_WORKTREE_ERROR ||
                 message === 'Invalid working directory' ||
                 message === 'Working directory not found' ||
                 message === 'Invalid worktree location' ||

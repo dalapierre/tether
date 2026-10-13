@@ -30,12 +30,12 @@ Run Tether with `npm run dev` / `npm run start` (both start `@tether/host`). Dev
 
 Agent sessions use a **shell + harness init command** (no dedicated agent PTY). Auth / `ACCESS_KEY` / login are not used.
 
-### Core unit tests
+### Core / backend unit tests (required)
 
-`@tether/core` uses Jest (`npm test` / `npm run test -w @tether/core`). When you change or add **core domain logic**, add or update colocated unit tests (`*.test.ts` next to the module under `packages/core/src`).
+`@tether/core` uses Jest (`npm test` / `npm run test -w @tether/core`). **Whenever you add or modify backend/core functionality** (sessions, worktrees, repos, settings, agents, shells, git helpers, Host API behavior, etc.), you **must** add or update colocated unit tests (`*.test.ts` next to the module under `packages/core/src`) in the same change. Do not ship backend behavior changes without tests.
 
-- Cover the behavior you touched: happy path plus meaningful edge cases (invalid input, migrations, platform branches, empty/missing values).
-- Prefer pure/unit-testable helpers and exported functions; avoid spinning up full session/PTY/git integration unless the change truly requires it.
+- Cover the behavior you touched: happy path plus meaningful edge cases (invalid input, migrations, platform branches, empty/missing values, rejection paths).
+- Prefer pure/unit-testable helpers and exported functions; extract logic out of large modules (e.g. `store.ts`) when that makes the new behavior easy to test. Avoid spinning up full session/PTY/git integration unless the change truly requires it.
 - Do not pile on dozens of trivial variants of the same case — a few sharp cases beat exhaustive busywork.
 - Keep Jest ESM setup intact (`jest.config.mjs`, `@core/*` and `.js` import mappers, `node --experimental-vm-modules`).
 - **Before completing a task**, always run the relevant tests. If any fail, investigate and fix the failures (or confirm they are unrelated and already known) before considering the work done — do not hand off with unexplained red tests.
