@@ -43,6 +43,7 @@ import {
     setShellPanelOpen,
 } from '@ui/libs/layout/reviewLayoutPreferences';
 import { clearPtyResize, flushPtyResize, schedulePtyResize } from '@ui/libs/terminal/ptyResize';
+import { resumeXtermRenderer, resumeXtermRendererIfNeeded } from '@ui/libs/terminal/resumeRenderer';
 import { scrollTerminalToBottomNow, writeTerminalHistory } from '@ui/libs/terminal/scroll';
 import { attachTouchScroll } from '@ui/libs/terminal/touchScroll';
 import { AURA_TERMINAL_THEME } from '@ui/libs/theme/aura';
@@ -299,8 +300,9 @@ function isTerminalFocused(term: Terminal): boolean {
 function revealTerminalPrompt(term: Terminal): void {
     scrollTerminalToBottomNow(term);
     // Fit/background/keyboard resize can leave the cursor painted off the
-    // real cell until the renderer redraws.
-    term.refresh(0, Math.max(0, term.rows - 1));
+    // real cell until the renderer redraws. Also unpause xterm's DOM renderer
+    // if IntersectionObserver left it stuck (AME-277).
+    resumeXtermRenderer(term);
 }
 
 /** Keep in sync with server PTY resize clamp in sessions/store.ts */
@@ -335,7 +337,7 @@ function syncTerminalLayout(options: {
         if (refresh) {
             // Returning from a backgrounded tab can leave the cursor
             // painted at the wrong place until the renderer redraws.
-            term.refresh(0, Math.max(0, term.rows - 1));
+            resumeXtermRenderer(term);
         }
         if (stickToBottom) {
             scrollTerminalToBottomNow(term);
@@ -378,12 +380,13 @@ function syncTerminalLayoutAfterPanelResize(options: {
             scrollTerminalToBottomNow(term);
             requestAnimationFrame(() => {
                 scrollTerminalToBottomNow(term);
-                term.refresh(0, Math.max(0, term.rows - 1));
+                resumeXtermRenderer(term);
             });
         }
     } finally {
         if (element) {
             element.style.visibility = '';
+            resumeXtermRenderer(term);
         }
     }
 }
@@ -832,6 +835,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
 
         const sendInput = (data: string) => {
             scrollToBottomAndFollow();
+            resumeXtermRendererIfNeeded(term);
             if (socket.readyState !== WebSocket.OPEN) return;
             sendTerminalMessage(socket, { type: 'input', data });
         };
@@ -950,6 +954,9 @@ export function SessionView({ sessionId }: SessionViewProps) {
                 }
                 const stickToBottom = followOutput;
                 term.write(parsed.data, () => {
+                    // Recover if xterm's IntersectionObserver paused the renderer
+                    // mid-session (cursor/output freeze — AME-277).
+                    resumeXtermRendererIfNeeded(term);
                     if (!stickToBottom && !followOutput) return;
                     scrollTerminalToBottomNow(term);
                 });

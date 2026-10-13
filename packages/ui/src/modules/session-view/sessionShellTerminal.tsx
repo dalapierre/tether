@@ -1,6 +1,7 @@
 import { connectSessionShell, sendTerminalMessage, type ServerShellMessage } from '@ui/libs/api/sessions';
 import { getPanelResizeDragEpoch, isPanelResizeDragging } from '@ui/libs/layout/panelResizeDrag';
 import { clearPtyResize, flushPtyResize, schedulePtyResize } from '@ui/libs/terminal/ptyResize';
+import { resumeXtermRenderer, resumeXtermRendererIfNeeded } from '@ui/libs/terminal/resumeRenderer';
 import { scrollTerminalToBottomNow, writeTerminalHistory } from '@ui/libs/terminal/scroll';
 import { attachTouchScroll } from '@ui/libs/terminal/touchScroll';
 import { AURA_TERMINAL_THEME } from '@ui/libs/theme/aura';
@@ -65,7 +66,7 @@ function isTerminalFocused(term: Terminal): boolean {
 
 function revealTerminalPrompt(term: Terminal): void {
     scrollTerminalToBottomNow(term);
-    term.refresh(0, Math.max(0, term.rows - 1));
+    resumeXtermRenderer(term);
 }
 
 function shouldSkipTerminalLayoutSync(scheduledEpoch: number): boolean {
@@ -98,7 +99,7 @@ function syncTerminalLayout(options: {
             schedulePtyResize(term, socket, term.cols, term.rows);
         }
         if (refresh) {
-            term.refresh(0, Math.max(0, term.rows - 1));
+            resumeXtermRenderer(term);
         }
         if (stickToBottom) {
             scrollTerminalToBottomNow(term);
@@ -135,12 +136,13 @@ function syncTerminalLayoutAfterPanelResize(options: {
             scrollTerminalToBottomNow(term);
             requestAnimationFrame(() => {
                 scrollTerminalToBottomNow(term);
-                term.refresh(0, Math.max(0, term.rows - 1));
+                resumeXtermRenderer(term);
             });
         }
     } finally {
         if (element) {
             element.style.visibility = '';
+            resumeXtermRenderer(term);
         }
     }
 }
@@ -198,6 +200,7 @@ export function SessionShellTerminal({
 
         const sendInput = (data: string) => {
             scrollToBottomAndFollow();
+            resumeXtermRendererIfNeeded(term);
             if (socket.readyState !== WebSocket.OPEN) return;
             sendTerminalMessage(socket, { type: 'input', data });
         };
@@ -305,6 +308,7 @@ export function SessionShellTerminal({
                 }
                 const stickToBottom = followOutput;
                 term.write(parsed.data, () => {
+                    resumeXtermRendererIfNeeded(term);
                     if (!stickToBottom && !followOutput) return;
                     scrollTerminalToBottomNow(term);
                 });

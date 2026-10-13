@@ -1,3 +1,4 @@
+import { resumeXtermRenderer } from '@ui/libs/terminal/resumeRenderer';
 import type { Terminal } from '@xterm/xterm';
 
 type XtermCore = {
@@ -31,6 +32,9 @@ export function writeTerminalHistory(term: Terminal, data: string, onDone: () =>
         if (element) {
             element.style.visibility = '';
         }
+        // visibility:hidden pauses CSS caret blink and can leave xterm's IO
+        // pause flag stale — force a reflow before the first paint.
+        resumeXtermRenderer(term);
         onDone();
     });
 }
