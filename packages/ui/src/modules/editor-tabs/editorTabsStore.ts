@@ -7,14 +7,15 @@ type Listener = () => void;
 
 function isEditorTab(value: unknown): value is EditorTab {
     if (!value || typeof value !== 'object') return false;
-    const tab = value as { kind?: unknown; id?: unknown; sessionId?: unknown };
+    const tab = value as { kind?: unknown; id?: unknown; sessionId?: unknown; title?: unknown };
     if (tab.kind === 'settings' && tab.id === 'settings') return true;
     if (tab.kind === 'new-session' && tab.id === 'new-session') return true;
     if (
         tab.kind === 'session' &&
         typeof tab.sessionId === 'string' &&
         tab.sessionId.length > 0 &&
-        tab.id === `session:${tab.sessionId}`
+        tab.id === `session:${tab.sessionId}` &&
+        (tab.title === undefined || typeof tab.title === 'string')
     ) {
         return true;
     }
@@ -29,7 +30,16 @@ function loadTabs(): EditorTab[] {
     for (const entry of stored) {
         if (!isEditorTab(entry) || seen.has(entry.id)) continue;
         seen.add(entry.id);
-        next.push(entry);
+        if (entry.kind === 'session') {
+            next.push({
+                id: entry.id,
+                kind: 'session',
+                sessionId: entry.sessionId,
+                ...(entry.title ? { title: entry.title } : {}),
+            });
+        } else {
+            next.push(entry);
+        }
     }
     return next;
 }
@@ -63,8 +73,13 @@ export function sessionTabId(sessionId: string): SessionEditorTab['id'] {
     return `session:${sessionId}`;
 }
 
-export function createSessionTab(sessionId: string): SessionEditorTab {
-    return { id: sessionTabId(sessionId), kind: 'session', sessionId };
+export function createSessionTab(sessionId: string, title?: string): SessionEditorTab {
+    return {
+        id: sessionTabId(sessionId),
+        kind: 'session',
+        sessionId,
+        ...(title ? { title } : {}),
+    };
 }
 
 export const SETTINGS_TAB: EditorTab = { id: 'settings', kind: 'settings' };
@@ -91,7 +106,17 @@ export function editorTabFromPath(pathname: string): EditorTab | null {
 }
 
 export function openEditorTab(tab: EditorTab): void {
-    if (tabs.some((existing) => existing.id === tab.id)) return;
+    const index = tabs.findIndex((existing) => existing.id === tab.id);
+    if (index !== -1) {
+        const existing = tabs[index];
+        if (tab.kind === 'session' && existing?.kind === 'session' && tab.title && existing.title !== tab.title) {
+            const next = [...tabs];
+            next[index] = { ...existing, title: tab.title };
+            tabs = next;
+            emit();
+        }
+        return;
+    }
     tabs = [...tabs, tab];
     emit();
 }
@@ -122,6 +147,45 @@ export function pruneMissingSessionTabs(existingSessionIds: Iterable<string>): v
     const ids = new Set(existingSessionIds);
     const next = tabs.filter((tab) => tab.kind !== 'session' || ids.has(tab.sessionId));
     if (next.length === tabs.length) return;
+    tabs = next;
+    emit();
+}
+
+/** Keep persisted session tab titles in sync with the live sessions map. */
+export function syncSessionTabTitles(sessionNames: ReadonlyMap<string, string>): void {
+    let changed = false;
+    const next = tabs.map((tab) => {
+        if (tab.kind !== 'session') return tab;
+        const name = sessionNames.get(tab.sessionId);
+        if (!name || name === tab.title) return tab;
+        changed = true;
+        return { ...tab, title: name };
+    });
+    if (!changed) return;
+    tabs = next;
+    emit();
+}
+
+/** Replace tab order (e.g. after drag-reorder). Persists via emit. */
+export function setEditorTabsOrder(next: EditorTab[]): void {
+    if (next.length !== tabs.length) return;
+    const currentIds = new Set(tabs.map((tab) => tab.id));
+    if (next.some((tab) => !currentIds.has(tab.id))) return;
+    if (next.every((tab, index) => tab.id === tabs[index]?.id)) return;
+    tabs = next;
+    emit();
+}
+
+/** Move `draggedId` so it sits at the index currently occupied by `targetId`. */
+export function moveEditorTab(draggedId: EditorTabId, targetId: EditorTabId): void {
+    if (draggedId === targetId) return;
+    const from = tabs.findIndex((tab) => tab.id === draggedId);
+    const to = tabs.findIndex((tab) => tab.id === targetId);
+    if (from === -1 || to === -1) return;
+    const next = [...tabs];
+    const [item] = next.splice(from, 1);
+    if (!item) return;
+    next.splice(to, 0, item);
     tabs = next;
     emit();
 }

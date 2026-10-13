@@ -4,6 +4,8 @@ export type SessionEditorTab = {
     id: `session:${string}`;
     kind: 'session';
     sessionId: string;
+    /** Last known session name; persisted so reloads don't flash a fallback label. */
+    title?: string;
 };
 
 export type SettingsEditorTab = {

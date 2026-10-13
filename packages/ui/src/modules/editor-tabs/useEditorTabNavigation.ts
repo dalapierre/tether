@@ -1,3 +1,4 @@
+import { getLiveSession } from '@ui/modules/session-events';
 import { useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -25,8 +26,9 @@ export function useEditorTabNavigation() {
     );
 
     const openSessionTab = useCallback(
-        (sessionId: string) => {
-            activateTab(createSessionTab(sessionId));
+        (sessionId: string, title?: string) => {
+            const resolvedTitle = title ?? getLiveSession(sessionId)?.name;
+            activateTab(createSessionTab(sessionId, resolvedTitle));
         },
         [activateTab],
     );

@@ -315,7 +315,7 @@ export function SessionsPanel({
             if (!session) return;
 
             event.preventDefault();
-            openSessionTab(session.id);
+            openSessionTab(session.id, session.name);
         }
 
         window.addEventListener('keydown', onKeyDown);
@@ -532,7 +532,7 @@ export function SessionsPanel({
                                               className={sessionButtonClass(isActive, isSelected)}
                                               tabIndex={!listVisible ? -1 : undefined}
                                               onClick={() => {
-                                                  openSessionTab(session.id);
+                                                  openSessionTab(session.id, session.name);
                                               }}
                                           >
                                               <span className={styles.sessionTitle}>{session.name}</span>

@@ -21,7 +21,7 @@ export function NewSessionPage() {
                     upsertSession(session);
                     // Close the new-session tab and open the session tab in its place.
                     closeEditorTab('new-session');
-                    openEditorTab(createSessionTab(session.id));
+                    openEditorTab(createSessionTab(session.id, session.name));
                     navigate(`/sessions/${session.id}`, { replace: true });
                 }}
             />
