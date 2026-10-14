@@ -14,7 +14,13 @@ import { listRepositories, type Repository } from '@ui/libs/api/repositories';
 import { deleteSession, restartSession, type Session, type SessionStatus } from '@ui/libs/api/sessions';
 import { useIsDesktop } from '@ui/libs/dom/useMediaQuery';
 import { useKeybind } from '@ui/libs/keybinds';
-import { closeSessionEditorTab, pathForEditorTab, useEditorTabNavigation } from '@ui/modules/editor-tabs';
+import {
+    closeQuickPromptEditorTab,
+    closeSessionEditorTab,
+    pathForEditorTab,
+    pruneMissingQuickPromptTabs,
+    useEditorTabNavigation,
+} from '@ui/modules/editor-tabs';
 import {
     getSessionsSnapshot,
     hasSessionsSnapshot,
@@ -180,9 +186,12 @@ export function SessionsPanel({
     const navigate = useNavigate();
     const isDesktop = useIsDesktop();
     const sessionMatch = useMatch('/sessions/:sessionId');
+    const quickPromptMatch = useMatch('/quick-prompts/:promptId');
     const activeSessionId = sessionMatch?.params.sessionId;
+    const activeQuickPromptId = quickPromptMatch?.params.promptId;
     const { openSettings } = useSettings();
-    const { openSessionTab, openNewSessionTab, openNewQuickPromptTab, openTerminalTab } = useEditorTabNavigation();
+    const { openSessionTab, openNewSessionTab, openNewQuickPromptTab, openQuickPromptTab, openTerminalTab } =
+        useEditorTabNavigation();
     const [repositories, setRepositories] = useState<Repository[]>([]);
     const [listMode, setListMode] = useState<SideListMode>('sessions');
     const [searchQuery, setSearchQuery] = useState('');
@@ -583,6 +592,7 @@ export function SessionsPanel({
         try {
             const items = await listQuickPrompts();
             setQuickPrompts(items);
+            pruneMissingQuickPromptTabs(items.map((item) => item.id));
         } catch {
             setQuickPrompts([]);
         } finally {
@@ -598,6 +608,7 @@ export function SessionsPanel({
             .then((items) => {
                 if (!cancelled) {
                     setQuickPrompts(items);
+                    pruneMissingQuickPromptTabs(items.map((item) => item.id));
                 }
             })
             .catch(() => {
@@ -695,6 +706,11 @@ export function SessionsPanel({
         setDeletingPromptId(prompt.id);
         setPendingDeletePrompt(null);
         setQuickPrompts((current) => current.filter((item) => item.id !== prompt.id));
+
+        const fallback = closeQuickPromptEditorTab(prompt.id);
+        if (activeQuickPromptId === prompt.id) {
+            navigate(fallback ? pathForEditorTab(fallback) : '/', { replace: true });
+        }
 
         try {
             await deleteQuickPrompt(prompt.id);
@@ -995,58 +1011,64 @@ export function SessionsPanel({
                     <p className={styles.placeholder}>{intl.formatMessage(messages.noMatchingQuickPrompts)}</p>
                 ) : null}
                 {!quickPromptsLoading
-                    ? filteredQuickPrompts.map((prompt) => (
-                          <div key={prompt.id}>
-                              <SwipeToDelete
-                                  disabled={deletingPromptId === prompt.id || !listVisible}
-                                  onDelete={() => {
-                                      setPendingDeletePrompt(prompt);
-                                  }}
-                              >
-                                  <div className={styles.sessionRow}>
-                                      <button
-                                          type='button'
-                                          className={styles.sessionButton}
-                                          tabIndex={!listVisible ? -1 : undefined}
-                                      >
-                                          <span className={styles.sessionTitle}>{prompt.name}</span>
-                                          {prompt.description ? (
-                                              <p className={styles.sessionMetaMuted}>{prompt.description}</p>
-                                          ) : null}
-                                      </button>
-                                      <div className={styles.moreActions}>
-                                          <Tooltip content={intl.formatMessage(messages.quickPromptActions)}>
-                                              <button
-                                                  type='button'
-                                                  data-quick-prompt-actions-trigger={prompt.id}
-                                                  className={
-                                                      promptActionsMenu?.prompt.id === prompt.id
-                                                          ? styles.moreButtonOpen
-                                                          : styles.moreButton
-                                                  }
-                                                  aria-label={intl.formatMessage(messages.quickPromptActions)}
-                                                  aria-haspopup='menu'
-                                                  aria-expanded={promptActionsMenu?.prompt.id === prompt.id}
-                                                  disabled={deletingPromptId === prompt.id}
-                                                  tabIndex={!listVisible ? -1 : undefined}
-                                                  onClick={(event) => {
-                                                      event.preventDefault();
-                                                      event.stopPropagation();
-                                                      if (promptActionsMenu?.prompt.id === prompt.id) {
-                                                          closePromptActionsMenu();
-                                                          return;
+                    ? filteredQuickPrompts.map((prompt) => {
+                          const isActive = prompt.id === activeQuickPromptId;
+                          return (
+                              <div key={prompt.id}>
+                                  <SwipeToDelete
+                                      disabled={deletingPromptId === prompt.id || !listVisible}
+                                      onDelete={() => {
+                                          setPendingDeletePrompt(prompt);
+                                      }}
+                                  >
+                                      <div className={styles.sessionRow}>
+                                          <button
+                                              type='button'
+                                              className={sessionButtonClass(isActive, false)}
+                                              tabIndex={!listVisible ? -1 : undefined}
+                                              onClick={() => {
+                                                  openQuickPromptTab(prompt.id, prompt.name);
+                                              }}
+                                          >
+                                              <span className={styles.sessionTitle}>{prompt.name}</span>
+                                              {prompt.description ? (
+                                                  <p className={styles.sessionMetaMuted}>{prompt.description}</p>
+                                              ) : null}
+                                          </button>
+                                          <div className={styles.moreActions}>
+                                              <Tooltip content={intl.formatMessage(messages.quickPromptActions)}>
+                                                  <button
+                                                      type='button'
+                                                      data-quick-prompt-actions-trigger={prompt.id}
+                                                      className={
+                                                          promptActionsMenu?.prompt.id === prompt.id
+                                                              ? styles.moreButtonOpen
+                                                              : styles.moreButton
                                                       }
-                                                      openPromptActionsMenu(prompt, event.currentTarget);
-                                                  }}
-                                              >
-                                                  <MoreIcon />
-                                              </button>
-                                          </Tooltip>
+                                                      aria-label={intl.formatMessage(messages.quickPromptActions)}
+                                                      aria-haspopup='menu'
+                                                      aria-expanded={promptActionsMenu?.prompt.id === prompt.id}
+                                                      disabled={deletingPromptId === prompt.id}
+                                                      tabIndex={!listVisible ? -1 : undefined}
+                                                      onClick={(event) => {
+                                                          event.preventDefault();
+                                                          event.stopPropagation();
+                                                          if (promptActionsMenu?.prompt.id === prompt.id) {
+                                                              closePromptActionsMenu();
+                                                              return;
+                                                          }
+                                                          openPromptActionsMenu(prompt, event.currentTarget);
+                                                      }}
+                                                  >
+                                                      <MoreIcon />
+                                                  </button>
+                                              </Tooltip>
+                                          </div>
                                       </div>
-                                  </div>
-                              </SwipeToDelete>
-                          </div>
-                      ))
+                                  </SwipeToDelete>
+                              </div>
+                          );
+                      })
                     : null}
             </div>
         </div>

@@ -27,13 +27,15 @@ export type CreateQuickPromptBody = {
     inputs: QuickPromptInput[];
 };
 
+export type UpdateQuickPromptBody = CreateQuickPromptBody;
+
 const INPUT_NAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 type ListResponse = {
     prompts: QuickPrompt[];
 };
 
-type CreateResponse = {
+type PromptResponse = {
     prompt: QuickPrompt;
 };
 
@@ -79,6 +81,21 @@ export async function listQuickPrompts(): Promise<QuickPrompt[]> {
     }));
 }
 
+export async function getQuickPrompt(id: string): Promise<QuickPrompt> {
+    const res = await apiFetch(`/api/quick-prompts/${encodeURIComponent(id)}`);
+
+    if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new ApiError(res.status, data?.error ?? `HTTP ${res.status}`);
+    }
+
+    const data = (await res.json()) as PromptResponse;
+    return {
+        ...data.prompt,
+        description: typeof data.prompt.description === 'string' ? data.prompt.description : '',
+    };
+}
+
 export async function createQuickPrompt(body: CreateQuickPromptBody): Promise<QuickPrompt> {
     const res = await apiFetch('/api/quick-prompts', {
         method: 'POST',
@@ -90,7 +107,22 @@ export async function createQuickPrompt(body: CreateQuickPromptBody): Promise<Qu
         throw new ApiError(res.status, data?.error ?? `HTTP ${res.status}`);
     }
 
-    const data = (await res.json()) as CreateResponse;
+    const data = (await res.json()) as PromptResponse;
+    return data.prompt;
+}
+
+export async function updateQuickPrompt(id: string, body: UpdateQuickPromptBody): Promise<QuickPrompt> {
+    const res = await apiFetch(`/api/quick-prompts/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+        const data = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new ApiError(res.status, data?.error ?? `HTTP ${res.status}`);
+    }
+
+    const data = (await res.json()) as PromptResponse;
     return data.prompt;
 }
 
@@ -105,7 +137,7 @@ export async function deleteQuickPrompt(id: string): Promise<void> {
     }
 }
 
-/** Dispatched after quick prompts are created/deleted so side lists can refresh. */
+/** Dispatched after quick prompts are created/updated/deleted so side lists can refresh. */
 export const QUICK_PROMPTS_CHANGED_EVENT = 'tether:quick-prompts-changed';
 
 export function notifyQuickPromptsChanged(): void {

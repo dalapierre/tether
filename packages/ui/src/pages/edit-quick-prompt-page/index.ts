@@ -1,0 +1,1 @@
+export { EditQuickPromptPage } from './editQuickPromptPage';

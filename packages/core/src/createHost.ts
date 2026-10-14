@@ -1,7 +1,13 @@
 import { listAvailableAgents } from '@core/libs/agents/agents.js';
 import { errors } from '@core/libs/errors.js';
 import { logger } from '@core/libs/logger.js';
-import { createQuickPrompt, deleteQuickPrompt, listQuickPrompts } from '@core/libs/quick-prompts/store.js';
+import {
+    createQuickPrompt,
+    deleteQuickPrompt,
+    getQuickPrompt,
+    listQuickPrompts,
+    updateQuickPrompt,
+} from '@core/libs/quick-prompts/store.js';
 import {
     addRepository,
     listAvailableRepositories,
@@ -38,7 +44,9 @@ export type TetherHost = {
     updateSettings: typeof updateSettings;
 
     listQuickPrompts: typeof listQuickPrompts;
+    getQuickPrompt: typeof getQuickPrompt;
     createQuickPrompt: typeof createQuickPrompt;
+    updateQuickPrompt: typeof updateQuickPrompt;
     deleteQuickPrompt: typeof deleteQuickPrompt;
 
     listRepositories: typeof listRepositories;
@@ -82,7 +90,9 @@ export async function createHost(): Promise<TetherHost> {
         updateSettings,
 
         listQuickPrompts,
+        getQuickPrompt,
         createQuickPrompt,
+        updateQuickPrompt,
         deleteQuickPrompt,
 
         listRepositories,

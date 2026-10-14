@@ -2,7 +2,9 @@ export { EditorTabBar } from './editorTabBar';
 export { EditorTabsSync } from './editorTabsSync';
 export {
     closeEditorTab,
+    closeQuickPromptEditorTab,
     closeSessionEditorTab,
+    createQuickPromptTab,
     createSessionTab,
     createTerminalTab,
     createWorkspaceTerminalTab,
@@ -14,7 +16,9 @@ export {
     NEW_SESSION_TAB,
     openEditorTab,
     pathForEditorTab,
+    pruneMissingQuickPromptTabs,
     pruneMissingSessionTabs,
+    quickPromptTabId,
     sessionTabId,
     setEditorTabsOrder,
     setTerminalTabTitle,

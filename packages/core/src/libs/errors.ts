@@ -147,6 +147,14 @@ export const errors = {
         id: 'quick-prompts.create.failure',
         message: 'Failed to create quick prompt',
     },
+    quickPromptsGetFailure: {
+        id: 'quick-prompts.get.failure',
+        message: 'Failed to get quick prompt',
+    },
+    quickPromptsUpdateFailure: {
+        id: 'quick-prompts.update.failure',
+        message: 'Failed to update quick prompt',
+    },
     quickPromptsDeleteFailure: {
         id: 'quick-prompts.delete.failure',
         message: 'Failed to delete quick prompt',

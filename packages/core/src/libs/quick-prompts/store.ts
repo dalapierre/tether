@@ -29,6 +29,8 @@ export type CreateQuickPromptInput = {
     inputs?: QuickPromptInput[];
 };
 
+export type UpdateQuickPromptInput = CreateQuickPromptInput;
+
 /** Lowercase kebab-case id, e.g. `my-cool-input`. */
 const INPUT_NAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -161,7 +163,12 @@ export async function listQuickPrompts(): Promise<QuickPrompt[]> {
     return readQuickPromptsFile();
 }
 
-export async function createQuickPrompt(input: CreateQuickPromptInput): Promise<QuickPrompt> {
+function normalizeQuickPromptFields(input: CreateQuickPromptInput): {
+    name: string;
+    description: string;
+    prompt: string;
+    inputs: QuickPromptInput[];
+} {
     const name = input.name.trim();
     const description = (input.description ?? '').trim();
     const prompt = input.prompt.trim();
@@ -176,16 +183,55 @@ export async function createQuickPrompt(input: CreateQuickPromptInput): Promise<
         throw new Error('Prompt is required');
     }
 
-    const next: QuickPrompt = {
-        id: randomUUID(),
+    return {
         name,
         description,
         prompt,
         inputs: normalizeInputs(input.inputs),
     };
+}
+
+export async function createQuickPrompt(input: CreateQuickPromptInput): Promise<QuickPrompt> {
+    const fields = normalizeQuickPromptFields(input);
+    const next: QuickPrompt = {
+        id: randomUUID(),
+        ...fields,
+    };
 
     const existing = await readQuickPromptsFile();
     const prompts = [...existing, next];
+    await persistQuickPrompts(prompts);
+    return next;
+}
+
+export async function getQuickPrompt(id: string): Promise<QuickPrompt | null> {
+    const trimmed = id.trim();
+    if (!trimmed) {
+        throw new Error('Id is required');
+    }
+    const existing = await readQuickPromptsFile();
+    return existing.find((prompt) => prompt.id === trimmed) ?? null;
+}
+
+export async function updateQuickPrompt(id: string, input: UpdateQuickPromptInput): Promise<QuickPrompt | null> {
+    const trimmed = id.trim();
+    if (!trimmed) {
+        throw new Error('Id is required');
+    }
+
+    const fields = normalizeQuickPromptFields(input);
+    const existing = await readQuickPromptsFile();
+    const index = existing.findIndex((prompt) => prompt.id === trimmed);
+    if (index === -1) {
+        return null;
+    }
+
+    const next: QuickPrompt = {
+        id: trimmed,
+        ...fields,
+    };
+    const prompts = [...existing];
+    prompts[index] = next;
     await persistQuickPrompts(prompts);
     return next;
 }

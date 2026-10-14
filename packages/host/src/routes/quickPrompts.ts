@@ -54,6 +54,19 @@ export function createQuickPromptsRouter(host: TetherHost): Router {
         }
     });
 
+    function validationStatus(message: string): 400 | 500 {
+        return message === 'Name is required' ||
+            message === 'Prompt is required' ||
+            message === 'Input name is required' ||
+            message === 'Input names must be unique' ||
+            message === 'Input name must be lowercase and dash-separated (e.g. my-cool-input)' ||
+            message === 'Input type must be string, number, or boolean' ||
+            message === `Description must be at most ${MAX_QUICK_PROMPT_DESCRIPTION_LENGTH} characters` ||
+            message.startsWith('At most ')
+            ? 400
+            : 500;
+    }
+
     router.post('/', async (req, res) => {
         const name = typeof req.body?.name === 'string' ? req.body.name : '';
         const description = typeof req.body?.description === 'string' ? req.body.description : '';
@@ -75,21 +88,67 @@ export function createQuickPromptsRouter(host: TetherHost): Router {
             res.status(201).json({ prompt: created });
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : 'Failed to create quick prompt';
-            const status =
-                message === 'Name is required' ||
-                message === 'Prompt is required' ||
-                message === 'Input name is required' ||
-                message === 'Input names must be unique' ||
-                message === 'Input name must be lowercase and dash-separated (e.g. my-cool-input)' ||
-                message === 'Input type must be string, number, or boolean' ||
-                message === `Description must be at most ${MAX_QUICK_PROMPT_DESCRIPTION_LENGTH} characters` ||
-                message.startsWith('At most ')
-                    ? 400
-                    : 500;
+            const status = validationStatus(message);
             if (status === 500) {
                 logger.error(errors.quickPromptsCreateFailure, err);
             }
             res.status(status).json({ error: status === 500 ? 'Failed to create quick prompt' : message });
+        }
+    });
+
+    router.get('/:id', async (req, res) => {
+        try {
+            const prompt = await host.getQuickPrompt(req.params.id);
+            if (!prompt) {
+                res.status(404).json({ error: 'Quick prompt not found' });
+                return;
+            }
+            res.json({ prompt });
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Failed to get quick prompt';
+            if (message === 'Id is required') {
+                res.status(400).json({ error: message });
+                return;
+            }
+            logger.error(errors.quickPromptsGetFailure, err);
+            res.status(500).json({ error: 'Failed to get quick prompt' });
+        }
+    });
+
+    router.put('/:id', async (req, res) => {
+        const name = typeof req.body?.name === 'string' ? req.body.name : '';
+        const description = typeof req.body?.description === 'string' ? req.body.description : '';
+        const prompt = typeof req.body?.prompt === 'string' ? req.body.prompt : '';
+        const parsedInputs = parseInputs(req.body?.inputs);
+
+        if (!parsedInputs.ok) {
+            res.status(400).json({ error: parsedInputs.error });
+            return;
+        }
+
+        try {
+            const updated = await host.updateQuickPrompt(req.params.id, {
+                name,
+                description,
+                prompt,
+                inputs: parsedInputs.inputs,
+            });
+            if (!updated) {
+                res.status(404).json({ error: 'Quick prompt not found' });
+                return;
+            }
+            res.json({ prompt: updated });
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Failed to update quick prompt';
+            if (message === 'Id is required') {
+                res.status(400).json({ error: message });
+                return;
+            }
+            const status = validationStatus(message);
+            if (status === 500) {
+                logger.error(errors.quickPromptsUpdateFailure, err);
+            }
+            res.status(status).json({ error: status === 500 ? 'Failed to update quick prompt' : message });
         }
     });
 

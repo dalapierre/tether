@@ -10,6 +10,7 @@ import {
     MAX_QUICK_PROMPT_INPUTS,
     notifyQuickPromptsChanged,
     sanitizeQuickPromptInputName,
+    updateQuickPrompt,
     type QuickPromptInputType,
 } from '@ui/libs/api/quickPrompts';
 import { showToast } from '@ui/modules/toast';
@@ -50,13 +51,16 @@ function inputNameError(name: string, index: number, inputs: DraftInput[]): Inpu
     return duplicate ? 'duplicate' : null;
 }
 
-export function NewQuickPrompt({ onClose, onCreated }: NewQuickPromptProps) {
+export function NewQuickPrompt({ onClose, onCreated, onSaved, prompt: existing }: NewQuickPromptProps) {
     const intl = useIntl();
-    const [name, setName] = useState('');
-    const [description, setDescription] = useState('');
-    const [prompt, setPrompt] = useState('');
-    const [inputs, setInputs] = useState<DraftInput[]>([]);
-    const [creating, setCreating] = useState(false);
+    const editing = existing != null;
+    const [name, setName] = useState(existing?.name ?? '');
+    const [description, setDescription] = useState(existing?.description ?? '');
+    const [prompt, setPrompt] = useState(existing?.prompt ?? '');
+    const [inputs, setInputs] = useState<DraftInput[]>(() =>
+        (existing?.inputs ?? []).map((input) => ({ name: input.name, type: input.type })),
+    );
+    const [submitting, setSubmitting] = useState(false);
     const [showInputErrors, setShowInputErrors] = useState(false);
 
     const inputErrors = useMemo(
@@ -64,7 +68,14 @@ export function NewQuickPrompt({ onClose, onCreated }: NewQuickPromptProps) {
         [inputs],
     );
     const inputsValid = inputErrors.every((error) => error === null);
-    const formReady = !creating && name.trim().length > 0 && prompt.trim().length > 0;
+    const formReady = !submitting && name.trim().length > 0 && prompt.trim().length > 0;
+
+    const title = intl.formatMessage(editing ? messages.editTitle : messages.title);
+    const ariaLabel = intl.formatMessage(editing ? messages.editAriaLabel : messages.ariaLabel);
+    const submitLabel = intl.formatMessage(
+        editing ? (submitting ? messages.saving : messages.save) : submitting ? messages.creating : messages.create,
+    );
+    const busyLabel = intl.formatMessage(editing ? messages.saving : messages.creating);
 
     function addInput() {
         if (inputs.length >= MAX_QUICK_PROMPT_INPUTS) return;
@@ -91,7 +102,7 @@ export function NewQuickPrompt({ onClose, onCreated }: NewQuickPromptProps) {
         }
     }
 
-    async function handleCreate() {
+    async function handleSubmit() {
         if (!formReady) return;
 
         if (!inputsValid) {
@@ -104,25 +115,33 @@ export function NewQuickPrompt({ onClose, onCreated }: NewQuickPromptProps) {
             type: input.type,
         }));
 
-        setCreating(true);
+        const body = {
+            name: name.trim(),
+            description: description.trim(),
+            prompt: prompt.trim(),
+            inputs: normalizedInputs,
+        };
+
+        setSubmitting(true);
         try {
-            await createQuickPrompt({
-                name: name.trim(),
-                description: description.trim(),
-                prompt: prompt.trim(),
-                inputs: normalizedInputs,
-            });
-            notifyQuickPromptsChanged();
-            onCreated?.();
+            if (editing) {
+                await updateQuickPrompt(existing.id, body);
+                notifyQuickPromptsChanged();
+                onSaved?.();
+            } else {
+                await createQuickPrompt(body);
+                notifyQuickPromptsChanged();
+                onCreated?.();
+            }
             onClose();
         } catch (err: unknown) {
             showToast(
                 'generic-error',
                 err instanceof ApiError || err instanceof Error
                     ? err.message
-                    : intl.formatMessage(messages.createFailed),
+                    : intl.formatMessage(editing ? messages.saveFailed : messages.createFailed),
             );
-            setCreating(false);
+            setSubmitting(false);
         }
     }
 
@@ -131,38 +150,34 @@ export function NewQuickPrompt({ onClose, onCreated }: NewQuickPromptProps) {
             className={styles.form}
             onSubmit={(event) => {
                 event.preventDefault();
-                void handleCreate();
+                void handleSubmit();
             }}
         >
             <RoutePanel
-                title={intl.formatMessage(messages.title)}
+                title={title}
                 onClose={onClose}
                 closeLabel={intl.formatMessage(messages.close)}
-                closeDisabled={creating}
+                closeDisabled={submitting}
                 hideToolbar
-                aria-label={intl.formatMessage(messages.ariaLabel)}
+                aria-label={ariaLabel}
                 footer={
                     <div className={styles.footer}>
                         <Button type='submit' disabled={!formReady}>
-                            {intl.formatMessage(creating ? messages.creating : messages.create)}
+                            {submitLabel}
                         </Button>
                     </div>
                 }
                 overlay={
-                    creating ? (
+                    submitting ? (
                         <div className={styles.creatingOverlay}>
-                            <Spinner
-                                size='lg'
-                                label={intl.formatMessage(messages.creating)}
-                                className={styles.creatingSpinner}
-                            />
-                            <p className={styles.creatingLabel}>{intl.formatMessage(messages.creating)}</p>
+                            <Spinner size='lg' label={busyLabel} className={styles.creatingSpinner} />
+                            <p className={styles.creatingLabel}>{busyLabel}</p>
                         </div>
                     ) : null
                 }
             >
                 <div>
-                    <h2 className={styles.sectionTitle}>{intl.formatMessage(messages.title)}</h2>
+                    <h2 className={styles.sectionTitle}>{title}</h2>
                 </div>
 
                 <div className={styles.fields}>
@@ -179,7 +194,7 @@ export function NewQuickPrompt({ onClose, onCreated }: NewQuickPromptProps) {
                             autoCorrect='off'
                             spellCheck={false}
                             autoFocus
-                            disabled={creating}
+                            disabled={submitting}
                         />
                     </label>
 
@@ -196,7 +211,7 @@ export function NewQuickPrompt({ onClose, onCreated }: NewQuickPromptProps) {
                             autoCapitalize='off'
                             autoCorrect='off'
                             spellCheck={false}
-                            disabled={creating}
+                            disabled={submitting}
                         />
                         <span className={styles.fieldMeta}>
                             {description.length}/{MAX_QUICK_PROMPT_DESCRIPTION_LENGTH}
@@ -217,7 +232,7 @@ export function NewQuickPrompt({ onClose, onCreated }: NewQuickPromptProps) {
                             autoCapitalize='off'
                             autoCorrect='off'
                             spellCheck={false}
-                            disabled={creating}
+                            disabled={submitting}
                         />
                     </label>
 
@@ -257,7 +272,7 @@ export function NewQuickPrompt({ onClose, onCreated }: NewQuickPromptProps) {
                                             autoCapitalize='off'
                                             autoCorrect='off'
                                             spellCheck={false}
-                                            disabled={creating}
+                                            disabled={submitting}
                                         />
                                         <select
                                             className={styles.inputRowSelect}
@@ -269,7 +284,7 @@ export function NewQuickPrompt({ onClose, onCreated }: NewQuickPromptProps) {
                                                     updateInput(index, { type: next });
                                                 }
                                             }}
-                                            disabled={creating}
+                                            disabled={submitting}
                                         >
                                             <option value='string'>{intl.formatMessage(messages.typeString)}</option>
                                             <option value='number'>{intl.formatMessage(messages.typeNumber)}</option>
@@ -280,7 +295,7 @@ export function NewQuickPrompt({ onClose, onCreated }: NewQuickPromptProps) {
                                             className={styles.removeInput}
                                             aria-label={intl.formatMessage(messages.removeInput)}
                                             onClick={() => removeInput(index)}
-                                            disabled={creating}
+                                            disabled={submitting}
                                         >
                                             <RemoveIcon />
                                         </button>
@@ -299,7 +314,7 @@ export function NewQuickPrompt({ onClose, onCreated }: NewQuickPromptProps) {
                                     variant='secondary'
                                     fullWidth={false}
                                     onClick={addInput}
-                                    disabled={creating}
+                                    disabled={submitting}
                                 >
                                     {intl.formatMessage(messages.addInput)}
                                 </Button>

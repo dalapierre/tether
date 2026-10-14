@@ -20,6 +20,7 @@ import { styles } from './appShell.styles';
 function isMainContentRoute(pathname: string): boolean {
     return (
         pathname.startsWith('/sessions/') ||
+        pathname.startsWith('/quick-prompts/') ||
         pathname.startsWith('/terminals/') ||
         pathname === '/settings' ||
         pathname === '/new-session' ||

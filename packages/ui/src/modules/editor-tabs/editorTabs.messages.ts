@@ -9,6 +9,7 @@ type EditorTabsMessages = {
     newQuickPrompt: NoMessageValues;
     closeTab: NoMessageValues;
     sessionFallback: NoMessageValues;
+    quickPromptFallback: NoMessageValues;
     terminalFallback: NoMessageValues;
 };
 
@@ -38,6 +39,10 @@ export const messages: {
     sessionFallback: {
         id: 'editorTabs.sessionFallback',
         defaultMessage: 'Session',
+    },
+    quickPromptFallback: {
+        id: 'editorTabs.quickPromptFallback',
+        defaultMessage: 'Quick prompt',
     },
     terminalFallback: {
         id: 'editorTabs.terminalFallback',

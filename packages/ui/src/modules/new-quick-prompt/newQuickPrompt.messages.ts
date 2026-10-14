@@ -2,7 +2,9 @@ import { defineMessages, type NoMessageValues } from 'react-intl';
 
 type Messages = {
     title: NoMessageValues;
+    editTitle: NoMessageValues;
     ariaLabel: NoMessageValues;
+    editAriaLabel: NoMessageValues;
     close: NoMessageValues;
     nameLabel: NoMessageValues;
     namePlaceholder: NoMessageValues;
@@ -21,6 +23,9 @@ type Messages = {
     create: NoMessageValues;
     creating: NoMessageValues;
     createFailed: NoMessageValues;
+    save: NoMessageValues;
+    saving: NoMessageValues;
+    saveFailed: NoMessageValues;
     invalidInputName: NoMessageValues;
     inputNameRequired: NoMessageValues;
     duplicateInputName: NoMessageValues;
@@ -33,9 +38,17 @@ export const messages = defineMessages<Messages>(
             id: 'newQuickPrompt.title',
             defaultMessage: 'New quick prompt',
         },
+        editTitle: {
+            id: 'newQuickPrompt.editTitle',
+            defaultMessage: 'Edit quick prompt',
+        },
         ariaLabel: {
             id: 'newQuickPrompt.ariaLabel',
             defaultMessage: 'New quick prompt',
+        },
+        editAriaLabel: {
+            id: 'newQuickPrompt.editAriaLabel',
+            defaultMessage: 'Edit quick prompt',
         },
         close: {
             id: 'newQuickPrompt.close',
@@ -108,6 +121,18 @@ export const messages = defineMessages<Messages>(
         createFailed: {
             id: 'newQuickPrompt.createFailed',
             defaultMessage: 'Failed to create quick prompt',
+        },
+        save: {
+            id: 'newQuickPrompt.save',
+            defaultMessage: 'Save',
+        },
+        saving: {
+            id: 'newQuickPrompt.saving',
+            defaultMessage: 'Saving…',
+        },
+        saveFailed: {
+            id: 'newQuickPrompt.saveFailed',
+            defaultMessage: 'Failed to save quick prompt',
         },
         invalidInputName: {
             id: 'newQuickPrompt.invalidInputName',

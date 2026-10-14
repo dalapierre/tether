@@ -54,4 +54,5 @@ export {
     type QuickPrompt,
     type QuickPromptInput,
     type QuickPromptInputType,
+    type UpdateQuickPromptInput,
 } from './libs/quick-prompts/store.js';

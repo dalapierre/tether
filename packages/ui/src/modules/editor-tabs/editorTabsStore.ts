@@ -1,5 +1,11 @@
 import { getLocalStorageJson, setLocalStorageJson } from '@ui/libs/storage/localStorage';
-import type { EditorTab, EditorTabId, SessionEditorTab, TerminalEditorTab } from './editorTabs.types';
+import type {
+    EditorTab,
+    EditorTabId,
+    QuickPromptEditorTab,
+    SessionEditorTab,
+    TerminalEditorTab,
+} from './editorTabs.types';
 
 const STORAGE_KEY = 'tether.editorTabs';
 
@@ -18,6 +24,7 @@ function isEditorTab(value: unknown): value is EditorTab {
         kind?: unknown;
         id?: unknown;
         sessionId?: unknown;
+        promptId?: unknown;
         terminalId?: unknown;
         title?: unknown;
     };
@@ -29,6 +36,15 @@ function isEditorTab(value: unknown): value is EditorTab {
         typeof tab.sessionId === 'string' &&
         tab.sessionId.length > 0 &&
         tab.id === `session:${tab.sessionId}` &&
+        (tab.title === undefined || typeof tab.title === 'string')
+    ) {
+        return true;
+    }
+    if (
+        tab.kind === 'quick-prompt' &&
+        typeof tab.promptId === 'string' &&
+        tab.promptId.length > 0 &&
+        tab.id === `quick-prompt:${tab.promptId}` &&
         (tab.title === undefined || typeof tab.title === 'string')
     ) {
         return true;
@@ -59,6 +75,13 @@ function loadTabs(): EditorTab[] {
                 id: entry.id,
                 kind: 'session',
                 sessionId: entry.sessionId,
+                ...(entry.title ? { title: entry.title } : {}),
+            });
+        } else if (entry.kind === 'quick-prompt') {
+            next.push({
+                id: entry.id,
+                kind: 'quick-prompt',
+                promptId: entry.promptId,
                 ...(entry.title ? { title: entry.title } : {}),
             });
         } else if (entry.kind === 'terminal') {
@@ -119,11 +142,24 @@ export function sessionTabId(sessionId: string): SessionEditorTab['id'] {
     return `session:${sessionId}`;
 }
 
+export function quickPromptTabId(promptId: string): QuickPromptEditorTab['id'] {
+    return `quick-prompt:${promptId}`;
+}
+
 export function createSessionTab(sessionId: string, title?: string): SessionEditorTab {
     return {
         id: sessionTabId(sessionId),
         kind: 'session',
         sessionId,
+        ...(title ? { title } : {}),
+    };
+}
+
+export function createQuickPromptTab(promptId: string, title?: string): QuickPromptEditorTab {
+    return {
+        id: quickPromptTabId(promptId),
+        kind: 'quick-prompt',
+        promptId,
         ...(title ? { title } : {}),
     };
 }
@@ -155,6 +191,8 @@ export function pathForEditorTab(tab: EditorTab): string {
             return '/new-session';
         case 'new-quick-prompt':
             return '/new-quick-prompt';
+        case 'quick-prompt':
+            return `/quick-prompts/${tab.promptId}`;
         case 'terminal':
             return `/terminals/${tab.terminalId}`;
     }
@@ -167,6 +205,8 @@ export function editorTabFromPath(pathname: string): EditorTab | null {
     if (pathname === '/new-quick-prompt') return NEW_QUICK_PROMPT_TAB;
     const sessionMatch = /^\/sessions\/([^/]+)$/.exec(pathname);
     if (sessionMatch?.[1]) return createSessionTab(sessionMatch[1]);
+    const quickPromptMatch = /^\/quick-prompts\/([^/]+)$/.exec(pathname);
+    if (quickPromptMatch?.[1]) return createQuickPromptTab(decodeURIComponent(quickPromptMatch[1]));
     const terminalMatch = /^\/terminals\/([^/]+)$/.exec(pathname);
     if (terminalMatch?.[1]) return createWorkspaceTerminalTab();
     return null;
@@ -177,6 +217,18 @@ export function openEditorTab(tab: EditorTab): void {
     if (index !== -1) {
         const existing = tabs[index];
         if (tab.kind === 'session' && existing?.kind === 'session' && tab.title && existing.title !== tab.title) {
+            const next = [...tabs];
+            next[index] = { ...existing, title: tab.title };
+            tabs = next;
+            emit();
+            return;
+        }
+        if (
+            tab.kind === 'quick-prompt' &&
+            existing?.kind === 'quick-prompt' &&
+            tab.title &&
+            existing.title !== tab.title
+        ) {
             const next = [...tabs];
             next[index] = { ...existing, title: tab.title };
             tabs = next;
@@ -230,10 +282,23 @@ export function closeSessionEditorTab(sessionId: string): EditorTab | null {
     return closeEditorTab(sessionTabId(sessionId));
 }
 
+export function closeQuickPromptEditorTab(promptId: string): EditorTab | null {
+    return closeEditorTab(quickPromptTabId(promptId));
+}
+
 /** Drop session tabs whose sessions no longer exist (e.g. deleted from the list). */
 export function pruneMissingSessionTabs(existingSessionIds: Iterable<string>): void {
     const ids = new Set(existingSessionIds);
     const next = tabs.filter((tab) => tab.kind !== 'session' || ids.has(tab.sessionId));
+    if (next.length === tabs.length) return;
+    tabs = next;
+    emit();
+}
+
+/** Drop quick-prompt edit tabs whose prompts no longer exist (e.g. deleted from the list). */
+export function pruneMissingQuickPromptTabs(existingPromptIds: Iterable<string>): void {
+    const ids = new Set(existingPromptIds);
+    const next = tabs.filter((tab) => tab.kind !== 'quick-prompt' || ids.has(tab.promptId));
     if (next.length === tabs.length) return;
     tabs = next;
     emit();

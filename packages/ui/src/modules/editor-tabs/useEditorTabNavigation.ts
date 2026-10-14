@@ -6,6 +6,7 @@ import { useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
     closeEditorTab,
+    createQuickPromptTab,
     createSessionTab,
     createWorkspaceTerminalTab,
     editorTabFromPath,
@@ -58,6 +59,13 @@ export function useEditorTabNavigation() {
     const openNewQuickPromptTab = useCallback(() => {
         activateTab(NEW_QUICK_PROMPT_TAB);
     }, [activateTab]);
+
+    const openQuickPromptTab = useCallback(
+        (promptId: string, title?: string) => {
+            activateTab(createQuickPromptTab(promptId, title));
+        },
+        [activateTab],
+    );
 
     const openTerminalTab = useCallback(
         (title?: string) => {
@@ -116,6 +124,7 @@ export function useEditorTabNavigation() {
         openSettingsTab,
         openNewSessionTab,
         openNewQuickPromptTab,
+        openQuickPromptTab,
         openTerminalTab,
         closeTab,
     };
