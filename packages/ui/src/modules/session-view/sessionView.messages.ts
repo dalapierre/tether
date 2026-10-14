@@ -19,6 +19,7 @@ type Messages = {
     terminalView: NoMessageValues;
     reviewView: NoMessageValues;
     toggleTerminal: NoMessageValues;
+    openQuickPrompt: NoMessageValues;
     enterFullscreenTerminal: NoMessageValues;
     exitFullscreenTerminal: NoMessageValues;
     closeTerminal: NoMessageValues;
@@ -110,6 +111,10 @@ export const messages = defineMessages<Messages>(
         toggleTerminal: {
             id: 'sessionView.toggleTerminal',
             defaultMessage: 'Toggle terminal',
+        },
+        openQuickPrompt: {
+            id: 'sessionView.openQuickPrompt',
+            defaultMessage: 'Quick prompt',
         },
         enterFullscreenTerminal: {
             id: 'sessionView.enterFullscreenTerminal',

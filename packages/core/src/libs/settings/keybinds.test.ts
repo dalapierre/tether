@@ -17,12 +17,14 @@ describe('normalizeKeybinds', () => {
         expect(next.home.openSettings).toBe(DEFAULT_KEYBINDS.home.openSettings);
     });
 
-    it('rewrites mod/ctrl/option aliases to alt without duplicating', () => {
-        expect(normalizeKeybinds({ session: { toggleTerminal: 'mod+q' } }).session.toggleTerminal).toBe('alt+q');
+    it('rewrites ctrl/option aliases to alt without duplicating; keeps mod/super', () => {
+        expect(normalizeKeybinds({ session: { toggleTerminal: 'mod+q' } }).session.toggleTerminal).toBe('mod+q');
+        expect(normalizeKeybinds({ session: { toggleTerminal: 'ctrl+q' } }).session.toggleTerminal).toBe('alt+q');
         expect(normalizeKeybinds({ session: { toggleTerminal: 'option+alt+q' } }).session.toggleTerminal).toBe('alt+q');
         expect(normalizeKeybinds({ session: { reviewFullscreen: 'super+.' } }).session.reviewFullscreen).toBe(
             'super+.',
         );
+        expect(normalizeKeybinds({ session: { quickPrompt: 'mod+shift+p' } }).session.quickPrompt).toBe('mod+shift+p');
     });
 
     it('migrates legacy codeReview chords into session when missing', () => {

@@ -40,6 +40,7 @@ type Messages = {
     keybindEnterAgentInsert: NoMessageValues;
     keybindExitAgentInsert: NoMessageValues;
     keybindEnterShellInsert: NoMessageValues;
+    keybindQuickPrompt: NoMessageValues;
     keybindNextFile: NoMessageValues;
     keybindPreviousFile: NoMessageValues;
     keybindDiscardFile: NoMessageValues;
@@ -230,6 +231,10 @@ export const messages = defineMessages<Messages>(
         keybindEnterShellInsert: {
             id: 'settings.keybindEnterShellInsert',
             defaultMessage: 'Enter shell insert',
+        },
+        keybindQuickPrompt: {
+            id: 'settings.keybindQuickPrompt',
+            defaultMessage: 'Quick prompt',
         },
         keybindNextFile: {
             id: 'settings.keybindNextFile',

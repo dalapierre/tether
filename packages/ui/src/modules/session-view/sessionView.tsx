@@ -49,6 +49,7 @@ import { resumeXtermRenderer, resumeXtermRendererIfNeeded } from '@ui/libs/termi
 import { scrollTerminalToBottomNow, writeTerminalHistory } from '@ui/libs/terminal/scroll';
 import { attachTouchScroll } from '@ui/libs/terminal/touchScroll';
 import { AURA_TERMINAL_THEME } from '@ui/libs/theme/aura';
+import { QuickPromptMenu } from '@ui/modules/quick-prompt';
 import {
     clearViewedSessionId,
     ensureSessionDiff,
@@ -186,6 +187,25 @@ function TerminalIcon({ className }: { className?: string }) {
                 strokeLinecap='round'
                 strokeLinejoin='round'
                 d='M6.75 7.5 3 12l3.75 4.5M12.75 16.5h4.5M5.25 4.5h13.5A1.5 1.5 0 0 1 20.25 6v12a1.5 1.5 0 0 1-1.5 1.5H5.25A1.5 1.5 0 0 1 3.75 18V6A1.5 1.5 0 0 1 5.25 4.5Z'
+            />
+        </svg>
+    );
+}
+
+function QuickPromptIcon({ className }: { className?: string }) {
+    return (
+        <svg
+            className={className ?? styles.actionIcon}
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='1.75'
+            aria-hidden='true'
+        >
+            <path
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                d='M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z'
             />
         </svg>
     );
@@ -451,6 +471,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
     const [shellPaneHeightPct, setShellPaneHeightPctState] = useState(getShellPaneHeightPct);
     const [repositoryName, setRepositoryName] = useState<string | null>(null);
     const [pasteOpen, setPasteOpen] = useState(false);
+    const [quickPromptOpen, setQuickPromptOpen] = useState(false);
     const reviewPaneWidthPctRef = useRef(reviewPaneWidthPct);
     const shellPaneHeightPctRef = useRef(shellPaneHeightPct);
     const rootRef = useRef<HTMLDivElement | null>(null);
@@ -684,6 +705,10 @@ export function SessionView({ sessionId }: SessionViewProps) {
     );
     useKeybind('session', 'toggleTerminal', () => toggleShell(), {
         enabled: sessionReady,
+        allowInTerminalInsert: true,
+    });
+    useKeybind('session', 'quickPrompt', () => setQuickPromptOpen(true), {
+        enabled: sessionReady && !quickPromptOpen,
         allowInTerminalInsert: true,
     });
     const { keybinds } = useKeybinds();
@@ -1318,6 +1343,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
     const statusDotClass = sessionStatusDotClassFor(connection, displaySession.status);
     const agentTitle = harnessLabel(displaySession.agent, intl.formatMessage);
     const terminalToggleLabel = intl.formatMessage(messages.toggleTerminal);
+    const quickPromptLabel = intl.formatMessage(messages.openQuickPrompt);
     const reviewToggleLabel = intl.formatMessage(desktopReviewOpen ? messages.closeReview : messages.openReview);
 
     return (
@@ -1470,6 +1496,16 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         }
                         toolbarActions={
                             <div className={styles.paneToolbarActions}>
+                                <Tooltip content={quickPromptLabel}>
+                                    <button
+                                        type='button'
+                                        className={styles.paneToggle}
+                                        aria-label={quickPromptLabel}
+                                        onClick={() => setQuickPromptOpen(true)}
+                                    >
+                                        <QuickPromptIcon className={styles.paneToggleIcon} />
+                                    </button>
+                                </Tooltip>
                                 <Tooltip content={terminalToggleLabel}>
                                     <button
                                         type='button'
@@ -1644,6 +1680,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                     </div>
                 </div>
             ) : null}
+            {quickPromptOpen ? <QuickPromptMenu onClose={() => setQuickPromptOpen(false)} /> : null}
         </div>
     );
 }

@@ -20,6 +20,7 @@ export type SessionKeybinds = {
     enterAgentInsert: string;
     exitAgentInsert: string;
     enterShellInsert: string;
+    quickPrompt: string;
     nextFile: string;
     previousFile: string;
     discardFile: string;
@@ -56,6 +57,7 @@ const SESSION_ACTIONS = [
     'enterAgentInsert',
     'exitAgentInsert',
     'enterShellInsert',
+    'quickPrompt',
     'nextFile',
     'previousFile',
     'discardFile',
@@ -88,6 +90,7 @@ export const DEFAULT_KEYBINDS: Keybinds = {
         enterAgentInsert: 'i',
         exitAgentInsert: 'alt+i',
         enterShellInsert: 't',
+        quickPrompt: 'mod+shift+p',
         nextFile: 'x',
         previousFile: 'z',
         discardFile: 'd',
@@ -108,11 +111,10 @@ function isChordString(value: unknown): value is string {
 }
 
 function rewriteModToAlt(chord: string): string {
-    // Persist Alt explicitly; older defaults/recording stored the platform mod as `mod` (Ctrl).
-    // Accept macOS Option aliases; leave `super` chords alone.
+    // Persist Alt for literal ctrl/option aliases. Keep `mod` (Ctrl/Cmd) and `super` as-is.
     return chord
         .split('+')
-        .map((part) => (part === 'mod' || part === 'ctrl' || part === 'option' || part === 'opt' ? 'alt' : part))
+        .map((part) => (part === 'ctrl' || part === 'option' || part === 'opt' ? 'alt' : part))
         .filter((part, index, parts) => part !== 'alt' || parts.indexOf('alt') === index)
         .join('+');
 }

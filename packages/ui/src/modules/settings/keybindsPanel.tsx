@@ -65,6 +65,8 @@ function actionLabel(
                     return formatMessage(messages.keybindExitAgentInsert);
                 case 'enterShellInsert':
                     return formatMessage(messages.keybindEnterShellInsert);
+                case 'quickPrompt':
+                    return formatMessage(messages.keybindQuickPrompt);
                 case 'nextFile':
                     return formatMessage(messages.keybindNextFile);
                 case 'previousFile':

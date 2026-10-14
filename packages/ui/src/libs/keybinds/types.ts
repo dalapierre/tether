@@ -18,6 +18,7 @@ export type SessionKeybindAction =
     | 'enterAgentInsert'
     | 'exitAgentInsert'
     | 'enterShellInsert'
+    | 'quickPrompt'
     | 'nextFile'
     | 'previousFile'
     | 'discardFile'
@@ -62,6 +63,7 @@ export const SESSION_KEYBIND_ACTIONS: readonly SessionKeybindAction[] = [
     'enterAgentInsert',
     'exitAgentInsert',
     'enterShellInsert',
+    'quickPrompt',
     'nextFile',
     'previousFile',
     'discardFile',
@@ -99,6 +101,7 @@ export const DEFAULT_KEYBINDS: Keybinds = {
         enterAgentInsert: 'i',
         exitAgentInsert: 'alt+i',
         enterShellInsert: 't',
+        quickPrompt: 'mod+shift+p',
         nextFile: 'x',
         previousFile: 'z',
         discardFile: 'd',
