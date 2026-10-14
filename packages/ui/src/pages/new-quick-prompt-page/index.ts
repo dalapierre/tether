@@ -1,0 +1,1 @@
+export { NewQuickPromptPage } from './newQuickPromptPage';

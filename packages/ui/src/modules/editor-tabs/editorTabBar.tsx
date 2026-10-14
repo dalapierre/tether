@@ -47,6 +47,8 @@ function tabLabel(tab: EditorTab, formatMessage: ReturnType<typeof useIntl>['for
             return formatMessage(messages.settings);
         case 'new-session':
             return formatMessage(messages.newSession);
+        case 'new-quick-prompt':
+            return formatMessage(messages.newQuickPrompt);
         case 'session': {
             const session = getLiveSession(tab.sessionId);
             return session?.name ?? tab.title ?? formatMessage(messages.sessionFallback);

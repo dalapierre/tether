@@ -1,4 +1,4 @@
-export type EditorTabKind = 'session' | 'settings' | 'new-session' | 'terminal';
+export type EditorTabKind = 'session' | 'settings' | 'new-session' | 'new-quick-prompt' | 'terminal';
 
 export type SessionEditorTab = {
     id: `session:${string}`;
@@ -18,6 +18,11 @@ export type NewSessionEditorTab = {
     kind: 'new-session';
 };
 
+export type NewQuickPromptEditorTab = {
+    id: 'new-quick-prompt';
+    kind: 'new-quick-prompt';
+};
+
 export type TerminalEditorTab = {
     id: `terminal:${string}`;
     kind: 'terminal';
@@ -26,6 +31,7 @@ export type TerminalEditorTab = {
     title?: string;
 };
 
-export type EditorTab = SessionEditorTab | SettingsEditorTab | NewSessionEditorTab | TerminalEditorTab;
+export type EditorTab =
+    SessionEditorTab | SettingsEditorTab | NewSessionEditorTab | NewQuickPromptEditorTab | TerminalEditorTab;
 
 export type EditorTabId = EditorTab['id'];

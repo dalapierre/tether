@@ -23,6 +23,7 @@ function isEditorTab(value: unknown): value is EditorTab {
     };
     if (tab.kind === 'settings' && tab.id === 'settings') return true;
     if (tab.kind === 'new-session' && tab.id === 'new-session') return true;
+    if (tab.kind === 'new-quick-prompt' && tab.id === 'new-quick-prompt') return true;
     if (
         tab.kind === 'session' &&
         typeof tab.sessionId === 'string' &&
@@ -142,6 +143,7 @@ export function createWorkspaceTerminalTab(title?: string): TerminalEditorTab {
 
 export const SETTINGS_TAB: EditorTab = { id: 'settings', kind: 'settings' };
 export const NEW_SESSION_TAB: EditorTab = { id: 'new-session', kind: 'new-session' };
+export const NEW_QUICK_PROMPT_TAB: EditorTab = { id: 'new-quick-prompt', kind: 'new-quick-prompt' };
 
 export function pathForEditorTab(tab: EditorTab): string {
     switch (tab.kind) {
@@ -151,6 +153,8 @@ export function pathForEditorTab(tab: EditorTab): string {
             return '/settings';
         case 'new-session':
             return '/new-session';
+        case 'new-quick-prompt':
+            return '/new-quick-prompt';
         case 'terminal':
             return `/terminals/${tab.terminalId}`;
     }
@@ -160,6 +164,7 @@ export function pathForEditorTab(tab: EditorTab): string {
 export function editorTabFromPath(pathname: string): EditorTab | null {
     if (pathname === '/settings') return SETTINGS_TAB;
     if (pathname === '/new-session') return NEW_SESSION_TAB;
+    if (pathname === '/new-quick-prompt') return NEW_QUICK_PROMPT_TAB;
     const sessionMatch = /^\/sessions\/([^/]+)$/.exec(pathname);
     if (sessionMatch?.[1]) return createSessionTab(sessionMatch[1]);
     const terminalMatch = /^\/terminals\/([^/]+)$/.exec(pathname);

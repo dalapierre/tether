@@ -10,6 +10,7 @@ export {
     ensureEditorTabForPath,
     getEditorTabsSnapshot,
     moveEditorTab,
+    NEW_QUICK_PROMPT_TAB,
     NEW_SESSION_TAB,
     openEditorTab,
     pathForEditorTab,

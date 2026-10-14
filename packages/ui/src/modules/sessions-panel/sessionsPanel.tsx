@@ -92,6 +92,27 @@ function ListIcon() {
     );
 }
 
+function QuickPromptListIcon() {
+    return (
+        <svg
+            className={styles.listIcon}
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='1.75'
+            aria-hidden='true'
+        >
+            <path
+                strokeLinecap='round'
+                strokeLinejoin='round'
+                d='M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z'
+            />
+        </svg>
+    );
+}
+
+type SideListMode = 'sessions' | 'quickPrompts';
+
 function RestartIcon() {
     return (
         <svg
@@ -155,9 +176,11 @@ export function SessionsPanel({
     const sessionMatch = useMatch('/sessions/:sessionId');
     const activeSessionId = sessionMatch?.params.sessionId;
     const { openSettings } = useSettings();
-    const { openSessionTab, openNewSessionTab, openTerminalTab } = useEditorTabNavigation();
+    const { openSessionTab, openNewSessionTab, openNewQuickPromptTab, openTerminalTab } = useEditorTabNavigation();
     const [repositories, setRepositories] = useState<Repository[]>([]);
+    const [listMode, setListMode] = useState<SideListMode>('sessions');
     const [searchQuery, setSearchQuery] = useState('');
+    const [promptSearchQuery, setPromptSearchQuery] = useState('');
     const [pendingDelete, setPendingDelete] = useState<Session | null>(null);
     const [actionsMenu, setActionsMenu] = useState<{
         session: Session;
@@ -170,6 +193,7 @@ export function SessionsPanel({
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const selectedRowRef = useRef<HTMLDivElement | null>(null);
     const searchInputRef = useRef<HTMLInputElement | null>(null);
+    const promptSearchInputRef = useRef<HTMLInputElement | null>(null);
     const actionsMenuRef = useRef<HTMLDivElement | null>(null);
     const createMenuRef = useRef<HTMLDivElement | null>(null);
     const filteredSessionsRef = useRef<Session[]>([]);
@@ -178,10 +202,34 @@ export function SessionsPanel({
 
     /** Mobile always shows the list; desktop keeps it mounted so the grid can animate open/closed. */
     const listVisible = !isDesktop || sessionListOpen;
+    const sessionsListActive = listMode === 'sessions' && listVisible;
+    const quickPromptsListActive = listMode === 'quickPrompts' && listVisible;
+
+    const showSideList = useCallback(
+        (mode: SideListMode) => {
+            setListMode(mode);
+            if (!sessionListOpen) {
+                onSessionListOpenChange?.(true);
+            }
+        },
+        [onSessionListOpenChange, sessionListOpen],
+    );
 
     const toggleSessionList = useCallback(() => {
-        onSessionListOpenChange?.(!sessionListOpen);
-    }, [onSessionListOpenChange, sessionListOpen]);
+        if (sessionListOpen && listMode === 'sessions') {
+            onSessionListOpenChange?.(false);
+            return;
+        }
+        showSideList('sessions');
+    }, [listMode, onSessionListOpenChange, sessionListOpen, showSideList]);
+
+    const toggleQuickPromptList = useCallback(() => {
+        if (sessionListOpen && listMode === 'quickPrompts') {
+            onSessionListOpenChange?.(false);
+            return;
+        }
+        showSideList('quickPrompts');
+    }, [listMode, onSessionListOpenChange, sessionListOpen, showSideList]);
 
     const liveSessions = useSyncExternalStore(subscribe, getSessionsSnapshot, getSessionsSnapshot);
     const sessionsLoading = !useSyncExternalStore(subscribe, hasSessionsSnapshot, hasSessionsSnapshot);
@@ -216,7 +264,12 @@ export function SessionsPanel({
     const panelFree = !pendingDelete && !actionsMenu && !createMenu;
     const railActionsEnabled = panelFree;
     const listActionsEnabled = railActionsEnabled && listVisible;
-    const navKeybindsEnabled = listInteractive && listActionsEnabled && !sessionsLoading && filteredSessions.length > 0;
+    const navKeybindsEnabled =
+        listInteractive &&
+        listActionsEnabled &&
+        listMode === 'sessions' &&
+        !sessionsLoading &&
+        filteredSessions.length > 0;
 
     const closeActionsMenu = useCallback(() => {
         setActionsMenu(null);
@@ -255,9 +308,17 @@ export function SessionsPanel({
         openTerminalTab();
     }, [closeCreateMenu, openTerminalTab]);
 
+    const openNewQuickPrompt = useCallback(() => {
+        closeCreateMenu();
+        openNewQuickPromptTab();
+    }, [closeCreateMenu, openNewQuickPromptTab]);
+
     function blurSearch() {
         if (document.activeElement === searchInputRef.current) {
             searchInputRef.current?.blur();
+        }
+        if (document.activeElement === promptSearchInputRef.current) {
+            promptSearchInputRef.current?.blur();
         }
     }
 
@@ -267,10 +328,14 @@ export function SessionsPanel({
         'home',
         'focusSearch',
         () => {
-            searchInputRef.current?.focus();
+            if (listMode === 'quickPrompts') {
+                promptSearchInputRef.current?.focus();
+            } else {
+                searchInputRef.current?.focus();
+            }
             setSelectedIndex(null);
         },
-        { enabled: listActionsEnabled && !sessionsLoading },
+        { enabled: listActionsEnabled && (listMode === 'quickPrompts' || !sessionsLoading) },
     );
     useKeybind(
         'home',
@@ -518,7 +583,15 @@ export function SessionsPanel({
     const createLabel = intl.formatMessage(messages.create);
     const settingsLabel = intl.formatMessage(messages.settings);
     const sessionListLabel = intl.formatMessage(messages.sessionList);
+    const quickPromptListLabel = intl.formatMessage(messages.quickPromptList);
     const sessionsHeading = intl.formatMessage(messages.sessionsHeading);
+    const quickPromptsHeading = intl.formatMessage(messages.quickPromptsHeading);
+    const promptSearchNormalized = promptSearchQuery.trim().toLowerCase();
+    // No stored prompts yet — keep the list empty and show empty/no-match states.
+    const filteredQuickPrompts: { id: string; label: string }[] = [];
+    const showPromptEmpty = filteredQuickPrompts.length === 0 && !promptSearchNormalized;
+    const showPromptNoMatches = filteredQuickPrompts.length === 0 && Boolean(promptSearchNormalized);
+    const promptBodyClass = showPromptEmpty || showPromptNoMatches ? styles.bodyEmpty : styles.body;
 
     const sessionList = (
         <div className={styles.sessionsSection}>
@@ -574,6 +647,7 @@ export function SessionsPanel({
                 {sessionsLoading ? (
                     <p className={styles.placeholder}>{intl.formatMessage(messages.loadingSessions)}</p>
                 ) : null}
+                {showEmpty ? <p className={styles.placeholder}>{intl.formatMessage(messages.noSessionsYet)}</p> : null}
                 {showNoMatches ? (
                     <p className={styles.placeholder}>{intl.formatMessage(messages.noMatchingSessions)}</p>
                 ) : null}
@@ -706,6 +780,71 @@ export function SessionsPanel({
         </div>
     );
 
+    const quickPromptList = (
+        <div className={styles.sessionsSection}>
+            <div className={styles.search}>
+                <div className={styles.searchField}>
+                    <input
+                        ref={promptSearchInputRef}
+                        className={styles.searchInput}
+                        type='search'
+                        value={promptSearchQuery}
+                        placeholder={intl.formatMessage(messages.searchQuickPromptsPlaceholder)}
+                        aria-label={intl.formatMessage(messages.searchQuickPromptsAriaLabel)}
+                        disabled={!listVisible}
+                        tabIndex={!listVisible ? -1 : undefined}
+                        onChange={(event) => {
+                            setPromptSearchQuery(event.target.value);
+                        }}
+                        onKeyDown={(event) => {
+                            if (event.key !== 'Escape') return;
+                            event.preventDefault();
+                            if (promptSearchQuery) {
+                                setPromptSearchQuery('');
+                                return;
+                            }
+                            event.currentTarget.blur();
+                        }}
+                    />
+                    {promptSearchQuery ? (
+                        <Tooltip content={intl.formatMessage(messages.clearSearch)}>
+                            <button
+                                type='button'
+                                className={styles.searchClear}
+                                aria-label={intl.formatMessage(messages.clearSearch)}
+                                tabIndex={!listVisible ? -1 : undefined}
+                                onClick={() => {
+                                    setPromptSearchQuery('');
+                                    promptSearchInputRef.current?.focus();
+                                }}
+                            >
+                                <ClearSearchIcon />
+                            </button>
+                        </Tooltip>
+                    ) : null}
+                </div>
+            </div>
+
+            {!isDesktop ? <p className={styles.sectionLabel}>{quickPromptsHeading}</p> : null}
+
+            <div className={promptBodyClass}>
+                {showPromptEmpty ? (
+                    <p className={styles.placeholder}>{intl.formatMessage(messages.noQuickPrompts)}</p>
+                ) : null}
+                {showPromptNoMatches ? (
+                    <p className={styles.placeholder}>{intl.formatMessage(messages.noMatchingQuickPrompts)}</p>
+                ) : null}
+                {filteredQuickPrompts.map((prompt) => (
+                    <div key={prompt.id} className={styles.sessionRow}>
+                        <button type='button' className={styles.sessionButton} tabIndex={!listVisible ? -1 : undefined}>
+                            <span className={styles.sessionTitle}>{prompt.label}</span>
+                        </button>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+
     const dialogs = (
         <>
             {createMenu
@@ -732,6 +871,14 @@ export function SessionsPanel({
                               onClick={openNewTerminal}
                           >
                               {intl.formatMessage(messages.createTerminal)}
+                          </button>
+                          <button
+                              type='button'
+                              role='menuitem'
+                              className={styles.actionsMenuItem}
+                              onClick={openNewQuickPrompt}
+                          >
+                              {intl.formatMessage(messages.createQuickPrompt)}
                           </button>
                       </div>,
                       document.body,
@@ -809,12 +956,23 @@ export function SessionsPanel({
                             <Tooltip content={sessionListLabel}>
                                 <button
                                     type='button'
-                                    className={sessionListOpen ? styles.railIconActive : styles.railIcon}
+                                    className={sessionsListActive ? styles.railIconActive : styles.railIcon}
                                     aria-label={sessionListLabel}
-                                    aria-pressed={sessionListOpen}
+                                    aria-pressed={sessionsListActive}
                                     onClick={toggleSessionList}
                                 >
                                     <ListIcon />
+                                </button>
+                            </Tooltip>
+                            <Tooltip content={quickPromptListLabel}>
+                                <button
+                                    type='button'
+                                    className={quickPromptsListActive ? styles.railIconActive : styles.railIcon}
+                                    aria-label={quickPromptListLabel}
+                                    aria-pressed={quickPromptsListActive}
+                                    onClick={toggleQuickPromptList}
+                                >
+                                    <QuickPromptListIcon />
                                 </button>
                             </Tooltip>
                             <div className={styles.railSpacer} />
@@ -843,7 +1001,10 @@ export function SessionsPanel({
                 aria-hidden={!listVisible || undefined}
                 inert={!listVisible ? true : undefined}
             >
-                <Panel className={styles.panel} aria-label={sessionsHeading}>
+                <Panel
+                    className={styles.panel}
+                    aria-label={listMode === 'quickPrompts' ? quickPromptsHeading : sessionsHeading}
+                >
                     {!isDesktop ? (
                         <div className={styles.listHeaderMobile}>
                             <div className={styles.logoSlot} aria-label={intl.formatMessage(messages.logo)} role='img'>
@@ -862,7 +1023,7 @@ export function SessionsPanel({
                             </button>
                         ) : null}
 
-                        {sessionList}
+                        {listMode === 'quickPrompts' ? quickPromptList : sessionList}
 
                         {!isDesktop ? (
                             <div className={styles.settings}>

@@ -9,6 +9,9 @@ const WorkspacePage = lazy(() => import('@ui/pages/workspace-page').then((m) => 
 const SessionPage = lazy(() => import('@ui/pages/session-page').then((m) => ({ default: m.SessionPage })));
 const SettingsPage = lazy(() => import('@ui/pages/settings-page').then((m) => ({ default: m.SettingsPage })));
 const NewSessionPage = lazy(() => import('@ui/pages/new-session-page').then((m) => ({ default: m.NewSessionPage })));
+const NewQuickPromptPage = lazy(() =>
+    import('@ui/pages/new-quick-prompt-page').then((m) => ({ default: m.NewQuickPromptPage })),
+);
 const TerminalPage = lazy(() => import('@ui/pages/terminal-page').then((m) => ({ default: m.TerminalPage })));
 
 export function App() {
@@ -23,6 +26,7 @@ export function App() {
                                 <Route path='/sessions/:sessionId' element={<SessionPage />} />
                                 <Route path='/settings' element={<SettingsPage />} />
                                 <Route path='/new-session' element={<NewSessionPage />} />
+                                <Route path='/new-quick-prompt' element={<NewQuickPromptPage />} />
                                 <Route path='/terminals/:terminalId' element={<TerminalPage />} />
                             </Route>
                         </Routes>

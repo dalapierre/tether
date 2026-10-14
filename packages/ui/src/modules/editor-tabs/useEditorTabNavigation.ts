@@ -10,6 +10,7 @@ import {
     createWorkspaceTerminalTab,
     editorTabFromPath,
     getEditorTabsSnapshot,
+    NEW_QUICK_PROMPT_TAB,
     NEW_SESSION_TAB,
     openEditorTab,
     pathForEditorTab,
@@ -52,6 +53,10 @@ export function useEditorTabNavigation() {
 
     const openNewSessionTab = useCallback(() => {
         activateTab(NEW_SESSION_TAB);
+    }, [activateTab]);
+
+    const openNewQuickPromptTab = useCallback(() => {
+        activateTab(NEW_QUICK_PROMPT_TAB);
     }, [activateTab]);
 
     const openTerminalTab = useCallback(
@@ -110,6 +115,7 @@ export function useEditorTabNavigation() {
         openSessionTab,
         openSettingsTab,
         openNewSessionTab,
+        openNewQuickPromptTab,
         openTerminalTab,
         closeTab,
     };

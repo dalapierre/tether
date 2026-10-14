@@ -6,15 +6,23 @@ type Messages = {
     searchAriaLabel: NoMessageValues;
     clearSearch: NoMessageValues;
     noMatchingSessions: NoMessageValues;
+    noSessionsYet: NoMessageValues;
     loadingSessions: NoMessageValues;
     newSession: NoMessageValues;
     create: NoMessageValues;
     createMenu: NoMessageValues;
     createSession: NoMessageValues;
     createTerminal: NoMessageValues;
+    createQuickPrompt: NoMessageValues;
     settings: NoMessageValues;
     sessionsHeading: NoMessageValues;
     sessionList: NoMessageValues;
+    quickPromptList: NoMessageValues;
+    quickPromptsHeading: NoMessageValues;
+    searchQuickPromptsPlaceholder: NoMessageValues;
+    searchQuickPromptsAriaLabel: NoMessageValues;
+    noQuickPrompts: NoMessageValues;
+    noMatchingQuickPrompts: NoMessageValues;
     conversationSession: NoMessageValues;
     branchLabel: { branch: string };
     cpuLabel: { percent: number };
@@ -52,6 +60,10 @@ export const messages = defineMessages<Messages>(
             id: 'sessionsPanel.noMatchingSessions',
             defaultMessage: 'No matching sessions',
         },
+        noSessionsYet: {
+            id: 'sessionsPanel.noSessionsYet',
+            defaultMessage: 'No session yet',
+        },
         loadingSessions: {
             id: 'sessionsPanel.loadingSessions',
             defaultMessage: 'Loading sessions…',
@@ -76,6 +88,10 @@ export const messages = defineMessages<Messages>(
             id: 'sessionsPanel.createTerminal',
             defaultMessage: 'Terminal',
         },
+        createQuickPrompt: {
+            id: 'sessionsPanel.createQuickPrompt',
+            defaultMessage: 'Quick prompt',
+        },
         settings: {
             id: 'sessionsPanel.settings',
             defaultMessage: 'Settings',
@@ -87,6 +103,30 @@ export const messages = defineMessages<Messages>(
         sessionList: {
             id: 'sessionsPanel.sessionList',
             defaultMessage: 'Session list',
+        },
+        quickPromptList: {
+            id: 'sessionsPanel.quickPromptList',
+            defaultMessage: 'Quick prompt list',
+        },
+        quickPromptsHeading: {
+            id: 'sessionsPanel.quickPromptsHeading',
+            defaultMessage: 'Quick prompts',
+        },
+        searchQuickPromptsPlaceholder: {
+            id: 'sessionsPanel.searchQuickPromptsPlaceholder',
+            defaultMessage: 'Search prompts…',
+        },
+        searchQuickPromptsAriaLabel: {
+            id: 'sessionsPanel.searchQuickPromptsAriaLabel',
+            defaultMessage: 'Search quick prompts',
+        },
+        noQuickPrompts: {
+            id: 'sessionsPanel.noQuickPrompts',
+            defaultMessage: 'No quick prompts yet',
+        },
+        noMatchingQuickPrompts: {
+            id: 'sessionsPanel.noMatchingQuickPrompts',
+            defaultMessage: 'No matching prompts',
         },
         conversationSession: {
             id: 'sessionsPanel.conversationSession',

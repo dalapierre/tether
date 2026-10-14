@@ -6,6 +6,7 @@ type EditorTabsMessages = {
     tabList: NoMessageValues;
     settings: NoMessageValues;
     newSession: NoMessageValues;
+    newQuickPrompt: NoMessageValues;
     closeTab: NoMessageValues;
     sessionFallback: NoMessageValues;
     terminalFallback: NoMessageValues;
@@ -25,6 +26,10 @@ export const messages: {
     newSession: {
         id: 'editorTabs.newSession',
         defaultMessage: 'New session',
+    },
+    newQuickPrompt: {
+        id: 'editorTabs.newQuickPrompt',
+        defaultMessage: 'New quick prompt',
     },
     closeTab: {
         id: 'editorTabs.closeTab',

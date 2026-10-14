@@ -22,7 +22,8 @@ function isMainContentRoute(pathname: string): boolean {
         pathname.startsWith('/sessions/') ||
         pathname.startsWith('/terminals/') ||
         pathname === '/settings' ||
-        pathname === '/new-session'
+        pathname === '/new-session' ||
+        pathname === '/new-quick-prompt'
     );
 }
 
