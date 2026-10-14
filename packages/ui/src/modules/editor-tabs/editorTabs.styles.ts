@@ -1,6 +1,7 @@
 export const styles = {
     // Match session header / meta panels: Panel owns chrome (radius + full border).
-    panel: 'relative shrink-0 md:mt-2 md:mr-2 [&>div]:flex-none',
+    // Desktop inset comes from AppShell main (gap + padding).
+    panel: 'relative shrink-0 [&>div]:flex-none',
     list: 'panel-scroll flex h-7 min-w-0 items-stretch overflow-x-auto',
     tab: 'group relative flex max-w-[12rem] min-w-[5.5rem] shrink-0 cursor-pointer select-none items-center gap-1 border-x border-transparent bg-transparent px-2 text-left text-[12px] leading-none text-zinc-500 transition-colors md:hover:text-zinc-300',
     tabActive:

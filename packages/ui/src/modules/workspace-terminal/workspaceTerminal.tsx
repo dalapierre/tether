@@ -47,6 +47,7 @@ export function WorkspaceTerminal() {
             connect={connectWorkspaceShell}
             killShell={killWorkspaceShell}
             onClose={closePanel}
+            showCloseButton={false}
             apiRef={apiRef}
             onActiveTitleChange={onActiveTitleChange}
         />

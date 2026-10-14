@@ -37,6 +37,8 @@ export type ShellSplitPanelProps = {
     killShell: (shellId: string) => Promise<void>;
     /** Close the whole terminal panel (kills remaining shells). */
     onClose: () => void;
+    /** Toolbar close control. Defaults to true (session pane); root terminal hides it. */
+    showCloseButton?: boolean;
     /** When false, skips fit/focus side effects (session pane hidden). Defaults to true. */
     visible?: boolean;
     isDesktop?: boolean;
@@ -176,6 +178,7 @@ export function ShellSplitPanel({
     connect,
     killShell: killShellRemote,
     onClose,
+    showCloseButton = true,
     visible = true,
     isDesktop = true,
     fullscreen = false,
@@ -334,6 +337,8 @@ export function ShellSplitPanel({
     const canSplit = shells.length < maxShells;
     const splitLabel = intl.formatMessage(messages.splitTerminal);
     const showListRail = shells.length > 1;
+    const showFullscreenButton = Boolean(isDesktop && onToggleFullscreen);
+    const showToolbarTail = showFullscreenButton || showCloseButton;
 
     return (
         <Panel
@@ -355,8 +360,8 @@ export function ShellSplitPanel({
                             <SplitShellIcon />
                         </button>
                     </Tooltip>
-                    <span className={styles.shellToolbarSeparator} aria-hidden='true' />
-                    {isDesktop && onToggleFullscreen ? (
+                    {showToolbarTail ? <span className={styles.shellToolbarSeparator} aria-hidden='true' /> : null}
+                    {showFullscreenButton ? (
                         <Tooltip
                             content={intl.formatMessage(
                                 fullscreen ? messages.exitFullscreenTerminal : messages.enterFullscreenTerminal,
@@ -377,16 +382,18 @@ export function ShellSplitPanel({
                             </button>
                         </Tooltip>
                     ) : null}
-                    <Tooltip content={intl.formatMessage(messages.closeTerminal)}>
-                        <button
-                            type='button'
-                            className={styles.shellToolbarButton}
-                            aria-label={intl.formatMessage(messages.closeTerminal)}
-                            onClick={onClose}
-                        >
-                            <CloseShellIcon />
-                        </button>
-                    </Tooltip>
+                    {showCloseButton ? (
+                        <Tooltip content={intl.formatMessage(messages.closeTerminal)}>
+                            <button
+                                type='button'
+                                className={styles.shellToolbarButton}
+                                aria-label={intl.formatMessage(messages.closeTerminal)}
+                                onClick={onClose}
+                            >
+                                <CloseShellIcon />
+                            </button>
+                        </Tooltip>
+                    ) : null}
                 </div>
             }
         >
