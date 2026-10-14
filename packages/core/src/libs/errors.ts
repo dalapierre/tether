@@ -131,6 +131,10 @@ export const errors = {
         id: 'session.harness.pre-trust-failure',
         message: 'Failed to pre-trust workspace for {agent}',
     },
+    workspaceHarnessSpawnFailure: {
+        id: 'workspace.harness.spawn-failure',
+        message: 'Failed to run default harness CLI in workspace shell {shellId}',
+    },
     settingsLoadFailure: {
         id: 'settings.load.failure',
         message: 'Failed to load settings',

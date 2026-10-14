@@ -22,7 +22,22 @@ export type HarnessOptions = {
     agentSessionId?: string | null;
     /** When true, attach to an existing agent session instead of creating one. */
     resume?: boolean;
+    /**
+     * Initial user prompt passed via the CLI (positional / `--prompt`).
+     * Prefer this over pasting into the TUI after startup.
+     */
+    initialPrompt?: string | null;
+    /**
+     * Prefer ask / read-only Q&A mode when the harness supports it
+     * (e.g. Cursor `--mode=ask`, Claude plan permissions, Codex read-only sandbox).
+     */
+    askMode?: boolean;
 };
+
+function trimmedInitialPrompt(options: HarnessOptions): string | null {
+    const prompt = options.initialPrompt?.trim();
+    return prompt ? prompt : null;
+}
 
 /** Logical CLI name + argv for an agent (before PATH / Windows resolution). */
 export function getHarnessCommand(
@@ -34,17 +49,26 @@ export function getHarnessCommand(
     const command = commandName ?? getAgentCommandCandidates(agent)[0] ?? agent;
     const sessionId = options.agentSessionId?.trim() || null;
     const resume = Boolean(options.resume && sessionId);
+    const initialPrompt = trimmedInitialPrompt(options);
+    const askMode = Boolean(options.askMode);
+    const yoloMode = Boolean(options.yoloMode);
 
     switch (agent) {
         case 'cursor': {
             // Always trust the session workspace so the interactive trust prompt never blocks a phone session.
             const args = ['--trust'];
+            if (askMode) {
+                args.push('--mode=ask');
+            }
             if (sessionId) {
                 // Prefer = form so a bare --resume never opens the interactive picker.
                 args.push(`--resume=${sessionId}`);
             }
-            if (options.yoloMode) {
+            if (yoloMode) {
                 args.push('--yolo');
+            }
+            if (initialPrompt) {
+                args.push(initialPrompt);
             }
             return { command, args };
         }
@@ -55,22 +79,38 @@ export function getHarnessCommand(
             } else if (sessionId) {
                 args.push('--session-id', sessionId);
             }
-            if (options.yoloMode) {
+            if (askMode) {
+                // Closest Claude equivalent to ask: explore/read without editing source.
+                args.push('--permission-mode', 'plan');
+            }
+            if (yoloMode) {
                 args.push('--dangerously-skip-permissions');
+            }
+            if (initialPrompt) {
+                args.push(initialPrompt);
             }
             return { command, args };
         }
         case 'codex': {
             if (resume && sessionId) {
                 const args = ['resume', sessionId];
-                if (options.yoloMode) {
+                if (yoloMode) {
                     args.push('--ask-for-approval', 'never');
+                }
+                if (initialPrompt) {
+                    args.push(initialPrompt);
                 }
                 return { command, args };
             }
             const args: string[] = [];
-            if (options.yoloMode) {
+            if (askMode) {
+                args.push('--sandbox', 'read-only');
+            }
+            if (yoloMode) {
                 args.push('--ask-for-approval', 'never');
+            }
+            if (initialPrompt) {
+                args.push(initialPrompt);
             }
             return { command, args };
         }
@@ -79,8 +119,15 @@ export function getHarnessCommand(
             if (resume && sessionId) {
                 args.push('--session', sessionId);
             }
-            if (options.yoloMode) {
+            if (askMode) {
+                // Built-in read-only/planning primary agent (no dedicated "ask" agent).
+                args.push('--agent', 'plan');
+            }
+            if (yoloMode) {
                 args.push('--auto');
+            }
+            if (initialPrompt) {
+                args.push('--prompt', initialPrompt);
             }
             return { command, args };
         }
@@ -90,10 +137,13 @@ export function getHarnessCommand(
             if (resume && sessionId) {
                 flags.push('--restore', sessionId);
             }
-            if (options.yoloMode) {
+            if (yoloMode) {
                 flags.push('--yolo');
             }
-            const args = command === 'acli' ? ['rovodev', 'run', ...flags] : flags;
+            // Rovo has interactive `/ask` but no start-in-ask CLI flag; pass the
+            // instruction as a trailing arg so run starts with that prompt.
+            const trailing = initialPrompt ? [initialPrompt] : [];
+            const args = command === 'acli' ? ['rovodev', 'run', ...flags, ...trailing] : [...flags, ...trailing];
             return { command, args };
         }
     }

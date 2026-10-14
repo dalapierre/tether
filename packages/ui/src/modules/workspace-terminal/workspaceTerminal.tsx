@@ -1,5 +1,6 @@
 import { connectWorkspaceShell, killWorkspaceShell, MAX_WORKSPACE_SHELLS } from '@ui/libs/api/workspace';
 import { getWorkspaceShellRoster, setWorkspaceShellRoster } from '@ui/libs/layout/reviewLayoutPreferences';
+import { formatExplainErrorPrompt } from '@ui/libs/terminal/explainErrorPrompt';
 import {
     WORKSPACE_TERMINAL_ID,
     setTerminalTabTitle,
@@ -7,14 +8,18 @@ import {
     useEditorTabNavigation,
 } from '@ui/modules/editor-tabs';
 import { ShellSplitPanel, type ShellSplitPanelApi } from '@ui/modules/shell-split-panel';
+import { showToast } from '@ui/modules/toast';
 import { useCallback, useEffect, useRef } from 'react';
+import { useIntl } from 'react-intl';
 import {
     consumeWorkspaceShellSplitRequests,
     subscribeWorkspaceShellSplitRequests,
 } from './workspaceShellSplitRequests';
+import { messages } from './workspaceTerminal.messages';
 import { styles } from './workspaceTerminal.styles';
 
 export function WorkspaceTerminal() {
+    const intl = useIntl();
     const { closeTab } = useEditorTabNavigation();
     const apiRef = useRef<ShellSplitPanelApi | null>(null);
 
@@ -25,6 +30,17 @@ export function WorkspaceTerminal() {
     const onActiveTitleChange = useCallback((title: string) => {
         setTerminalTabTitle(WORKSPACE_TERMINAL_ID, title);
     }, []);
+
+    const onExplain = useCallback(
+        (errorMessage: string, command: string) => {
+            const prompt = formatExplainErrorPrompt(errorMessage, command);
+            const started = apiRef.current?.splitWithHarnessPrompt(prompt) ?? false;
+            if (!started) {
+                showToast('generic-error', intl.formatMessage(messages.explainSplitFailed));
+            }
+        },
+        [intl],
+    );
 
     useEffect(() => {
         const applyPending = () => {
@@ -50,6 +66,7 @@ export function WorkspaceTerminal() {
             showCloseButton={false}
             apiRef={apiRef}
             onActiveTitleChange={onActiveTitleChange}
+            onExplain={onExplain}
         />
     );
 }

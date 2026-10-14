@@ -8,6 +8,7 @@ type Messages = {
     closeTerminal: NoMessageValues;
     splitTerminal: NoMessageValues;
     killTerminalInstance: { name: string };
+    explainSelection: NoMessageValues;
 };
 
 export const messages = defineMessages<Messages>({
@@ -38,5 +39,9 @@ export const messages = defineMessages<Messages>({
     killTerminalInstance: {
         id: 'shellSplitPanel.killTerminalInstance',
         defaultMessage: 'Kill {name}',
+    },
+    explainSelection: {
+        id: 'shellSplitPanel.explainSelection',
+        defaultMessage: 'Explain',
     },
 });

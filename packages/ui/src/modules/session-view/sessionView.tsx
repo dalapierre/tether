@@ -44,6 +44,7 @@ import {
     setShellPanelFullscreen,
     setShellPanelOpen,
 } from '@ui/libs/layout/reviewLayoutPreferences';
+import { formatExplainErrorPrompt } from '@ui/libs/terminal/explainErrorPrompt';
 import { clearPtyResize, flushPtyResize, schedulePtyResize } from '@ui/libs/terminal/ptyResize';
 import { resumeXtermRenderer, resumeXtermRendererIfNeeded } from '@ui/libs/terminal/resumeRenderer';
 import { scrollTerminalToBottomNow, writeTerminalHistory } from '@ui/libs/terminal/scroll';
@@ -1130,6 +1131,22 @@ export function SessionView({ sessionId }: SessionViewProps) {
         sendTerminalMessage(socket, { type: 'message', text: trimmed });
     }
 
+    function explainShellSelection(errorMessage: string, command: string) {
+        const prompt = formatExplainErrorPrompt(errorMessage, command);
+        if (isDesktop) {
+            if (desktopShellFullscreen) {
+                setDesktopShellFullscreen(false);
+                setShellPanelFullscreen(sessionId, false);
+            }
+        } else {
+            setTab('agent');
+        }
+        submitAgentPrompt(prompt);
+        requestAnimationFrame(() => {
+            focusTerminal();
+        });
+    }
+
     function sendArrowUp() {
         sendInputRef.current(ARROW_UP);
         focusTerminal();
@@ -1627,6 +1644,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         visible={shellPaneVisible}
                         onToggleFullscreen={isDesktop ? toggleDesktopShellFullscreen : undefined}
                         onClose={closeShell}
+                        onExplain={explainShellSelection}
                         className={
                             isDesktop
                                 ? showDesktopShell

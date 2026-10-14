@@ -2,7 +2,8 @@
 export const BRANCH_IN_USE_BY_WORKTREE_ERROR = 'Branch is already checked out in another worktree';
 
 export type SessionBranchClaim = {
-    repositoryId: string;
+    /** Null for conversation sessions (no repository). */
+    repositoryId: string | null;
     useWorktrees: boolean;
     branch: string | null;
 };

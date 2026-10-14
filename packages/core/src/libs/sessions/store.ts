@@ -2,6 +2,7 @@ import { isAgentId, type AgentId } from '@core/libs/agents/agents.js';
 import { errors } from '@core/libs/errors.js';
 import { logger } from '@core/libs/logger.js';
 import { getHomeDir, getRepositoryWorktreesDir, getSessionsFilePath, getTetherHomeDir } from '@core/libs/paths.js';
+import { formatShellCommand, writePtyPromptAndSubmit } from '@core/libs/sessions/ptyPrompt.js';
 import {
     fetchRemoteDefault,
     getBehindRemoteDefault,
@@ -1161,17 +1162,6 @@ async function createWorktree(
     return { branch, worktreePath, baseSha, createdBranch: !reuseExisting };
 }
 
-/** Quote a single shell argument for writing into an interactive shell. */
-function quoteShellArg(arg: string): string {
-    if (arg.length === 0) return "''";
-    if (/^[A-Za-z0-9_./:=+-]+$/.test(arg)) return arg;
-    return `'${arg.replace(/'/g, `'\\''`)}'`;
-}
-
-function formatShellCommand(command: string, args: string[]): string {
-    return [command, ...args].map(quoteShellArg).join(' ');
-}
-
 /**
  * Open a user shell in the session cwd and write the harness init command into it.
  * There is no dedicated agent PTY — the agent view is a shell running the harness.
@@ -1800,30 +1790,6 @@ function spawnUserShell(session: RuntimeSession, shellId: string): boolean {
         appendShellOutput(session.id, shellId, `\r\n[failed to start shell: ${message}]\r\n`);
         return false;
     }
-}
-
-/**
- * Insert a full prompt into the agent PTY and submit it.
- * Bulk writes are often treated as a paste; a trailing CR in the same write
- * can land inside that paste and never submit. Bracket the text, then send
- * Enter on a short delay so it is a real keypress.
- */
-function writePtyPromptAndSubmit(term: IPty, text: string): void {
-    const trimmed = text.trim();
-    if (!trimmed) return;
-
-    const BRACKETED_PASTE_START = '\x1b[200~';
-    const BRACKETED_PASTE_END = '\x1b[201~';
-    term.write(`${BRACKETED_PASTE_START}${trimmed}${BRACKETED_PASTE_END}`);
-
-    const gapMs = Math.min(1000, Math.max(50, Math.ceil(trimmed.length / 40)));
-    setTimeout(() => {
-        try {
-            term.write('\r');
-        } catch {
-            // pty may have exited before submit
-        }
-    }, gapMs);
 }
 
 export function attachSessionTerminal(sessionId: string, socket: HubClient): boolean {

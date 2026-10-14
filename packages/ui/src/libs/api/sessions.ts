@@ -71,6 +71,8 @@ export type ServerSessionEventMessage =
 
 export type ClientTerminalMessage =
     | { type: 'message'; text: string }
+    /** Workspace shell: exec the default harness CLI in this pane with `text` as the prompt. */
+    | { type: 'runHarness'; text: string }
     | { type: 'input'; data: string }
     | { type: 'resize'; cols: number; rows: number };
 

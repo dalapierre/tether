@@ -1,10 +1,14 @@
 import { parseClientMessage } from './terminalHub.js';
 
 describe('parseClientMessage', () => {
-    it('parses message, input, and resize payloads', () => {
+    it('parses message, runHarness, input, and resize payloads', () => {
         expect(parseClientMessage(JSON.stringify({ type: 'message', text: 'hi' }))).toEqual({
             type: 'message',
             text: 'hi',
+        });
+        expect(parseClientMessage(JSON.stringify({ type: 'runHarness', text: 'explain' }))).toEqual({
+            type: 'runHarness',
+            text: 'explain',
         });
         expect(parseClientMessage(JSON.stringify({ type: 'input', data: 'a' }))).toEqual({
             type: 'input',
@@ -20,6 +24,7 @@ describe('parseClientMessage', () => {
     it('rejects malformed JSON and incomplete payloads', () => {
         expect(parseClientMessage('{')).toBeNull();
         expect(parseClientMessage(JSON.stringify({ type: 'message' }))).toBeNull();
+        expect(parseClientMessage(JSON.stringify({ type: 'runHarness' }))).toBeNull();
         expect(parseClientMessage(JSON.stringify({ type: 'input', data: 1 }))).toBeNull();
         expect(parseClientMessage(JSON.stringify({ type: 'resize', cols: NaN, rows: 24 }))).toBeNull();
         expect(parseClientMessage(JSON.stringify({ type: 'unknown' }))).toBeNull();

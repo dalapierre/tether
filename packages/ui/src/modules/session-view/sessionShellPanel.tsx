@@ -17,6 +17,8 @@ export type SessionShellPanelProps = {
     /** Close the whole terminal panel (kills remaining shells). */
     onClose: () => void;
     apiRef?: MutableRefObject<SessionShellPanelApi | null>;
+    /** Highlighted shell text → explain via the open session harness. */
+    onExplain?: (errorMessage: string, command: string) => void;
 };
 
 export function SessionShellPanel({
@@ -30,6 +32,7 @@ export function SessionShellPanel({
     onToggleFullscreen,
     onClose,
     apiRef,
+    onExplain,
 }: SessionShellPanelProps) {
     const getRoster = useCallback(() => getShellRoster(sessionId), [sessionId]);
     const setRoster = useCallback(
@@ -56,6 +59,7 @@ export function SessionShellPanel({
             visible={visible}
             onToggleFullscreen={onToggleFullscreen}
             apiRef={apiRef}
+            onExplain={onExplain}
         />
     );
 }

@@ -11,6 +11,11 @@ export type ServerShellMessage =
 
 export type ClientTerminalMessage =
     | { type: 'message'; text: string }
+    /**
+     * Workspace terminal only: replace this pane's PTY with the default harness
+     * CLI, passing `text` as the initial prompt. Does not create a Tether session.
+     */
+    | { type: 'runHarness'; text: string }
     | { type: 'input'; data: string }
     | { type: 'resize'; cols: number; rows: number };
 
@@ -160,6 +165,9 @@ export function parseClientMessage(raw: string): ClientTerminalMessage | null {
             return null;
         }
         if (parsed.type === 'message' && typeof parsed.text === 'string') {
+            return parsed;
+        }
+        if (parsed.type === 'runHarness' && typeof parsed.text === 'string') {
             return parsed;
         }
         if (parsed.type === 'input' && typeof parsed.data === 'string') {

@@ -1,17 +1,20 @@
 import { sendTerminalMessage, type ServerShellMessage } from '@ui/libs/api/sessions';
 import { getPanelResizeDragEpoch, isPanelResizeDragging } from '@ui/libs/layout/panelResizeDrag';
+import { createLastCommandTracker } from '@ui/libs/terminal/lastCommandTracker';
 import { clearPtyResize, flushPtyResize, schedulePtyResize } from '@ui/libs/terminal/ptyResize';
 import { resumeXtermRenderer, resumeXtermRendererIfNeeded } from '@ui/libs/terminal/resumeRenderer';
 import { scrollTerminalToBottomNow, writeTerminalHistory } from '@ui/libs/terminal/scroll';
+import { readTerminalSelectionExplain, type TerminalSelectionExplain } from '@ui/libs/terminal/selectionExplain';
 import { attachTouchScroll } from '@ui/libs/terminal/touchScroll';
 import { AURA_TERMINAL_THEME } from '@ui/libs/theme/aura';
+import { messages as shellMessages } from '@ui/modules/shell-split-panel/shellSplitPanel.messages';
+import { styles } from '@ui/modules/shell-split-panel/shellSplitPanel.styles';
 import { showToast } from '@ui/modules/toast';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useIntl } from 'react-intl';
-import { styles } from '@ui/modules/shell-split-panel/shellSplitPanel.styles';
 import { messages } from './sessionView.messages';
 
 /** Keep in sync with server PTY resize clamp in sessions/store.ts */
@@ -33,6 +36,17 @@ export type SessionShellTerminalProps = {
     active: boolean;
     onTitle: (title: string) => void;
     onHandleChange: (handle: SessionShellTerminalHandle | null) => void;
+    /**
+     * Highlighted terminal text → explain.
+     * `command` is the last locally submitted shell line when known.
+     */
+    onExplain?: (errorMessage: string, command: string) => void;
+    /**
+     * Workspace Explain: after connect, run the default harness CLI in this pane
+     * with this prompt (no Tether session).
+     */
+    harnessPrompt?: string;
+    onHarnessPromptConsumed?: () => void;
 };
 
 function prepareMobileTextarea(term: Terminal): void {
@@ -156,22 +170,78 @@ export function SessionShellTerminal({
     active,
     onTitle,
     onHandleChange,
+    onExplain,
+    harnessPrompt,
+    onHarnessPromptConsumed,
 }: SessionShellTerminalProps) {
     const intl = useIntl();
     const hostRef = useRef<HTMLDivElement | null>(null);
+    const paneRef = useRef<HTMLDivElement | null>(null);
+    const termRef = useRef<Terminal | null>(null);
     const connectRef = useRef(connect);
     const onTitleRef = useRef(onTitle);
     const onHandleChangeRef = useRef(onHandleChange);
+    const onExplainRef = useRef(onExplain);
+    const harnessPromptRef = useRef(harnessPrompt);
+    const onHarnessPromptConsumedRef = useRef(onHarnessPromptConsumed);
     const activeRef = useRef(active);
+    const lastCommandRef = useRef(createLastCommandTracker());
+    const [selectionExplain, setSelectionExplain] = useState<TerminalSelectionExplain | null>(null);
 
     connectRef.current = connect;
     onTitleRef.current = onTitle;
     onHandleChangeRef.current = onHandleChange;
+    onExplainRef.current = onExplain;
+    harnessPromptRef.current = harnessPrompt;
+    onHarnessPromptConsumedRef.current = onHarnessPromptConsumed;
     activeRef.current = active;
+
+    const syncSelectionExplain = useCallback(() => {
+        const term = termRef.current;
+        const pane = paneRef.current;
+        if (!term || !pane || !onExplainRef.current) {
+            setSelectionExplain(null);
+            return;
+        }
+
+        const screen = term.element?.querySelector('.xterm-screen') as HTMLElement | null;
+        if (!screen) {
+            setSelectionExplain(null);
+            return;
+        }
+
+        const paneRect = pane.getBoundingClientRect();
+        const screenRect = screen.getBoundingClientRect();
+        const next = readTerminalSelectionExplain({
+            selection: term.getSelection(),
+            position: term.getSelectionPosition() ?? undefined,
+            viewportY: term.buffer.active.viewportY,
+            cols: term.cols,
+            rows: term.rows,
+            screenWidth: screenRect.width,
+            screenHeight: screenRect.height,
+            screenOffsetLeft: screenRect.left - paneRect.left,
+            screenOffsetTop: screenRect.top - paneRect.top,
+            overlayWidth: paneRect.width,
+            overlayHeight: paneRect.height,
+        });
+        setSelectionExplain(next);
+    }, []);
+
+    const handleExplainClick = useCallback(() => {
+        const content = selectionExplain?.content;
+        if (!content?.trim() || !onExplainRef.current) return;
+        onExplainRef.current(content, lastCommandRef.current.getLastCommand());
+        termRef.current?.clearSelection();
+        setSelectionExplain(null);
+    }, [selectionExplain]);
 
     useEffect(() => {
         const host = hostRef.current;
         if (!host) return;
+
+        lastCommandRef.current = createLastCommandTracker();
+        setSelectionExplain(null);
 
         const term = new Terminal({
             convertEol: true,
@@ -186,6 +256,7 @@ export function SessionShellTerminal({
         term.open(host);
         fitAddon.fit();
         prepareMobileTextarea(term);
+        termRef.current = term;
 
         let socket: WebSocket;
         try {
@@ -193,6 +264,7 @@ export function SessionShellTerminal({
         } catch (err: unknown) {
             showToast('generic-error', err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed));
             term.dispose();
+            termRef.current = null;
             return;
         }
 
@@ -204,6 +276,7 @@ export function SessionShellTerminal({
         };
 
         const sendInput = (data: string) => {
+            lastCommandRef.current.pushInput(data);
             scrollToBottomAndFollow();
             resumeXtermRendererIfNeeded(term);
             if (socket.readyState !== WebSocket.OPEN) return;
@@ -211,8 +284,12 @@ export function SessionShellTerminal({
         };
 
         const dataDisposable = term.onData(sendInput);
+        const selectionDisposable = term.onSelectionChange(() => {
+            syncSelectionExplain();
+        });
         const scrollDisposable = term.onScroll(() => {
             followOutput = isScrolledToBottom(term);
+            syncSelectionExplain();
         });
 
         let focusSettleTimers: number[] = [];
@@ -239,9 +316,15 @@ export function SessionShellTerminal({
         };
         term.textarea?.addEventListener('focus', onTerminalFocus);
 
+        // When Explain opens this pane, hold resize until runHarness is sent so the
+        // host starts the harness CLI PTY directly instead of a throwaway bash.
+        let deferResizeForHarness = Boolean(harnessPromptRef.current?.trim());
+
         const onResize = () => {
+            if (deferResizeForHarness) return;
             const scheduledEpoch = getPanelResizeDragEpoch();
             requestAnimationFrame(() => {
+                if (deferResizeForHarness) return;
                 if (shouldSkipTerminalLayoutSync(scheduledEpoch)) return;
                 if (isTerminalFocused(term)) {
                     followOutput = true;
@@ -276,9 +359,23 @@ export function SessionShellTerminal({
             });
         };
 
-        socket.addEventListener('open', () => {
+        let harnessPromptSent = false;
+        const onSocketOpen = () => {
+            if (!harnessPromptSent) {
+                const pending = harnessPromptRef.current?.trim();
+                if (pending) {
+                    harnessPromptSent = true;
+                    sendTerminalMessage(socket, { type: 'runHarness', text: pending });
+                    onHarnessPromptConsumedRef.current?.();
+                }
+                deferResizeForHarness = false;
+            }
             onResize();
-        });
+        };
+        socket.addEventListener('open', onSocketOpen);
+        if (socket.readyState === WebSocket.OPEN) {
+            onSocketOpen();
+        }
 
         socket.addEventListener('message', (event) => {
             let parsed: ServerShellMessage;
@@ -382,16 +479,35 @@ export function SessionShellTerminal({
                 window.clearTimeout(timer);
             }
             dataDisposable.dispose();
+            selectionDisposable.dispose();
             scrollDisposable.dispose();
             clearPtyResize(term);
             socket.close();
             term.dispose();
+            termRef.current = null;
+            setSelectionExplain(null);
         };
-    }, [shellKey, intl]);
+    }, [shellKey, intl, syncSelectionExplain]);
 
     return (
-        <div className={styles.shellTerminalPane}>
+        <div ref={paneRef} className={styles.shellTerminalPane}>
             <div ref={hostRef} className={styles.shellTerminal} />
+            {selectionExplain && onExplain ? (
+                <button
+                    type='button'
+                    className={`${styles.explainButton}${
+                        selectionExplain.placeAbove ? ` ${styles.explainButtonAbove}` : ''
+                    }`}
+                    style={{ top: selectionExplain.top, left: selectionExplain.left }}
+                    onMouseDown={(event) => {
+                        // Keep the xterm selection when clicking the overlay button.
+                        event.preventDefault();
+                    }}
+                    onClick={handleExplainClick}
+                >
+                    {intl.formatMessage(shellMessages.explainSelection)}
+                </button>
+            ) : null}
         </div>
     );
 }

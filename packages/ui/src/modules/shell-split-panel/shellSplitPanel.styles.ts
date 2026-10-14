@@ -1,6 +1,9 @@
 export const styles = {
     shellTerminal:
         'absolute inset-0 touch-pan-y overflow-hidden px-2 py-2 [&_.xterm-helper-textarea]:!left-0 [&_.xterm-helper-textarea]:!top-0',
+    explainButton:
+        'absolute z-20 inline-flex h-9 items-center rounded-md border border-zinc-700 bg-zinc-900 px-3.5 text-sm font-medium text-zinc-100 shadow-md active:bg-zinc-800 md:hover:bg-zinc-800',
+    explainButtonAbove: '-translate-y-full',
     shellToolbarActions: 'flex items-center gap-0.5',
     shellToolbarButton:
         'inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors active:bg-zinc-800 active:text-zinc-100 md:hover:bg-zinc-800/80 md:hover:text-zinc-100 disabled:pointer-events-none disabled:opacity-40',

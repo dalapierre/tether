@@ -22,6 +22,11 @@ export type ShellSplitPanelApi = {
     captureFollowIntent: () => Map<string, boolean>;
     /** Append a shell split when under the max. */
     split: () => void;
+    /**
+     * Split (same as the toolbar button), then run the default harness CLI in the
+     * new pane with `prompt`. Does not create a Tether session. Returns false at cap.
+     */
+    splitWithHarnessPrompt: (prompt: string) => boolean;
 };
 
 export type ShellSplitPanelProps = {
@@ -46,6 +51,8 @@ export type ShellSplitPanelProps = {
     onToggleFullscreen?: () => void;
     apiRef?: MutableRefObject<ShellSplitPanelApi | null>;
     onActiveTitleChange?: (title: string) => void;
+    /** Highlighted shell text → explain (session: prompt harness; workspace: split + CLI). */
+    onExplain?: (errorMessage: string, command: string) => void;
 };
 
 type ShellEntry = ShellRosterEntry;
@@ -185,6 +192,7 @@ export function ShellSplitPanel({
     onToggleFullscreen,
     apiRef,
     onActiveTitleChange,
+    onExplain,
 }: ShellSplitPanelProps) {
     const intl = useIntl();
     const defaultTitle = intl.formatMessage(messages.terminalView);
@@ -197,6 +205,8 @@ export function ShellSplitPanel({
     }
     const [shells, setShells] = useState<ShellEntry[]>(() => initialRosterRef.current!.shells);
     const [activeShellId, setActiveShellId] = useState(() => initialRosterRef.current!.activeShellId);
+    /** Pending `runHarness` prompts keyed by shell id (consumed after connect). */
+    const [harnessPrompts, setHarnessPrompts] = useState<Record<string, string>>({});
     const [listWidthPx, setListWidthPx] = useState(getShellListWidthPx);
     const listWidthPxRef = useRef(listWidthPx);
     const handlesRef = useRef(new Map<string, SessionShellTerminalHandle>());
@@ -266,6 +276,28 @@ export function ShellSplitPanel({
         setActiveShellId(id);
     }, [defaultTitle, maxShells]);
 
+    const splitWithHarnessPrompt = useCallback(
+        (prompt: string) => {
+            const trimmed = prompt.trim();
+            if (!trimmed || shellsRef.current.length >= maxShells) return false;
+            const id = createShellId();
+            setHarnessPrompts((current) => ({ ...current, [id]: trimmed }));
+            setShells((current) => [...current, { id, title: defaultTitle }]);
+            setActiveShellId(id);
+            return true;
+        },
+        [defaultTitle, maxShells],
+    );
+
+    const clearHarnessPrompt = useCallback((shellId: string) => {
+        setHarnessPrompts((current) => {
+            if (!(shellId in current)) return current;
+            const next = { ...current };
+            delete next[shellId];
+            return next;
+        });
+    }, []);
+
     useEffect(() => {
         if (!apiRef) return;
         apiRef.current = {
@@ -274,11 +306,12 @@ export function ShellSplitPanel({
             fitAll,
             captureFollowIntent,
             split: splitShell,
+            splitWithHarnessPrompt,
         };
         return () => {
             apiRef.current = null;
         };
-    }, [apiRef, focusActive, blurActive, fitAll, captureFollowIntent, splitShell]);
+    }, [apiRef, focusActive, blurActive, fitAll, captureFollowIntent, splitShell, splitWithHarnessPrompt]);
 
     useEffect(() => {
         const becameVisible = visible && !prevVisibleRef.current;
@@ -419,6 +452,9 @@ export function ShellSplitPanel({
                                     );
                                 }}
                                 onHandleChange={(handle) => setHandle(shell.id, handle)}
+                                onExplain={onExplain}
+                                harnessPrompt={harnessPrompts[shell.id]}
+                                onHarnessPromptConsumed={() => clearHarnessPrompt(shell.id)}
                             />
                         </div>
                     ))}
