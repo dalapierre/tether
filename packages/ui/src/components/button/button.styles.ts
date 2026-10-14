@@ -1,6 +1,6 @@
 import type { ButtonVariant } from './button.types';
 
-const base = 'rounded-md px-3 py-2.5 font-medium disabled:opacity-60';
+const base = 'rounded-md px-3 py-1.5 text-sm font-medium disabled:opacity-60';
 
 const variants: Record<ButtonVariant, string> = {
     primary: `${base} bg-aura-green text-aura-bg`,

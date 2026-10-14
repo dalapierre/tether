@@ -279,16 +279,12 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
     const footer = showSaveButton ? (
         <div className={styles.footer}>
             <div className={styles.footerActions}>
-                <div className={styles.footerAction}>
-                    <Button type='button' variant='secondary' onClick={() => setPendingDiscard(true)} disabled={saving}>
-                        {intl.formatMessage(messages.cancel)}
-                    </Button>
-                </div>
-                <div className={styles.footerAction}>
-                    <Button type='button' onClick={() => void handleSave()} disabled={saving}>
-                        {saving ? intl.formatMessage(messages.saving) : intl.formatMessage(messages.save)}
-                    </Button>
-                </div>
+                <Button type='button' variant='secondary' onClick={() => setPendingDiscard(true)} disabled={saving}>
+                    {intl.formatMessage(messages.cancel)}
+                </Button>
+                <Button type='button' onClick={() => void handleSave()} disabled={saving}>
+                    {saving ? intl.formatMessage(messages.saving) : intl.formatMessage(messages.save)}
+                </Button>
             </div>
         </div>
     ) : null;

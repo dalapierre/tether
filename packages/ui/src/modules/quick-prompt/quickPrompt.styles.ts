@@ -17,9 +17,9 @@ export const styles = {
     fillField: 'flex flex-col gap-1.5',
     fillLabel: 'text-sm text-zinc-400',
     fillInput:
-        'w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-base text-zinc-100 outline-none focus:border-aura-green',
+        'w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-aura-green',
     fillSelect:
-        'w-full appearance-none rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-base text-zinc-100 outline-none focus:border-aura-green',
+        'w-full appearance-none rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-aura-green',
     fillError: 'text-xs text-red-400',
     fillActions: 'flex items-center justify-end gap-2 border-t border-zinc-800 px-4 py-3',
 };

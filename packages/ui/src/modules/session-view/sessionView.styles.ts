@@ -65,5 +65,5 @@ export const styles = {
     pasteHint: 'mt-1 text-sm text-zinc-400',
     pasteInput:
         'mt-4 w-full resize-none rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 outline-none focus:border-aura-green',
-    pasteActions: 'mt-4 flex flex-col gap-2',
+    pasteActions: 'mt-4 flex flex-row flex-wrap justify-end gap-2',
 };

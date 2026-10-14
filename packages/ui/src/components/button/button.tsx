@@ -6,7 +6,7 @@ export function Button({
     variant = 'primary',
     type = 'button',
     disabled,
-    fullWidth = true,
+    fullWidth = false,
     onClick,
 }: ButtonProps) {
     return (
