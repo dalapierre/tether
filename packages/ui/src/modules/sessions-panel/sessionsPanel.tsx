@@ -2,7 +2,6 @@ import logoLight from '@ui/assets/logo_light.svg';
 import { ConfirmDialog } from '@ui/components/confirm-dialog';
 import { Panel } from '@ui/components/panel';
 import { Spinner } from '@ui/components/spinner';
-import { SwipeToDelete } from '@ui/components/swipe-to-delete';
 import { Tooltip } from '@ui/components/tooltip';
 import {
     deleteQuickPrompt,
@@ -831,120 +830,113 @@ export function SessionsPanel({
                           const isInitializing = session.status === 'initializing';
                           return (
                               <div key={session.id} ref={isSelected ? selectedRowRef : null}>
-                                  <SwipeToDelete
-                                      disabled={deletingId === session.id || !listVisible}
-                                      onDelete={() => {
-                                          setPendingDelete(session);
-                                      }}
-                                  >
-                                      <div className={styles.sessionRow}>
-                                          <button
-                                              type='button'
-                                              className={sessionButtonClass(isActive, isSelected)}
-                                              tabIndex={!listVisible ? -1 : undefined}
-                                              onClick={() => {
-                                                  openSessionTab(session.id, session.name);
-                                              }}
-                                          >
-                                              <span className={styles.sessionTitle}>{session.name}</span>
-                                              {session.type === 'coding' ? (
-                                                  <p className={styles.sessionMeta}>
-                                                      <span className={styles.sessionMetaRepo}>
-                                                          {projectNames.get(session.repositoryId ?? '') ??
-                                                              session.repositoryId}
+                                  <div className={styles.sessionRow}>
+                                      <button
+                                          type='button'
+                                          className={sessionButtonClass(isActive, isSelected)}
+                                          tabIndex={!listVisible ? -1 : undefined}
+                                          onClick={() => {
+                                              openSessionTab(session.id, session.name);
+                                          }}
+                                      >
+                                          <span className={styles.sessionTitle}>{session.name}</span>
+                                          {session.type === 'coding' ? (
+                                              <p className={styles.sessionMeta}>
+                                                  <span className={styles.sessionMetaRepo}>
+                                                      {projectNames.get(session.repositoryId ?? '') ??
+                                                          session.repositoryId}
+                                                  </span>
+                                                  {' > '}
+                                                  {intl.formatMessage(messages.branchLabel, {
+                                                      branch: session.branch ?? '',
+                                                  })}
+                                              </p>
+                                          ) : (
+                                              <p className={styles.sessionMetaMuted}>
+                                                  {intl.formatMessage(messages.conversationSession)}
+                                              </p>
+                                          )}
+                                          {session.cpuPercent != null || session.ramPercent != null ? (
+                                              <p className={styles.usageRow}>
+                                                  {session.cpuPercent != null ? (
+                                                      <span className={usageClassName(session.cpuPercent)}>
+                                                          {intl.formatMessage(messages.cpuLabel, {
+                                                              percent: session.cpuPercent,
+                                                          })}
                                                       </span>
-                                                      {' > '}
-                                                      {intl.formatMessage(messages.branchLabel, {
-                                                          branch: session.branch ?? '',
-                                                      })}
-                                                  </p>
-                                              ) : (
-                                                  <p className={styles.sessionMetaMuted}>
-                                                      {intl.formatMessage(messages.conversationSession)}
-                                                  </p>
-                                              )}
-                                              {session.cpuPercent != null || session.ramPercent != null ? (
-                                                  <p className={styles.usageRow}>
-                                                      {session.cpuPercent != null ? (
-                                                          <span className={usageClassName(session.cpuPercent)}>
-                                                              {intl.formatMessage(messages.cpuLabel, {
-                                                                  percent: session.cpuPercent,
-                                                              })}
-                                                          </span>
-                                                      ) : null}
-                                                      {session.ramPercent != null ? (
-                                                          <span className={usageClassName(session.ramPercent)}>
-                                                              {intl.formatMessage(messages.ramLabel, {
-                                                                  percent: session.ramPercent,
-                                                              })}
-                                                          </span>
-                                                      ) : null}
-                                                  </p>
-                                              ) : null}
-                                          </button>
-                                          <div className={styles.trailing}>
-                                              {session.status === 'error' ? (
-                                                  <Tooltip content={intl.formatMessage(messages.restartSession)}>
-                                                      <button
-                                                          type='button'
-                                                          className={styles.restartButton}
-                                                          aria-label={intl.formatMessage(messages.restartSession)}
-                                                          disabled={restartingId === session.id}
-                                                          tabIndex={!listVisible ? -1 : undefined}
-                                                          onClick={(event) => {
-                                                              event.preventDefault();
-                                                              event.stopPropagation();
-                                                              void handleRestart(session);
-                                                          }}
-                                                      >
-                                                          <RestartIcon />
-                                                      </button>
-                                                  </Tooltip>
-                                              ) : null}
-                                              {isInitializing ? (
-                                                  <Spinner
-                                                      size='sm'
-                                                      label={intl.formatMessage(messages.initializing)}
-                                                      className={styles.initializingSpinner}
-                                                  />
-                                              ) : (
-                                                  <span
-                                                      className={`${styles.indicator} ${indicatorClass(session.status)}`}
-                                                      aria-hidden='true'
-                                                  />
-                                              )}
-                                          </div>
-                                          <div className={styles.moreActions}>
-                                              <Tooltip content={intl.formatMessage(messages.sessionActions)}>
+                                                  ) : null}
+                                                  {session.ramPercent != null ? (
+                                                      <span className={usageClassName(session.ramPercent)}>
+                                                          {intl.formatMessage(messages.ramLabel, {
+                                                              percent: session.ramPercent,
+                                                          })}
+                                                      </span>
+                                                  ) : null}
+                                              </p>
+                                          ) : null}
+                                      </button>
+                                      <div className={styles.trailing}>
+                                          {session.status === 'error' ? (
+                                              <Tooltip content={intl.formatMessage(messages.restartSession)}>
                                                   <button
                                                       type='button'
-                                                      data-session-actions-trigger={session.id}
-                                                      className={
-                                                          actionsMenu?.session.id === session.id
-                                                              ? styles.moreButtonOpen
-                                                              : styles.moreButton
-                                                      }
-                                                      aria-label={intl.formatMessage(messages.sessionActions)}
-                                                      aria-haspopup='menu'
-                                                      aria-expanded={actionsMenu?.session.id === session.id}
-                                                      disabled={deletingId === session.id}
+                                                      className={styles.restartButton}
+                                                      aria-label={intl.formatMessage(messages.restartSession)}
+                                                      disabled={restartingId === session.id}
                                                       tabIndex={!listVisible ? -1 : undefined}
                                                       onClick={(event) => {
                                                           event.preventDefault();
                                                           event.stopPropagation();
-                                                          if (actionsMenu?.session.id === session.id) {
-                                                              closeActionsMenu();
-                                                              return;
-                                                          }
-                                                          openActionsMenu(session, event.currentTarget);
+                                                          void handleRestart(session);
                                                       }}
                                                   >
-                                                      <MoreIcon />
+                                                      <RestartIcon />
                                                   </button>
                                               </Tooltip>
-                                          </div>
+                                          ) : null}
+                                          {isInitializing ? (
+                                              <Spinner
+                                                  size='sm'
+                                                  label={intl.formatMessage(messages.initializing)}
+                                                  className={styles.initializingSpinner}
+                                              />
+                                          ) : (
+                                              <span
+                                                  className={`${styles.indicator} ${indicatorClass(session.status)}`}
+                                                  aria-hidden='true'
+                                              />
+                                          )}
                                       </div>
-                                  </SwipeToDelete>
+                                      <div className={styles.moreActions}>
+                                          <Tooltip content={intl.formatMessage(messages.sessionActions)}>
+                                              <button
+                                                  type='button'
+                                                  data-session-actions-trigger={session.id}
+                                                  className={
+                                                      actionsMenu?.session.id === session.id
+                                                          ? styles.moreButtonOpen
+                                                          : styles.moreButton
+                                                  }
+                                                  aria-label={intl.formatMessage(messages.sessionActions)}
+                                                  aria-haspopup='menu'
+                                                  aria-expanded={actionsMenu?.session.id === session.id}
+                                                  disabled={deletingId === session.id}
+                                                  tabIndex={!listVisible ? -1 : undefined}
+                                                  onClick={(event) => {
+                                                      event.preventDefault();
+                                                      event.stopPropagation();
+                                                      if (actionsMenu?.session.id === session.id) {
+                                                          closeActionsMenu();
+                                                          return;
+                                                      }
+                                                      openActionsMenu(session, event.currentTarget);
+                                                  }}
+                                              >
+                                                  <MoreIcon />
+                                              </button>
+                                          </Tooltip>
+                                      </div>
+                                  </div>
                               </div>
                           );
                       })
@@ -1015,57 +1007,50 @@ export function SessionsPanel({
                           const isActive = prompt.id === activeQuickPromptId;
                           return (
                               <div key={prompt.id}>
-                                  <SwipeToDelete
-                                      disabled={deletingPromptId === prompt.id || !listVisible}
-                                      onDelete={() => {
-                                          setPendingDeletePrompt(prompt);
-                                      }}
-                                  >
-                                      <div className={styles.sessionRow}>
-                                          <button
-                                              type='button'
-                                              className={sessionButtonClass(isActive, false)}
-                                              tabIndex={!listVisible ? -1 : undefined}
-                                              onClick={() => {
-                                                  openQuickPromptTab(prompt.id, prompt.name);
-                                              }}
-                                          >
-                                              <span className={styles.sessionTitle}>{prompt.name}</span>
-                                              {prompt.description ? (
-                                                  <p className={styles.sessionMetaMuted}>{prompt.description}</p>
-                                              ) : null}
-                                          </button>
-                                          <div className={styles.moreActions}>
-                                              <Tooltip content={intl.formatMessage(messages.quickPromptActions)}>
-                                                  <button
-                                                      type='button'
-                                                      data-quick-prompt-actions-trigger={prompt.id}
-                                                      className={
-                                                          promptActionsMenu?.prompt.id === prompt.id
-                                                              ? styles.moreButtonOpen
-                                                              : styles.moreButton
+                                  <div className={styles.sessionRow}>
+                                      <button
+                                          type='button'
+                                          className={sessionButtonClass(isActive, false)}
+                                          tabIndex={!listVisible ? -1 : undefined}
+                                          onClick={() => {
+                                              openQuickPromptTab(prompt.id, prompt.name);
+                                          }}
+                                      >
+                                          <span className={styles.sessionTitle}>{prompt.name}</span>
+                                          {prompt.description ? (
+                                              <p className={styles.sessionMetaMuted}>{prompt.description}</p>
+                                          ) : null}
+                                      </button>
+                                      <div className={styles.moreActions}>
+                                          <Tooltip content={intl.formatMessage(messages.quickPromptActions)}>
+                                              <button
+                                                  type='button'
+                                                  data-quick-prompt-actions-trigger={prompt.id}
+                                                  className={
+                                                      promptActionsMenu?.prompt.id === prompt.id
+                                                          ? styles.moreButtonOpen
+                                                          : styles.moreButton
+                                                  }
+                                                  aria-label={intl.formatMessage(messages.quickPromptActions)}
+                                                  aria-haspopup='menu'
+                                                  aria-expanded={promptActionsMenu?.prompt.id === prompt.id}
+                                                  disabled={deletingPromptId === prompt.id}
+                                                  tabIndex={!listVisible ? -1 : undefined}
+                                                  onClick={(event) => {
+                                                      event.preventDefault();
+                                                      event.stopPropagation();
+                                                      if (promptActionsMenu?.prompt.id === prompt.id) {
+                                                          closePromptActionsMenu();
+                                                          return;
                                                       }
-                                                      aria-label={intl.formatMessage(messages.quickPromptActions)}
-                                                      aria-haspopup='menu'
-                                                      aria-expanded={promptActionsMenu?.prompt.id === prompt.id}
-                                                      disabled={deletingPromptId === prompt.id}
-                                                      tabIndex={!listVisible ? -1 : undefined}
-                                                      onClick={(event) => {
-                                                          event.preventDefault();
-                                                          event.stopPropagation();
-                                                          if (promptActionsMenu?.prompt.id === prompt.id) {
-                                                              closePromptActionsMenu();
-                                                              return;
-                                                          }
-                                                          openPromptActionsMenu(prompt, event.currentTarget);
-                                                      }}
-                                                  >
-                                                      <MoreIcon />
-                                                  </button>
-                                              </Tooltip>
-                                          </div>
+                                                      openPromptActionsMenu(prompt, event.currentTarget);
+                                                  }}
+                                              >
+                                                  <MoreIcon />
+                                              </button>
+                                          </Tooltip>
                                       </div>
-                                  </SwipeToDelete>
+                                  </div>
                               </div>
                           );
                       })
