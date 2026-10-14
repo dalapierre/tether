@@ -5,12 +5,17 @@ export const styles = {
     list: 'panel-scroll flex h-7 min-w-0 items-stretch overflow-x-auto',
     tab: 'group relative flex max-w-[12rem] min-w-[5.5rem] shrink-0 cursor-pointer select-none items-center gap-1 border-x border-transparent bg-transparent px-2 text-left text-[12px] leading-none text-zinc-500 transition-colors md:hover:text-zinc-300',
     tabActive:
-        'group relative flex max-w-[12rem] min-w-[5.5rem] shrink-0 cursor-pointer select-none items-center gap-1 border-x border-zinc-700 bg-transparent px-2 text-left text-[12px] font-bold leading-none text-white',
+        'group relative flex max-w-[12rem] min-w-[5.5rem] shrink-0 cursor-pointer select-none items-center gap-1 border-x border-zinc-700 bg-zinc-800 px-2 text-left text-[12px] font-bold leading-none text-white',
     tabOrigin: 'pointer-events-none opacity-30',
     tabDraggingCursor: 'cursor-grabbing',
     dropMarker: 'w-0.5 shrink-0 self-stretch bg-aura-green',
     separator: 'h-3.5 w-px shrink-0 self-center bg-zinc-700',
     tabLabel: 'min-w-0 flex-1 truncate select-none',
+    // Top-edge session status strip (ready / working / error); matches sidebar/session dots.
+    statusBorder: 'pointer-events-none absolute inset-x-0 top-0 h-0.5',
+    statusReady: 'bg-emerald-500',
+    statusBusy: 'bg-amber-400',
+    statusError: 'bg-red-500',
     close: 'group/close inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm text-[11px] leading-none text-zinc-500 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 md:hover:bg-zinc-800 md:hover:text-zinc-200',
     closeVisible: 'opacity-100',
     dirtyDot:
@@ -22,4 +27,5 @@ export const styles = {
     ghostLabel: 'min-w-0 flex-1 truncate',
     ghostClose: 'inline-flex h-4 w-4 shrink-0 items-center justify-center text-[11px] leading-none text-zinc-500',
     ghostDirtyDot: 'inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-300',
+    ghostStatusBorder: 'pointer-events-none absolute inset-x-0 top-0 h-0.5',
 };

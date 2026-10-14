@@ -1,5 +1,6 @@
 import { Panel } from '@ui/components/panel';
 import { Tooltip } from '@ui/components/tooltip';
+import type { SessionStatus } from '@ui/libs/api/sessions';
 import { getLiveSession, getSessionsSnapshot, hasSessionsSnapshot, subscribe } from '@ui/modules/session-events';
 import {
     Fragment,
@@ -34,6 +35,7 @@ type DragGhost = {
     id: EditorTabId;
     label: string;
     selected: boolean;
+    statusClass: string | null;
     width: number;
     height: number;
     offsetX: number;
@@ -41,6 +43,19 @@ type DragGhost = {
     x: number;
     y: number;
 };
+
+function sessionStatusBorderClass(status: SessionStatus | undefined): string | null {
+    if (!status) return null;
+    switch (status) {
+        case 'ready':
+            return styles.statusReady;
+        case 'busy':
+        case 'initializing':
+            return styles.statusBusy;
+        case 'error':
+            return styles.statusError;
+    }
+}
 
 function tabLabel(tab: EditorTab, formatMessage: ReturnType<typeof useIntl>['formatMessage']): string {
     switch (tab.kind) {
@@ -130,6 +145,7 @@ export function EditorTabBar() {
         height: number;
         label: string;
         selected: boolean;
+        statusClass: string | null;
     } | null>(null);
     const skipClickRef = useRef(false);
     const [ghost, setGhost] = useState<DragGhost | null>(null);
@@ -168,7 +184,13 @@ export function EditorTabBar() {
     }, [tabs]);
 
     const onTabPointerDown = useCallback(
-        (event: ReactPointerEvent<HTMLDivElement>, tab: EditorTab, label: string, selected: boolean) => {
+        (
+            event: ReactPointerEvent<HTMLDivElement>,
+            tab: EditorTab,
+            label: string,
+            selected: boolean,
+            statusClass: string | null,
+        ) => {
             if (event.button !== 0) return;
             // Close control handles its own pointer interaction.
             if ((event.target as HTMLElement | null)?.closest('button')) return;
@@ -187,6 +209,7 @@ export function EditorTabBar() {
                 height: rect.height,
                 label,
                 selected,
+                statusClass,
             };
             event.currentTarget.setPointerCapture(event.pointerId);
         },
@@ -208,6 +231,7 @@ export function EditorTabBar() {
                     id: drag.id,
                     label: drag.label,
                     selected: drag.selected,
+                    statusClass: drag.statusClass,
                     width: drag.width,
                     height: drag.height,
                     offsetX: drag.offsetX,
@@ -289,6 +313,8 @@ export function EditorTabBar() {
                     const label = tabLabel(tab, intl.formatMessage);
                     const dirty = dirtyState.dirty.has(tab.id);
                     const closeLabel = `${intl.formatMessage(messages.closeTab)} ${label}`;
+                    const statusClass =
+                        tab.kind === 'session' ? sessionStatusBorderClass(sessions.get(tab.sessionId)?.status) : null;
                     const tabClass = `${selected ? styles.tabActive : styles.tab}${dragging ? ` ${styles.tabOrigin}` : ''}`;
                     const closeClass = selected || dirty ? `${styles.close} ${styles.closeVisible}` : styles.close;
 
@@ -309,7 +335,7 @@ export function EditorTabBar() {
                                     }
                                     activateTab(tab);
                                 }}
-                                onPointerDown={(event) => onTabPointerDown(event, tab, label, selected)}
+                                onPointerDown={(event) => onTabPointerDown(event, tab, label, selected, statusClass)}
                                 onPointerMove={onTabPointerMove}
                                 onPointerUp={onTabPointerUp}
                                 onPointerCancel={onTabPointerCancel}
@@ -337,6 +363,9 @@ export function EditorTabBar() {
                                     }
                                 }}
                             >
+                                {statusClass ? (
+                                    <span className={`${styles.statusBorder} ${statusClass}`} aria-hidden='true' />
+                                ) : null}
                                 <Tooltip content={label}>
                                     <span className={styles.tabLabel}>{label}</span>
                                 </Tooltip>
@@ -374,6 +403,9 @@ export function EditorTabBar() {
                           }}
                           aria-hidden='true'
                       >
+                          {ghost.statusClass ? (
+                              <span className={`${styles.ghostStatusBorder} ${ghost.statusClass}`} aria-hidden='true' />
+                          ) : null}
                           <span className={styles.ghostLabel}>{ghost.label}</span>
                           <span className={styles.ghostClose}>
                               {dirtyState.dirty.has(ghost.id) ? (
