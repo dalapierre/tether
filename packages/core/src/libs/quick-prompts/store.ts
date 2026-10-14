@@ -44,6 +44,11 @@ export function isValidQuickPromptInputName(value: string): boolean {
     return INPUT_NAME_PATTERN.test(value);
 }
 
+/** Lowercase angle-bracket placeholders so they stay aligned with input names. */
+export function lowercaseQuickPromptPlaceholders(prompt: string): string {
+    return prompt.replace(/<([^<>]+)>/g, (_match, name: string) => `<${name.toLowerCase()}>`);
+}
+
 function isQuickPromptInput(value: unknown): value is QuickPromptInput {
     return (
         !!value &&
