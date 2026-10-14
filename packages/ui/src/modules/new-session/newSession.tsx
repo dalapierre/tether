@@ -132,21 +132,6 @@ export function NewSession({ onClose, onStarted }: NewSessionProps) {
         };
     }, [repositoryId]);
 
-    useEffect(() => {
-        function onKeyDown(event: KeyboardEvent) {
-            if (event.key !== 'Escape') return;
-            // Block dismiss while the session is spawning.
-            event.preventDefault();
-            if (starting) return;
-            onClose();
-        }
-
-        window.addEventListener('keydown', onKeyDown);
-        return () => {
-            window.removeEventListener('keydown', onKeyDown);
-        };
-    }, [onClose, starting]);
-
     const repositoryOptions = useMemo(
         () => repositories.map((repository) => ({ value: repository.id, label: repository.name })),
         [repositories],

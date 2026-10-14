@@ -160,24 +160,6 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
         setPendingDiscard(false);
     }
 
-    useEffect(() => {
-        function onKeyDown(event: KeyboardEvent) {
-            if (event.key !== 'Escape') return;
-            if (pendingDiscard) return;
-            if (hasUnsavedChanges) {
-                event.preventDefault();
-                setPendingDiscard(true);
-                return;
-            }
-            goBack();
-        }
-
-        window.addEventListener('keydown', onKeyDown);
-        return () => {
-            window.removeEventListener('keydown', onKeyDown);
-        };
-    }, [goBack, hasUnsavedChanges, pendingDiscard]);
-
     async function handleSave() {
         setSaving(true);
 
