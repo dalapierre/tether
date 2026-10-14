@@ -707,7 +707,13 @@ export function SessionView({ sessionId }: SessionViewProps) {
         enabled: sessionReady,
         allowInTerminalInsert: true,
     });
-    useKeybind('session', 'quickPrompt', () => setQuickPromptOpen(true), {
+    const openQuickPrompt = useCallback(() => {
+        // Blur terminals first so arrow keys navigate the palette instead of the PTY.
+        termRef.current?.blur();
+        shellPanelApiRef.current?.blurActive();
+        setQuickPromptOpen(true);
+    }, []);
+    useKeybind('session', 'quickPrompt', openQuickPrompt, {
         enabled: sessionReady && !quickPromptOpen,
         allowInTerminalInsert: true,
     });
@@ -1501,7 +1507,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                                         type='button'
                                         className={styles.paneToggle}
                                         aria-label={quickPromptLabel}
-                                        onClick={() => setQuickPromptOpen(true)}
+                                        onClick={openQuickPrompt}
                                     >
                                         <QuickPromptIcon className={styles.paneToggleIcon} />
                                     </button>

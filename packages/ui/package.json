@@ -12,7 +12,8 @@
         "./styles.css": "./src/index.css"
     },
     "scripts": {
-        "typecheck": "tsc --noEmit"
+        "typecheck": "tsc --noEmit",
+        "test": "node --experimental-vm-modules ../../node_modules/jest/bin/jest.js"
     },
     "dependencies": {
         "@monaco-editor/react": "^4.7.0",

@@ -4,6 +4,7 @@ import { eventMatchesKeybind, useKeybinds } from '@ui/libs/keybinds';
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { useIntl } from 'react-intl';
 import { messages } from './quickPrompt.messages';
+import { clampActiveIndex, stepActiveIndex } from './quickPromptNav';
 import { styles } from './quickPrompt.styles';
 
 export type QuickPromptMenuProps = {
@@ -39,6 +40,9 @@ export function QuickPromptMenu({ onClose, onSelect }: QuickPromptMenuProps) {
     const listboxId = useId();
     const searchRef = useRef<HTMLInputElement | null>(null);
     const firstFillRef = useRef<HTMLInputElement | HTMLSelectElement | null>(null);
+    const setFirstFillRef = (node: HTMLInputElement | HTMLSelectElement | null) => {
+        firstFillRef.current = node;
+    };
     const [query, setQuery] = useState('');
     const [activeIndex, setActiveIndex] = useState(0);
     const [prompts, setPrompts] = useState<QuickPrompt[]>([]);
@@ -46,6 +50,28 @@ export function QuickPromptMenu({ onClose, onSelect }: QuickPromptMenuProps) {
     const [loadError, setLoadError] = useState(false);
     const [selected, setSelected] = useState<QuickPrompt | null>(null);
     const [values, setValues] = useState<InputValues>({});
+
+    const filtered = useMemo(() => {
+        const normalized = query.trim().toLowerCase();
+        if (!normalized) return prompts;
+        return prompts.filter(
+            (prompt) =>
+                prompt.name.toLowerCase().includes(normalized) ||
+                prompt.description.toLowerCase().includes(normalized) ||
+                prompt.prompt.toLowerCase().includes(normalized),
+        );
+    }, [prompts, query]);
+
+    const filteredRef = useRef(filtered);
+    filteredRef.current = filtered;
+    const activeIndexRef = useRef(activeIndex);
+    activeIndexRef.current = activeIndex;
+    const selectedRef = useRef(selected);
+    selectedRef.current = selected;
+    const onCloseRef = useRef(onClose);
+    onCloseRef.current = onClose;
+    const onSelectRef = useRef(onSelect);
+    onSelectRef.current = onSelect;
 
     useEffect(() => {
         let cancelled = false;
@@ -71,27 +97,23 @@ export function QuickPromptMenu({ onClose, onSelect }: QuickPromptMenuProps) {
         };
     }, []);
 
-    const filtered = useMemo(() => {
-        const normalized = query.trim().toLowerCase();
-        if (!normalized) return prompts;
-        return prompts.filter(
-            (prompt) =>
-                prompt.name.toLowerCase().includes(normalized) ||
-                prompt.description.toLowerCase().includes(normalized) ||
-                prompt.prompt.toLowerCase().includes(normalized),
-        );
-    }, [prompts, query]);
-
     useEffect(() => {
         setActiveIndex(0);
     }, [query]);
 
     useEffect(() => {
-        if (selected) {
-            firstFillRef.current?.focus();
-            return;
-        }
-        searchRef.current?.focus();
+        setActiveIndex((current) => clampActiveIndex(current, filtered.length));
+    }, [filtered.length]);
+
+    useEffect(() => {
+        const frame = requestAnimationFrame(() => {
+            if (selected) {
+                firstFillRef.current?.focus();
+                return;
+            }
+            searchRef.current?.focus();
+        });
+        return () => cancelAnimationFrame(frame);
     }, [selected]);
 
     useEffect(() => {
@@ -100,27 +122,10 @@ export function QuickPromptMenu({ onClose, onSelect }: QuickPromptMenuProps) {
         option?.scrollIntoView({ block: 'nearest' });
     }, [activeIndex, filtered.length, listboxId, selected]);
 
-    // Close on the open shortcut while modal (useKeybind skips aria-modal targets).
-    useEffect(() => {
-        const chord = keybinds.session.quickPrompt;
-        if (!chord.trim()) return;
-
-        function onKeyDown(event: globalThis.KeyboardEvent) {
-            if (event.defaultPrevented || event.repeat) return;
-            if (!eventMatchesKeybind(event, chord)) return;
-            event.preventDefault();
-            event.stopPropagation();
-            onClose();
-        }
-
-        window.addEventListener('keydown', onKeyDown, true);
-        return () => window.removeEventListener('keydown', onKeyDown, true);
-    }, [keybinds.session.quickPrompt, onClose]);
-
     function finishPrompt(prompt: QuickPrompt, nextValues: InputValues) {
         const resolved = fillQuickPrompt(prompt.prompt, nextValues);
-        onSelect?.(resolved);
-        onClose();
+        onSelectRef.current?.(resolved);
+        onCloseRef.current();
     }
 
     function selectPrompt(prompt: QuickPrompt) {
@@ -131,6 +136,9 @@ export function QuickPromptMenu({ onClose, onSelect }: QuickPromptMenuProps) {
         setSelected(prompt);
         setValues(initialValuesFor(prompt.inputs));
     }
+
+    const selectPromptRef = useRef(selectPrompt);
+    selectPromptRef.current = selectPrompt;
 
     function goBack() {
         setSelected(null);
@@ -146,36 +154,71 @@ export function QuickPromptMenu({ onClose, onSelect }: QuickPromptMenuProps) {
         finishPrompt(selected, values);
     }
 
-    function handleSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-        if (event.key === 'ArrowDown') {
-            event.preventDefault();
-            if (filtered.length === 0) return;
-            setActiveIndex((current) => (current + 1) % filtered.length);
-            return;
-        }
+    // Capture-phase so arrows work even if focus stayed on an xterm textarea.
+    useEffect(() => {
+        const chord = keybinds.session.quickPrompt;
 
-        if (event.key === 'ArrowUp') {
-            event.preventDefault();
-            if (filtered.length === 0) return;
-            setActiveIndex((current) => (current - 1 + filtered.length) % filtered.length);
-            return;
-        }
+        function onKeyDown(event: globalThis.KeyboardEvent) {
+            if (event.defaultPrevented) return;
 
-        if (event.key === 'Enter') {
-            event.preventDefault();
-            const prompt = filtered[activeIndex];
-            if (prompt) {
-                selectPrompt(prompt);
+            if (chord.trim() && eventMatchesKeybind(event, chord)) {
+                if (event.repeat) return;
+                event.preventDefault();
+                event.stopPropagation();
+                onCloseRef.current();
+                return;
             }
-            return;
+
+            if (selectedRef.current) {
+                if (event.key === 'Escape' && !event.repeat) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setSelected(null);
+                    setValues({});
+                }
+                return;
+            }
+
+            const items = filteredRef.current;
+
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                event.stopPropagation();
+                if (items.length === 0) return;
+                setActiveIndex((current) => stepActiveIndex(current, items.length, 1));
+                return;
+            }
+
+            if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                event.stopPropagation();
+                if (items.length === 0) return;
+                setActiveIndex((current) => stepActiveIndex(current, items.length, -1));
+                return;
+            }
+
+            if (event.repeat) return;
+
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                event.stopPropagation();
+                const prompt = items[activeIndexRef.current];
+                if (prompt) {
+                    selectPromptRef.current(prompt);
+                }
+                return;
+            }
+
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                event.stopPropagation();
+                onCloseRef.current();
+            }
         }
 
-        if (event.key === 'Escape') {
-            event.preventDefault();
-            event.stopPropagation();
-            onClose();
-        }
-    }
+        window.addEventListener('keydown', onKeyDown, true);
+        return () => window.removeEventListener('keydown', onKeyDown, true);
+    }, [keybinds.session.quickPrompt]);
 
     function handleFillKeyDown(event: KeyboardEvent<HTMLFormElement>) {
         if (event.key === 'Escape') {
@@ -224,7 +267,7 @@ export function QuickPromptMenu({ onClose, onSelect }: QuickPromptMenuProps) {
                                         <span className={styles.fillLabel}>{input.name}</span>
                                         {input.type === 'boolean' ? (
                                             <select
-                                                ref={index === 0 ? firstFillRef : undefined}
+                                                ref={index === 0 ? setFirstFillRef : undefined}
                                                 className={styles.fillSelect}
                                                 value={value === 'true' ? 'true' : 'false'}
                                                 onChange={(event) =>
@@ -241,7 +284,7 @@ export function QuickPromptMenu({ onClose, onSelect }: QuickPromptMenuProps) {
                                             </select>
                                         ) : (
                                             <input
-                                                ref={index === 0 ? firstFillRef : undefined}
+                                                ref={index === 0 ? setFirstFillRef : undefined}
                                                 className={styles.fillInput}
                                                 type={input.type === 'number' ? 'number' : 'text'}
                                                 inputMode={input.type === 'number' ? 'decimal' : undefined}
@@ -296,7 +339,6 @@ export function QuickPromptMenu({ onClose, onSelect }: QuickPromptMenuProps) {
                             autoCorrect='off'
                             spellCheck={false}
                             onChange={(event) => setQuery(event.target.value)}
-                            onKeyDown={handleSearchKeyDown}
                         />
                         <div
                             id={listboxId}
@@ -323,7 +365,7 @@ export function QuickPromptMenu({ onClose, onSelect }: QuickPromptMenuProps) {
                                             role='option'
                                             tabIndex={-1}
                                             aria-selected={active}
-                                            className={`${styles.option}${active ? ` ${styles.optionActive}` : ''}`}
+                                            className={`${styles.option} ${active ? styles.optionActive : styles.optionInactive}`}
                                             onMouseEnter={() => setActiveIndex(index)}
                                             onMouseDown={(event) => {
                                                 // Keep focus on the input; selecting must not blur first.
