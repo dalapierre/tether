@@ -7,17 +7,14 @@ export const styles = {
     listWrapHidden:
         'pointer-events-none relative box-border flex h-full min-h-0 min-w-0 flex-col overflow-hidden opacity-0 md:my-2 md:h-[calc(100%-1rem)]',
     panel: 'box-border h-full min-h-0 min-w-0 flex-1 overflow-hidden',
-    railHeader: 'flex h-11 shrink-0 items-center justify-center',
-    listHeaderMobile: 'relative flex h-11 shrink-0 items-center',
-    logoSlot: 'inline-flex h-11 w-12 shrink-0 items-center justify-center',
-    logoImage: 'h-7 w-7',
     railIcon:
         'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-zinc-400 outline-none transition-colors focus-visible:ring-1 focus-visible:ring-aura-green active:bg-zinc-800 active:text-zinc-100 md:hover:bg-zinc-800 md:hover:text-zinc-100',
     railIconActive:
         'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-zinc-800 text-zinc-100 outline-none transition-colors focus-visible:ring-1 focus-visible:ring-aura-green',
     plusIcon: 'h-5 w-5',
     listIcon: 'h-5 w-5',
-    railBody: 'flex min-h-0 flex-1 flex-col items-center gap-0.5 overflow-hidden px-1',
+    railBody:
+        'flex min-h-0 flex-1 flex-col items-center gap-0.5 overflow-hidden px-1 py-[max(0.5rem,env(safe-area-inset-bottom))]',
     mainStack: 'flex min-h-0 flex-1 flex-col gap-3 overflow-hidden md:py-2',
     sessionsSection: 'flex min-h-0 flex-1 flex-col overflow-hidden',
     search: 'shrink-0 px-2 pb-3',
@@ -74,7 +71,7 @@ export const styles = {
     settings: 'shrink-0 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]',
     settingsButton:
         'flex w-full shrink-0 items-center rounded-md text-sm text-zinc-400 outline-none transition-colors active:bg-zinc-800 active:text-zinc-100 focus-visible:ring-1 focus-visible:ring-aura-green md:hover:bg-zinc-800 md:hover:text-zinc-100',
-    settingsRail: 'flex w-full shrink-0 flex-col items-center pb-[max(0.5rem,env(safe-area-inset-bottom))]',
+    settingsRail: 'flex w-full shrink-0 flex-col items-center',
     settingsIcon: 'h-5 w-5 shrink-0',
     railSpacer: 'min-h-0 flex-1',
 };

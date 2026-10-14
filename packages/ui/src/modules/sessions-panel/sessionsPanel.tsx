@@ -1,4 +1,3 @@
-import logoLight from '@ui/assets/logo_light.svg';
 import { ConfirmDialog } from '@ui/components/confirm-dialog';
 import { Panel } from '@ui/components/panel';
 import { Spinner } from '@ui/components/spinner';
@@ -1180,11 +1179,6 @@ export function SessionsPanel({
             {isDesktop ? (
                 <div className={styles.railWrap}>
                     <Panel className={styles.panel} aria-label={intl.formatMessage(messages.logo)}>
-                        <div className={styles.railHeader}>
-                            <div className={styles.logoSlot} aria-label={intl.formatMessage(messages.logo)} role='img'>
-                                <img className={styles.logoImage} src={logoLight} alt='' />
-                            </div>
-                        </div>
                         <div className={styles.railBody}>
                             <Tooltip content={createLabel} disabled={Boolean(createMenu)}>
                                 <button
@@ -1257,14 +1251,6 @@ export function SessionsPanel({
                     className={styles.panel}
                     aria-label={listMode === 'quickPrompts' ? quickPromptsHeading : sessionsHeading}
                 >
-                    {!isDesktop ? (
-                        <div className={styles.listHeaderMobile}>
-                            <div className={styles.logoSlot} aria-label={intl.formatMessage(messages.logo)} role='img'>
-                                <img className={styles.logoImage} src={logoLight} alt='' />
-                            </div>
-                        </div>
-                    ) : null}
-
                     <div className={styles.mainStack}>
                         {!isDesktop ? (
                             <button type='button' className={styles.inlineButton} onClick={openNewSession}>
