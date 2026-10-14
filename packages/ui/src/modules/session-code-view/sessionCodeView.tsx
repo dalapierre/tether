@@ -1167,6 +1167,10 @@ export function SessionCodeView({
             .catch((err: unknown) => {
                 if (abort.signal.aborted) return;
                 selectPath(null);
+                // File may have left the diff (commit, discard, etc.) — expected, no toast.
+                if (err instanceof ApiError && err.message === 'File not found in diff') {
+                    return;
+                }
                 showToast(
                     'generic-error',
                     err instanceof Error ? err.message : intl.formatMessage(messages.loadFailed),
