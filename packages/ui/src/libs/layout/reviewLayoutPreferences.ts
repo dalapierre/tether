@@ -285,6 +285,41 @@ export function clearShellRoster(sessionId: string): void {
     removeSessionLocalStorageItem(sessionId, SHELL_ROSTER_SUFFIX);
 }
 
+const WORKSPACE_SHELL_ROSTER_KEY = 'tether.layout.workspaceShellRoster';
+
+/** Restore the workspace (root) terminal split list, or null when none is stored. */
+export function getWorkspaceShellRoster(): ShellRosterState | null {
+    const raw = getLocalStorageItem(WORKSPACE_SHELL_ROSTER_KEY);
+    if (raw === null) {
+        return null;
+    }
+    return parseShellRoster(raw);
+}
+
+export function setWorkspaceShellRoster(state: ShellRosterState): void {
+    const shells: ShellRosterEntry[] = [];
+    for (const entry of state.shells) {
+        const id = entry.id.trim();
+        if (!isValidShellRosterId(id)) continue;
+        if (shells.some((shell) => shell.id === id)) continue;
+        shells.push({
+            id,
+            title: entry.title.trim(),
+        });
+        if (shells.length >= MAX_SHELL_ROSTER_ENTRIES) break;
+    }
+    if (shells.length === 0) {
+        removeLocalStorageItem(WORKSPACE_SHELL_ROSTER_KEY);
+        return;
+    }
+    const activeShellId = shells.some((shell) => shell.id === state.activeShellId) ? state.activeShellId : shells[0].id;
+    setLocalStorageItem(WORKSPACE_SHELL_ROSTER_KEY, JSON.stringify({ shells, activeShellId }));
+}
+
+export function clearWorkspaceShellRoster(): void {
+    removeLocalStorageItem(WORKSPACE_SHELL_ROSTER_KEY);
+}
+
 export function getFileTreeWidthPx(): number {
     const stored = getLocalStorageNumber(FILE_TREE_WIDTH_PX_KEY);
     if (stored !== null) {

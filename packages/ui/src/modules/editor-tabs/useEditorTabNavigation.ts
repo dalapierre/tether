@@ -1,21 +1,24 @@
 import { killWorkspaceShell } from '@ui/libs/api/workspace';
+import { clearWorkspaceShellRoster } from '@ui/libs/layout/reviewLayoutPreferences';
 import { getLiveSession } from '@ui/modules/session-events';
+import { requestWorkspaceShellSplit } from '@ui/modules/workspace-terminal/workspaceShellSplitRequests';
 import { useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
     closeEditorTab,
     createSessionTab,
-    createTerminalTab,
+    createWorkspaceTerminalTab,
     editorTabFromPath,
     getEditorTabsSnapshot,
     NEW_SESSION_TAB,
     openEditorTab,
     pathForEditorTab,
     SETTINGS_TAB,
+    WORKSPACE_TERMINAL_ID,
 } from './editorTabsStore';
 import type { EditorTab, EditorTabId } from './editorTabs.types';
 
-/** Client-side terminal ids; avoid `crypto.randomUUID` (secure-context only — fails on LAN HTTP). */
+/** Client-side ids; avoid `crypto.randomUUID` (secure-context only — fails on LAN HTTP). */
 export function createTerminalId(): string {
     const bytes = new Uint8Array(16);
     crypto.getRandomValues(bytes);
@@ -52,8 +55,26 @@ export function useEditorTabNavigation() {
     }, [activateTab]);
 
     const openTerminalTab = useCallback(
-        (terminalId?: string, title?: string) => {
-            activateTab(createTerminalTab(terminalId ?? createTerminalId(), title));
+        (title?: string) => {
+            const snapshot = getEditorTabsSnapshot();
+            const workspaceTab = createWorkspaceTerminalTab(title);
+            const alreadyOpen = snapshot.some(
+                (tab) => tab.kind === 'terminal' && tab.terminalId === WORKSPACE_TERMINAL_ID,
+            );
+
+            // Collapse legacy one-shell-per-tab terminals into the shared panel.
+            for (const tab of snapshot) {
+                if (tab.kind !== 'terminal' || tab.terminalId === WORKSPACE_TERMINAL_ID) continue;
+                closeEditorTab(tab.id);
+                void killWorkspaceShell(tab.terminalId).catch(() => {
+                    // Best-effort cleanup of orphaned PTYs.
+                });
+            }
+
+            activateTab(workspaceTab);
+            if (alreadyOpen) {
+                requestWorkspaceShellSplit();
+            }
         },
         [activateTab],
     );
@@ -65,9 +86,16 @@ export function useEditorTabNavigation() {
             const wasActive = activeId === id;
             const fallback = closeEditorTab(id);
             if (closing?.kind === 'terminal') {
-                void killWorkspaceShell(closing.terminalId).catch(() => {
-                    // Best-effort; tab is already gone from the UI.
-                });
+                if (closing.terminalId === WORKSPACE_TERMINAL_ID) {
+                    clearWorkspaceShellRoster();
+                    void killWorkspaceShell().catch(() => {
+                        // Best-effort; tab is already gone from the UI.
+                    });
+                } else {
+                    void killWorkspaceShell(closing.terminalId).catch(() => {
+                        // Best-effort; tab is already gone from the UI.
+                    });
+                }
             }
             if (!wasActive) return;
             navigate(fallback ? pathForEditorTab(fallback) : '/', {

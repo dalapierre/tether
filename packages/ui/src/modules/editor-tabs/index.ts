@@ -5,6 +5,7 @@ export {
     closeSessionEditorTab,
     createSessionTab,
     createTerminalTab,
+    createWorkspaceTerminalTab,
     editorTabFromPath,
     ensureEditorTabForPath,
     getEditorTabsSnapshot,
@@ -20,6 +21,7 @@ export {
     subscribeEditorTabs,
     syncSessionTabTitles,
     terminalTabId,
+    WORKSPACE_TERMINAL_ID,
 } from './editorTabsStore';
 export type { EditorTab, EditorTabId, EditorTabKind } from './editorTabs.types';
 export { createTerminalId, useEditorTabNavigation } from './useEditorTabNavigation';

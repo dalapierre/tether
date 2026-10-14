@@ -1,6 +1,9 @@
 import { ApiError, apiFetch } from '@ui/libs/api/client';
 import { getTransport } from '@ui/libs/api/transport';
 
+/** UI cap for workspace terminal splits (matches session shell panel / roster). */
+export const MAX_WORKSPACE_SHELLS = 4;
+
 /** Kill one workspace shell, or all of them when `shellId` is omitted. */
 export async function killWorkspaceShell(shellId?: string): Promise<void> {
     const path = shellId === undefined ? '/api/workspace/shell' : `/api/workspace/shell/${encodeURIComponent(shellId)}`;

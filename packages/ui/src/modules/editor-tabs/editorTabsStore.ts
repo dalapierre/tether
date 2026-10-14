@@ -3,6 +3,13 @@ import type { EditorTab, EditorTabId, SessionEditorTab, TerminalEditorTab } from
 
 const STORAGE_KEY = 'tether.editorTabs';
 
+/** Single workspace terminal editor tab (splits live inside the panel, not as more tabs). */
+export const WORKSPACE_TERMINAL_ID = 'workspace';
+
+export function terminalTabId(terminalId: string): TerminalEditorTab['id'] {
+    return `terminal:${terminalId}`;
+}
+
 type Listener = () => void;
 
 function isEditorTab(value: unknown): value is EditorTab {
@@ -42,6 +49,7 @@ function loadTabs(): EditorTab[] {
     if (!Array.isArray(stored)) return [];
     const next: EditorTab[] = [];
     const seen = new Set<EditorTabId>();
+    let workspaceTerminal: TerminalEditorTab | null = null;
     for (const entry of stored) {
         if (!isEditorTab(entry) || seen.has(entry.id)) continue;
         seen.add(entry.id);
@@ -53,15 +61,28 @@ function loadTabs(): EditorTab[] {
                 ...(entry.title ? { title: entry.title } : {}),
             });
         } else if (entry.kind === 'terminal') {
-            next.push({
-                id: entry.id,
-                kind: 'terminal',
-                terminalId: entry.terminalId,
-                ...(entry.title ? { title: entry.title } : {}),
-            });
+            // Collapse legacy one-shell-per-tab terminals into the shared workspace panel tab.
+            if (!workspaceTerminal) {
+                workspaceTerminal = {
+                    id: terminalTabId(WORKSPACE_TERMINAL_ID),
+                    kind: 'terminal',
+                    terminalId: WORKSPACE_TERMINAL_ID,
+                    ...(entry.title ? { title: entry.title } : {}),
+                };
+            } else if (entry.title && !workspaceTerminal.title) {
+                workspaceTerminal = {
+                    id: workspaceTerminal.id,
+                    kind: 'terminal',
+                    terminalId: WORKSPACE_TERMINAL_ID,
+                    title: entry.title,
+                };
+            }
         } else {
             next.push(entry);
         }
+    }
+    if (workspaceTerminal) {
+        next.push(workspaceTerminal);
     }
     return next;
 }
@@ -71,6 +92,8 @@ function persistTabs(next: EditorTab[]): void {
 }
 
 let tabs: EditorTab[] = loadTabs();
+// Persist any legacy terminal-tab collapse performed in loadTabs.
+persistTabs(tabs);
 const listeners = new Set<Listener>();
 
 function emit() {
@@ -104,10 +127,6 @@ export function createSessionTab(sessionId: string, title?: string): SessionEdit
     };
 }
 
-export function terminalTabId(terminalId: string): TerminalEditorTab['id'] {
-    return `terminal:${terminalId}`;
-}
-
 export function createTerminalTab(terminalId: string, title?: string): TerminalEditorTab {
     return {
         id: terminalTabId(terminalId),
@@ -115,6 +134,10 @@ export function createTerminalTab(terminalId: string, title?: string): TerminalE
         terminalId,
         ...(title ? { title } : {}),
     };
+}
+
+export function createWorkspaceTerminalTab(title?: string): TerminalEditorTab {
+    return createTerminalTab(WORKSPACE_TERMINAL_ID, title);
 }
 
 export const SETTINGS_TAB: EditorTab = { id: 'settings', kind: 'settings' };
@@ -140,7 +163,7 @@ export function editorTabFromPath(pathname: string): EditorTab | null {
     const sessionMatch = /^\/sessions\/([^/]+)$/.exec(pathname);
     if (sessionMatch?.[1]) return createSessionTab(sessionMatch[1]);
     const terminalMatch = /^\/terminals\/([^/]+)$/.exec(pathname);
-    if (terminalMatch?.[1]) return createTerminalTab(terminalMatch[1]);
+    if (terminalMatch?.[1]) return createWorkspaceTerminalTab();
     return null;
 }
 
