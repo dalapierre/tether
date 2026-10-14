@@ -4,6 +4,7 @@ import { getLiveSession } from '@ui/modules/session-events';
 import { requestWorkspaceShellSplit } from '@ui/modules/workspace-terminal/workspaceShellSplitRequests';
 import { useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { isEditorTabDirty, requestEditorTabCloseConfirm } from './editorTabDirtyStore';
 import {
     closeEditorTab,
     createQuickPromptTab,
@@ -93,7 +94,12 @@ export function useEditorTabNavigation() {
     );
 
     const closeTab = useCallback(
-        (id: EditorTabId, options?: { replace?: boolean }) => {
+        (id: EditorTabId, options?: { replace?: boolean; force?: boolean }) => {
+            if (!options?.force && isEditorTabDirty(id)) {
+                requestEditorTabCloseConfirm(id);
+                return;
+            }
+
             const closing = getEditorTabsSnapshot().find((tab) => tab.id === id);
             const activeId = editorTabFromPath(location.pathname)?.id ?? null;
             const wasActive = activeId === id;

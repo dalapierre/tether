@@ -14,6 +14,7 @@ import {
 import { createPortal } from 'react-dom';
 import { useIntl } from 'react-intl';
 import { useLocation } from 'react-router-dom';
+import { getEditorTabDirtySnapshot, subscribeEditorTabDirty } from './editorTabDirtyStore';
 import { messages } from './editorTabs.messages';
 import { styles } from './editorTabs.styles';
 import {
@@ -105,6 +106,11 @@ export function EditorTabBar() {
     const location = useLocation();
     const { activateTab, closeTab } = useEditorTabNavigation();
     const tabs = useSyncExternalStore(subscribeEditorTabs, getEditorTabsSnapshot, getEditorTabsSnapshot);
+    const dirtyState = useSyncExternalStore(
+        subscribeEditorTabDirty,
+        getEditorTabDirtySnapshot,
+        getEditorTabDirtySnapshot,
+    );
     const sessions = useSyncExternalStore(subscribe, getSessionsSnapshot, getSessionsSnapshot);
     const sessionsReady = useSyncExternalStore(subscribe, hasSessionsSnapshot, hasSessionsSnapshot);
     const activeTab = editorTabFromPath(location.pathname);
@@ -281,8 +287,10 @@ export function EditorTabBar() {
                         dropIndex !== fromIndex &&
                         dropIndex !== fromIndex + 1;
                     const label = tabLabel(tab, intl.formatMessage);
+                    const dirty = dirtyState.dirty.has(tab.id);
                     const closeLabel = `${intl.formatMessage(messages.closeTab)} ${label}`;
                     const tabClass = `${selected ? styles.tabActive : styles.tab}${dragging ? ` ${styles.tabOrigin}` : ''}`;
+                    const closeClass = selected || dirty ? `${styles.close} ${styles.closeVisible}` : styles.close;
 
                     return (
                         <Fragment key={tab.id}>
@@ -306,15 +314,21 @@ export function EditorTabBar() {
                                 onPointerUp={onTabPointerUp}
                                 onPointerCancel={onTabPointerCancel}
                                 onMouseDown={(event) => {
-                                    // Prevent the browser autoscroll cursor on middle-click.
+                                    // Prevent autoscroll and Linux primary-paste into focused inputs.
                                     if (event.button === 1) {
                                         event.preventDefault();
                                     }
                                 }}
                                 onAuxClick={(event) => {
-                                    if (event.button === 1) {
-                                        onClose(event, tab.id);
+                                    if (event.button !== 1) return;
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    // Blur so middle-click close cannot paste into an autofocused field
+                                    // (e.g. quick prompt name on Linux/Firefox).
+                                    if (document.activeElement instanceof HTMLElement) {
+                                        document.activeElement.blur();
                                     }
+                                    onClose(event, tab.id);
                                 }}
                                 onKeyDown={(event) => {
                                     if (event.key === 'Enter' || event.key === ' ') {
@@ -329,11 +343,12 @@ export function EditorTabBar() {
                                 <Tooltip content={closeLabel}>
                                     <button
                                         type='button'
-                                        className={selected ? `${styles.close} ${styles.closeVisible}` : styles.close}
+                                        className={closeClass}
                                         aria-label={closeLabel}
                                         onClick={(event) => onClose(event, tab.id)}
                                     >
-                                        ×
+                                        {dirty ? <span className={styles.dirtyDot} aria-hidden='true' /> : null}
+                                        <span className={dirty ? styles.closeGlyphDirty : styles.closeGlyph}>×</span>
                                     </button>
                                 </Tooltip>
                             </div>
@@ -360,7 +375,13 @@ export function EditorTabBar() {
                           aria-hidden='true'
                       >
                           <span className={styles.ghostLabel}>{ghost.label}</span>
-                          <span className={styles.ghostClose}>×</span>
+                          <span className={styles.ghostClose}>
+                              {dirtyState.dirty.has(ghost.id) ? (
+                                  <span className={styles.ghostDirtyDot} aria-hidden='true' />
+                              ) : (
+                                  '×'
+                              )}
+                          </span>
                       </div>,
                       document.body,
                   )

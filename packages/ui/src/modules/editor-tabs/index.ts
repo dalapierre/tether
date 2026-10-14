@@ -1,4 +1,5 @@
 export { EditorTabBar } from './editorTabBar';
+export { EditorTabCloseDialog } from './editorTabCloseDialog';
 export { EditorTabsSync } from './editorTabsSync';
 export {
     closeEditorTab,
@@ -29,4 +30,5 @@ export {
     WORKSPACE_TERMINAL_ID,
 } from './editorTabsStore';
 export type { EditorTab, EditorTabId, EditorTabKind } from './editorTabs.types';
+export { useEditorTabDirty } from './useEditorTabDirty';
 export { createTerminalId, useEditorTabNavigation } from './useEditorTabNavigation';

@@ -1,4 +1,5 @@
 import { getLocalStorageJson, setLocalStorageJson } from '@ui/libs/storage/localStorage';
+import { clearEditorTabDirty } from './editorTabDirtyStore';
 import type {
     EditorTab,
     EditorTabId,
@@ -271,6 +272,7 @@ export function closeEditorTab(id: EditorTabId): EditorTab | null {
     const index = tabs.findIndex((tab) => tab.id === id);
     if (index === -1) return null;
 
+    clearEditorTabDirty(id);
     const nextTabs = tabs.filter((tab) => tab.id !== id);
     const fallback = nextTabs[index - 1] ?? nextTabs[index] ?? null;
     tabs = nextTabs;
@@ -289,18 +291,24 @@ export function closeQuickPromptEditorTab(promptId: string): EditorTab | null {
 /** Drop session tabs whose sessions no longer exist (e.g. deleted from the list). */
 export function pruneMissingSessionTabs(existingSessionIds: Iterable<string>): void {
     const ids = new Set(existingSessionIds);
-    const next = tabs.filter((tab) => tab.kind !== 'session' || ids.has(tab.sessionId));
-    if (next.length === tabs.length) return;
-    tabs = next;
+    const removed = tabs.filter((tab) => tab.kind === 'session' && !ids.has(tab.sessionId));
+    if (removed.length === 0) return;
+    for (const tab of removed) {
+        clearEditorTabDirty(tab.id);
+    }
+    tabs = tabs.filter((tab) => tab.kind !== 'session' || ids.has(tab.sessionId));
     emit();
 }
 
 /** Drop quick-prompt edit tabs whose prompts no longer exist (e.g. deleted from the list). */
 export function pruneMissingQuickPromptTabs(existingPromptIds: Iterable<string>): void {
     const ids = new Set(existingPromptIds);
-    const next = tabs.filter((tab) => tab.kind !== 'quick-prompt' || ids.has(tab.promptId));
-    if (next.length === tabs.length) return;
-    tabs = next;
+    const removed = tabs.filter((tab) => tab.kind === 'quick-prompt' && !ids.has(tab.promptId));
+    if (removed.length === 0) return;
+    for (const tab of removed) {
+        clearEditorTabDirty(tab.id);
+    }
+    tabs = tabs.filter((tab) => tab.kind !== 'quick-prompt' || ids.has(tab.promptId));
     emit();
 }
 

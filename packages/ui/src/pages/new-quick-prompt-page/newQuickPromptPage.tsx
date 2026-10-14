@@ -6,9 +6,12 @@ import { styles } from './newQuickPromptPage.styles';
 export function NewQuickPromptPage() {
     const { closeTab } = useEditorTabNavigation();
 
-    const onClose = useCallback(() => {
-        closeTab('new-quick-prompt');
-    }, [closeTab]);
+    const onClose = useCallback(
+        (options?: { force?: boolean }) => {
+            closeTab('new-quick-prompt', options?.force ? { force: true } : undefined);
+        },
+        [closeTab],
+    );
 
     return (
         <main className={styles.main}>

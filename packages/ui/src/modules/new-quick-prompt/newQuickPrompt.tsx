@@ -13,8 +13,9 @@ import {
     updateQuickPrompt,
     type QuickPromptInputType,
 } from '@ui/libs/api/quickPrompts';
+import { quickPromptTabId, useEditorTabDirty } from '@ui/modules/editor-tabs';
 import { showToast } from '@ui/modules/toast';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useIntl } from 'react-intl';
 import { messages } from './newQuickPrompt.messages';
 import { styles } from './newQuickPrompt.styles';
@@ -51,9 +52,18 @@ function inputNameError(name: string, index: number, inputs: DraftInput[]): Inpu
     return duplicate ? 'duplicate' : null;
 }
 
+function inputsEqual(a: DraftInput[], b: DraftInput[]): boolean {
+    if (a.length !== b.length) return false;
+    return a.every((input, index) => {
+        const other = b[index];
+        return other != null && input.name === other.name && input.type === other.type;
+    });
+}
+
 export function NewQuickPrompt({ onClose, onCreated, onSaved, prompt: existing }: NewQuickPromptProps) {
     const intl = useIntl();
     const editing = existing != null;
+    const tabId = existing ? quickPromptTabId(existing.id) : 'new-quick-prompt';
     const [name, setName] = useState(existing?.name ?? '');
     const [description, setDescription] = useState(existing?.description ?? '');
     const [prompt, setPrompt] = useState(existing?.prompt ?? '');
@@ -63,12 +73,24 @@ export function NewQuickPrompt({ onClose, onCreated, onSaved, prompt: existing }
     const [submitting, setSubmitting] = useState(false);
     const [showInputErrors, setShowInputErrors] = useState(false);
 
+    const baselineInputs = useMemo(
+        () => (existing?.inputs ?? []).map((input) => ({ name: input.name, type: input.type })),
+        [existing],
+    );
+
     const inputErrors = useMemo(
         () => inputs.map((input, index) => inputNameError(input.name, index, inputs)),
         [inputs],
     );
     const inputsValid = inputErrors.every((error) => error === null);
     const formReady = !submitting && name.trim().length > 0 && prompt.trim().length > 0;
+
+    const dirty = editing
+        ? name !== (existing?.name ?? '') ||
+          description !== (existing?.description ?? '') ||
+          prompt !== (existing?.prompt ?? '') ||
+          !inputsEqual(inputs, baselineInputs)
+        : name.trim().length > 0 || description.trim().length > 0 || prompt.trim().length > 0 || inputs.length > 0;
 
     const title = intl.formatMessage(editing ? messages.editTitle : messages.title);
     const ariaLabel = intl.formatMessage(editing ? messages.editAriaLabel : messages.ariaLabel);
@@ -102,12 +124,25 @@ export function NewQuickPrompt({ onClose, onCreated, onSaved, prompt: existing }
         }
     }
 
-    async function handleSubmit() {
-        if (!formReady) return;
+    const discardChanges = useCallback(() => {
+        setName(existing?.name ?? '');
+        setDescription(existing?.description ?? '');
+        setPrompt(existing?.prompt ?? '');
+        setInputs((existing?.inputs ?? []).map((input) => ({ name: input.name, type: input.type })));
+        setShowInputErrors(false);
+    }, [existing]);
+
+    const handleSubmit = useCallback(async (): Promise<boolean> => {
+        if (submitting || name.trim().length === 0 || prompt.trim().length === 0) {
+            if (name.trim().length === 0 || prompt.trim().length === 0 || !inputsValid) {
+                setShowInputErrors(true);
+            }
+            return false;
+        }
 
         if (!inputsValid) {
             setShowInputErrors(true);
-            return;
+            return false;
         }
 
         const normalizedInputs = inputs.map((input) => ({
@@ -133,7 +168,7 @@ export function NewQuickPrompt({ onClose, onCreated, onSaved, prompt: existing }
                 notifyQuickPromptsChanged();
                 onCreated?.();
             }
-            onClose();
+            return true;
         } catch (err: unknown) {
             showToast(
                 'generic-error',
@@ -141,21 +176,29 @@ export function NewQuickPrompt({ onClose, onCreated, onSaved, prompt: existing }
                     ? err.message
                     : intl.formatMessage(editing ? messages.saveFailed : messages.createFailed),
             );
+            return false;
+        } finally {
             setSubmitting(false);
         }
-    }
+    }, [description, editing, existing, inputs, inputsValid, intl, name, onCreated, onSaved, prompt, submitting]);
+
+    useEditorTabDirty(tabId, dirty, handleSubmit, discardChanges);
 
     return (
         <form
             className={styles.form}
             onSubmit={(event) => {
                 event.preventDefault();
-                void handleSubmit();
+                void (async () => {
+                    if (await handleSubmit()) {
+                        onClose({ force: true });
+                    }
+                })();
             }}
         >
             <RoutePanel
                 title={title}
-                onClose={onClose}
+                onClose={() => onClose()}
                 closeLabel={intl.formatMessage(messages.close)}
                 closeDisabled={submitting}
                 hideToolbar

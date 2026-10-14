@@ -8,9 +8,12 @@ export function SettingsPage() {
     const { setKeybinds } = useKeybinds();
     const { closeTab } = useEditorTabNavigation();
 
-    const onClose = useCallback(() => {
-        closeTab('settings');
-    }, [closeTab]);
+    const onClose = useCallback(
+        (options?: { force?: boolean }) => {
+            closeTab('settings', options?.force ? { force: true } : undefined);
+        },
+        [closeTab],
+    );
 
     return (
         <main className={styles.main}>

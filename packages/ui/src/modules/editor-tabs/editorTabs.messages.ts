@@ -11,6 +11,12 @@ type EditorTabsMessages = {
     sessionFallback: NoMessageValues;
     quickPromptFallback: NoMessageValues;
     terminalFallback: NoMessageValues;
+    unsavedFallbackTitle: NoMessageValues;
+    unsavedChangesConfirm: { title: string };
+    unsavedChangesSave: NoMessageValues;
+    unsavedChangesDontSave: NoMessageValues;
+    unsavedChangesCancel: NoMessageValues;
+    unsavedChangesAriaLabel: { title: string };
 };
 
 export const messages: {
@@ -47,5 +53,29 @@ export const messages: {
     terminalFallback: {
         id: 'editorTabs.terminalFallback',
         defaultMessage: 'Terminal',
+    },
+    unsavedFallbackTitle: {
+        id: 'editorTabs.unsavedFallbackTitle',
+        defaultMessage: 'Untitled',
+    },
+    unsavedChangesConfirm: {
+        id: 'editorTabs.unsavedChangesConfirm',
+        defaultMessage: 'Do you want to save the changes you made to {title}?',
+    },
+    unsavedChangesSave: {
+        id: 'editorTabs.unsavedChangesSave',
+        defaultMessage: 'Save',
+    },
+    unsavedChangesDontSave: {
+        id: 'editorTabs.unsavedChangesDontSave',
+        defaultMessage: "Don't save",
+    },
+    unsavedChangesCancel: {
+        id: 'editorTabs.unsavedChangesCancel',
+        defaultMessage: 'Cancel',
+    },
+    unsavedChangesAriaLabel: {
+        id: 'editorTabs.unsavedChangesAriaLabel',
+        defaultMessage: 'Unsaved changes to {title}',
     },
 });

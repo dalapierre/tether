@@ -8,6 +8,7 @@ import { listAvailableAgents, type AvailableAgent } from '@ui/libs/api/agents';
 import { ApiError } from '@ui/libs/api/client';
 import { getSettings, updateSettings } from '@ui/libs/api/settings';
 import { DEFAULT_KEYBINDS, cloneKeybinds, keybindsEqual, type Keybinds } from '@ui/libs/keybinds';
+import { useEditorTabDirty } from '@ui/modules/editor-tabs';
 import { DEFAULT_TOAST_DURATION_SECONDS, setToastDurationSeconds, showToast } from '@ui/modules/toast';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useIntl } from 'react-intl';
@@ -140,10 +141,25 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
         defaultYoloMode !== savedDefaultYoloMode ||
         defaultUseWorktrees !== savedDefaultUseWorktrees;
     const keybindsDirty = !keybindsEqual(keybinds, savedKeybinds);
-    const hasUnsavedChanges =
-        (view === 'general' && generalDirty) ||
-        (view === 'agents' && agentsDirty) ||
-        (view === 'keybinds' && keybindsDirty);
+    const hasUnsavedChanges = generalDirty || agentsDirty || keybindsDirty;
+
+    const discardAllChanges = useCallback(() => {
+        setDevDir(savedDevDir);
+        setWorktreesDir(savedWorktreesDir);
+        setToastDurationSecondsState(savedToastDurationSeconds);
+        setDefaultAgent(savedDefaultAgent);
+        setDefaultYoloMode(savedDefaultYoloMode);
+        setDefaultUseWorktrees(savedDefaultUseWorktrees);
+        setKeybinds(cloneKeybinds(savedKeybinds));
+    }, [
+        savedDefaultAgent,
+        savedDefaultUseWorktrees,
+        savedDefaultYoloMode,
+        savedDevDir,
+        savedKeybinds,
+        savedToastDurationSeconds,
+        savedWorktreesDir,
+    ]);
 
     function discardChanges() {
         if (view === 'general') {
@@ -160,7 +176,7 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
         setPendingDiscard(false);
     }
 
-    async function handleSave() {
+    const handleSave = useCallback(async (): Promise<boolean> => {
         setSaving(true);
 
         try {
@@ -197,6 +213,7 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
             } catch {
                 // Keep the current list if refresh fails.
             }
+            return true;
         } catch (err: unknown) {
             if (err instanceof ApiError) {
                 showToast('generic-error', err.message);
@@ -206,10 +223,23 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
                     err instanceof Error ? err.message : intl.formatMessage(messages.saveFailed),
                 );
             }
+            return false;
         } finally {
             setSaving(false);
         }
-    }
+    }, [
+        defaultAgent,
+        defaultUseWorktrees,
+        defaultYoloMode,
+        devDir,
+        intl,
+        keybinds,
+        onKeybindsSaved,
+        toastDurationSeconds,
+        worktreesDir,
+    ]);
+
+    useEditorTabDirty('settings', hasUnsavedChanges, handleSave, discardAllChanges);
 
     const showSaveButton =
         !loading &&
@@ -266,7 +296,7 @@ export function Settings({ onClose, onKeybindsSaved }: SettingsProps) {
     return (
         <>
             <RoutePanel
-                onClose={onClose}
+                onClose={() => onClose()}
                 closeLabel={intl.formatMessage(messages.close)}
                 hideToolbar
                 aria-label={intl.formatMessage(messages.ariaLabel)}

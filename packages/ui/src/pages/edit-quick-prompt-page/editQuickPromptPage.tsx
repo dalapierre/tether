@@ -24,9 +24,12 @@ export function EditQuickPromptPage() {
     const [prompt, setPrompt] = useState<QuickPrompt | null>(null);
     const [loading, setLoading] = useState(true);
 
-    const onClose = useCallback(() => {
-        closeTab(`quick-prompt:${promptId}`);
-    }, [closeTab, promptId]);
+    const onClose = useCallback(
+        (options?: { force?: boolean }) => {
+            closeTab(`quick-prompt:${promptId}`, options?.force ? { force: true } : undefined);
+        },
+        [closeTab, promptId],
+    );
 
     useEffect(() => {
         let cancelled = false;

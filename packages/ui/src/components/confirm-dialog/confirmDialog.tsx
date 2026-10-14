@@ -9,6 +9,8 @@ export function ConfirmDialog({
     confirmLabel,
     onCancel,
     onConfirm,
+    alternateLabel,
+    onAlternate,
     busy = false,
     ariaLabel,
 }: ConfirmDialogProps) {
@@ -52,6 +54,11 @@ export function ConfirmDialog({
                     <Button type='button' onClick={onConfirm} disabled={busy}>
                         {confirmLabel}
                     </Button>
+                    {alternateLabel && onAlternate ? (
+                        <Button type='button' variant='secondary' onClick={onAlternate} disabled={busy}>
+                            {alternateLabel}
+                        </Button>
+                    ) : null}
                     <Button type='button' variant='secondary' onClick={onCancel} disabled={busy}>
                         {cancelLabel}
                     </Button>
