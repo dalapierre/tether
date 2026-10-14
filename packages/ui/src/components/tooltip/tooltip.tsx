@@ -112,6 +112,12 @@ export function Tooltip({
 
     useEffect(() => () => clearShowTimer(), [clearShowTimer]);
 
+    // When disabled (or hover media drops), handlers unmount with the early return below.
+    // Clear open/timer so a later re-enable cannot resurrect a stale tooltip.
+    useEffect(() => {
+        if (!enabled) hide();
+    }, [enabled, hide]);
+
     useEffect(() => {
         if (!open) return;
         function onKeyDown(event: KeyboardEvent) {
@@ -146,6 +152,7 @@ export function Tooltip({
         onMouseLeave?: (event: MouseEvent) => void;
         onFocus?: (event: FocusEvent) => void;
         onBlur?: (event: FocusEvent) => void;
+        onClick?: (event: MouseEvent) => void;
         'aria-describedby'?: string;
     }>;
 
@@ -179,6 +186,10 @@ export function Tooltip({
         },
         onBlur: (event: FocusEvent) => {
             child.props.onBlur?.(event);
+            hide();
+        },
+        onClick: (event: MouseEvent) => {
+            child.props.onClick?.(event);
             hide();
         },
     });
