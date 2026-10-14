@@ -1680,7 +1680,12 @@ export function SessionView({ sessionId }: SessionViewProps) {
                     </div>
                 </div>
             ) : null}
-            {quickPromptOpen ? <QuickPromptMenu onClose={() => setQuickPromptOpen(false)} /> : null}
+            {quickPromptOpen ? (
+                <QuickPromptMenu
+                    onClose={() => setQuickPromptOpen(false)}
+                    onSelect={(resolvedPrompt) => submitAgentPrompt(resolvedPrompt)}
+                />
+            ) : null}
         </div>
     );
 }

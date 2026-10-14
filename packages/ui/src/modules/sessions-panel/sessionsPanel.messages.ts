@@ -23,6 +23,11 @@ type Messages = {
     searchQuickPromptsAriaLabel: NoMessageValues;
     noQuickPrompts: NoMessageValues;
     noMatchingQuickPrompts: NoMessageValues;
+    loadingQuickPrompts: NoMessageValues;
+    quickPromptActions: NoMessageValues;
+    deleteQuickPrompt: NoMessageValues;
+    deleteQuickPromptConfirm: { name: string };
+    deleteQuickPromptFailed: NoMessageValues;
     conversationSession: NoMessageValues;
     branchLabel: { branch: string };
     cpuLabel: { percent: number };
@@ -127,6 +132,26 @@ export const messages = defineMessages<Messages>(
         noMatchingQuickPrompts: {
             id: 'sessionsPanel.noMatchingQuickPrompts',
             defaultMessage: 'No matching prompts',
+        },
+        loadingQuickPrompts: {
+            id: 'sessionsPanel.loadingQuickPrompts',
+            defaultMessage: 'Loading prompts…',
+        },
+        quickPromptActions: {
+            id: 'sessionsPanel.quickPromptActions',
+            defaultMessage: 'Quick prompt actions',
+        },
+        deleteQuickPrompt: {
+            id: 'sessionsPanel.deleteQuickPrompt',
+            defaultMessage: 'Delete',
+        },
+        deleteQuickPromptConfirm: {
+            id: 'sessionsPanel.deleteQuickPromptConfirm',
+            defaultMessage: 'Are you sure you want to delete {name}?',
+        },
+        deleteQuickPromptFailed: {
+            id: 'sessionsPanel.deleteQuickPromptFailed',
+            defaultMessage: 'Failed to delete quick prompt',
         },
         conversationSession: {
             id: 'sessionsPanel.conversationSession',

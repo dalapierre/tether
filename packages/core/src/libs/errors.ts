@@ -139,6 +139,18 @@ export const errors = {
         id: 'settings.save.failure',
         message: 'Failed to save settings',
     },
+    quickPromptsListFailure: {
+        id: 'quick-prompts.list.failure',
+        message: 'Failed to list quick prompts',
+    },
+    quickPromptsCreateFailure: {
+        id: 'quick-prompts.create.failure',
+        message: 'Failed to create quick prompt',
+    },
+    quickPromptsDeleteFailure: {
+        id: 'quick-prompts.delete.failure',
+        message: 'Failed to delete quick prompt',
+    },
     repositoriesListFailure: {
         id: 'repositories.list.failure',
         message: 'Failed to list repositories',

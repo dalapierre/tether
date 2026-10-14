@@ -3,7 +3,22 @@ export const styles = {
     panel: 'w-full max-w-xl overflow-hidden rounded-xl border border-zinc-700 bg-zinc-900 shadow-xl shadow-black/50',
     input: 'w-full border-0 border-b border-zinc-800 bg-transparent px-4 py-3.5 text-base text-zinc-100 outline-none placeholder:text-zinc-500',
     list: 'panel-scroll max-h-72 overflow-auto py-1',
-    option: 'flex w-full items-center border-0 bg-transparent px-4 py-2.5 text-left text-sm text-zinc-100 transition-colors hover:bg-zinc-800 focus:bg-zinc-800 focus:outline-none',
+    option: 'flex w-full flex-col items-start gap-0.5 border-0 bg-transparent px-4 py-2.5 text-left transition-colors hover:bg-zinc-800 focus:bg-zinc-800 focus:outline-none',
     optionActive: 'bg-zinc-800',
+    optionName: 'w-full truncate text-sm text-zinc-100',
+    optionDescription: 'w-full truncate text-xs text-zinc-500',
     status: 'px-4 py-3 text-sm text-zinc-500',
+    fillHeader: 'border-b border-zinc-800 px-4 py-3',
+    fillTitle: 'text-sm font-medium text-zinc-100',
+    fillPromptName: 'mt-0.5 text-xs text-zinc-500',
+    fillHint: 'mt-1 text-xs text-zinc-500',
+    fillBody: 'flex flex-col gap-3 px-4 py-3',
+    fillField: 'flex flex-col gap-1.5',
+    fillLabel: 'text-sm text-zinc-400',
+    fillInput:
+        'w-full rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-base text-zinc-100 outline-none focus:border-aura-green',
+    fillSelect:
+        'w-full appearance-none rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-base text-zinc-100 outline-none focus:border-aura-green',
+    fillError: 'text-xs text-red-400',
+    fillActions: 'flex items-center justify-end gap-2 border-t border-zinc-800 px-4 py-3',
 };

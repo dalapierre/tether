@@ -43,3 +43,15 @@ export {
     type Settings,
     type StoredRepository,
 } from './libs/settings/store.js';
+
+export {
+    isQuickPromptInputType,
+    isValidQuickPromptInputName,
+    MAX_QUICK_PROMPT_DESCRIPTION_LENGTH,
+    MAX_QUICK_PROMPT_INPUTS,
+    QUICK_PROMPT_INPUT_TYPES,
+    type CreateQuickPromptInput,
+    type QuickPrompt,
+    type QuickPromptInput,
+    type QuickPromptInputType,
+} from './libs/quick-prompts/store.js';

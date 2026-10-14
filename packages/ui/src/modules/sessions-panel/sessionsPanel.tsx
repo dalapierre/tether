@@ -4,6 +4,12 @@ import { Panel } from '@ui/components/panel';
 import { Spinner } from '@ui/components/spinner';
 import { SwipeToDelete } from '@ui/components/swipe-to-delete';
 import { Tooltip } from '@ui/components/tooltip';
+import {
+    deleteQuickPrompt,
+    listQuickPrompts,
+    QUICK_PROMPTS_CHANGED_EVENT,
+    type QuickPrompt,
+} from '@ui/libs/api/quickPrompts';
 import { listRepositories, type Repository } from '@ui/libs/api/repositories';
 import { deleteSession, restartSession, type Session, type SessionStatus } from '@ui/libs/api/sessions';
 import { useIsDesktop } from '@ui/libs/dom/useMediaQuery';
@@ -181,20 +187,30 @@ export function SessionsPanel({
     const [listMode, setListMode] = useState<SideListMode>('sessions');
     const [searchQuery, setSearchQuery] = useState('');
     const [promptSearchQuery, setPromptSearchQuery] = useState('');
+    const [quickPrompts, setQuickPrompts] = useState<QuickPrompt[]>([]);
+    const [quickPromptsLoading, setQuickPromptsLoading] = useState(false);
     const [pendingDelete, setPendingDelete] = useState<Session | null>(null);
+    const [pendingDeletePrompt, setPendingDeletePrompt] = useState<QuickPrompt | null>(null);
     const [actionsMenu, setActionsMenu] = useState<{
         session: Session;
         top: number;
         right: number;
     } | null>(null);
+    const [promptActionsMenu, setPromptActionsMenu] = useState<{
+        prompt: QuickPrompt;
+        top: number;
+        right: number;
+    } | null>(null);
     const [createMenu, setCreateMenu] = useState<{ top: number; left: number } | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [deletingPromptId, setDeletingPromptId] = useState<string | null>(null);
     const [restartingId, setRestartingId] = useState<string | null>(null);
     const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
     const selectedRowRef = useRef<HTMLDivElement | null>(null);
     const searchInputRef = useRef<HTMLInputElement | null>(null);
     const promptSearchInputRef = useRef<HTMLInputElement | null>(null);
     const actionsMenuRef = useRef<HTMLDivElement | null>(null);
+    const promptActionsMenuRef = useRef<HTMLDivElement | null>(null);
     const createMenuRef = useRef<HTMLDivElement | null>(null);
     const filteredSessionsRef = useRef<Session[]>([]);
     const selectedIndexRef = useRef(selectedIndex);
@@ -259,9 +275,20 @@ export function SessionsPanel({
 
     filteredSessionsRef.current = filteredSessions;
 
+    const filteredQuickPrompts = useMemo(() => {
+        const normalized = promptSearchQuery.trim().toLowerCase();
+        if (!normalized) return quickPrompts;
+        return quickPrompts.filter(
+            (prompt) =>
+                prompt.name.toLowerCase().includes(normalized) ||
+                prompt.description.toLowerCase().includes(normalized) ||
+                prompt.prompt.toLowerCase().includes(normalized),
+        );
+    }, [quickPrompts, promptSearchQuery]);
+
     // Rail actions stay available while mounted. List navigation only when the list is
     // the primary surface — otherwise arrows/`r` fight session review keybinds.
-    const panelFree = !pendingDelete && !actionsMenu && !createMenu;
+    const panelFree = !pendingDelete && !pendingDeletePrompt && !actionsMenu && !promptActionsMenu && !createMenu;
     const railActionsEnabled = panelFree;
     const listActionsEnabled = railActionsEnabled && listVisible;
     const navKeybindsEnabled =
@@ -275,12 +302,17 @@ export function SessionsPanel({
         setActionsMenu(null);
     }, []);
 
+    const closePromptActionsMenu = useCallback(() => {
+        setPromptActionsMenu(null);
+    }, []);
+
     const closeCreateMenu = useCallback(() => {
         setCreateMenu(null);
     }, []);
 
     const openActionsMenu = useCallback((session: Session, anchor: HTMLElement) => {
         setCreateMenu(null);
+        setPromptActionsMenu(null);
         const rect = anchor.getBoundingClientRect();
         setActionsMenu({
             session,
@@ -289,8 +321,20 @@ export function SessionsPanel({
         });
     }, []);
 
+    const openPromptActionsMenu = useCallback((prompt: QuickPrompt, anchor: HTMLElement) => {
+        setCreateMenu(null);
+        setActionsMenu(null);
+        const rect = anchor.getBoundingClientRect();
+        setPromptActionsMenu({
+            prompt,
+            top: rect.bottom + 4,
+            right: window.innerWidth - rect.right,
+        });
+    }, []);
+
     const openCreateMenu = useCallback((anchor: HTMLElement) => {
         setActionsMenu(null);
+        setPromptActionsMenu(null);
         const rect = anchor.getBoundingClientRect();
         setCreateMenu({
             top: rect.top,
@@ -501,6 +545,12 @@ export function SessionsPanel({
     }, [actionsMenu]);
 
     useEffect(() => {
+        if (!promptActionsMenu) return;
+        const firstItem = promptActionsMenuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]');
+        firstItem?.focus();
+    }, [promptActionsMenu]);
+
+    useEffect(() => {
         if (!createMenu) return;
         const firstItem = createMenuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]');
         firstItem?.focus();
@@ -528,6 +578,93 @@ export function SessionsPanel({
         };
     }, []);
 
+    const loadQuickPrompts = useCallback(async () => {
+        setQuickPromptsLoading(true);
+        try {
+            const items = await listQuickPrompts();
+            setQuickPrompts(items);
+        } catch {
+            setQuickPrompts([]);
+        } finally {
+            setQuickPromptsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!listVisible || listMode !== 'quickPrompts') return;
+        let cancelled = false;
+        setQuickPromptsLoading(true);
+        listQuickPrompts()
+            .then((items) => {
+                if (!cancelled) {
+                    setQuickPrompts(items);
+                }
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setQuickPrompts([]);
+                }
+            })
+            .finally(() => {
+                if (!cancelled) {
+                    setQuickPromptsLoading(false);
+                }
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [listVisible, listMode]);
+
+    useEffect(() => {
+        function onQuickPromptsChanged() {
+            if (listMode === 'quickPrompts' && listVisible) {
+                void loadQuickPrompts();
+            }
+        }
+        window.addEventListener(QUICK_PROMPTS_CHANGED_EVENT, onQuickPromptsChanged);
+        return () => window.removeEventListener(QUICK_PROMPTS_CHANGED_EVENT, onQuickPromptsChanged);
+    }, [listMode, listVisible, loadQuickPrompts]);
+    useEffect(() => {
+        if (!promptActionsMenu) return;
+        if (!quickPrompts.some((prompt) => prompt.id === promptActionsMenu.prompt.id)) {
+            setPromptActionsMenu(null);
+        }
+    }, [promptActionsMenu, quickPrompts]);
+
+    useEffect(() => {
+        if (!promptActionsMenu) return;
+
+        function onPointerDown(event: PointerEvent) {
+            const target = event.target as Node | null;
+            if (!target) return;
+            if (promptActionsMenuRef.current?.contains(target)) return;
+            if (target instanceof Element && target.closest('[data-quick-prompt-actions-trigger]')) return;
+            setPromptActionsMenu(null);
+        }
+
+        function onKeyDown(event: KeyboardEvent) {
+            if (event.key !== 'Escape' || event.defaultPrevented || event.repeat) return;
+            event.preventDefault();
+            setPromptActionsMenu(null);
+        }
+
+        function onScroll() {
+            setPromptActionsMenu(null);
+        }
+
+        window.addEventListener('pointerdown', onPointerDown);
+        window.addEventListener('keydown', onKeyDown);
+        window.addEventListener('resize', onScroll);
+        document.addEventListener('scroll', onScroll, true);
+
+        return () => {
+            window.removeEventListener('pointerdown', onPointerDown);
+            window.removeEventListener('keydown', onKeyDown);
+            window.removeEventListener('resize', onScroll);
+            document.removeEventListener('scroll', onScroll, true);
+        };
+    }, [promptActionsMenu]);
+
     async function confirmDelete() {
         const session = pendingDelete;
         if (!session || deletingId) return;
@@ -548,6 +685,27 @@ export function SessionsPanel({
             showToast('generic-error', err instanceof Error ? err.message : intl.formatMessage(messages.deleteFailed));
         } finally {
             setDeletingId(null);
+        }
+    }
+
+    async function confirmDeletePrompt() {
+        const prompt = pendingDeletePrompt;
+        if (!prompt || deletingPromptId) return;
+
+        setDeletingPromptId(prompt.id);
+        setPendingDeletePrompt(null);
+        setQuickPrompts((current) => current.filter((item) => item.id !== prompt.id));
+
+        try {
+            await deleteQuickPrompt(prompt.id);
+        } catch (err: unknown) {
+            void loadQuickPrompts();
+            showToast(
+                'generic-error',
+                err instanceof Error ? err.message : intl.formatMessage(messages.deleteQuickPromptFailed),
+            );
+        } finally {
+            setDeletingPromptId(null);
         }
     }
 
@@ -587,11 +745,10 @@ export function SessionsPanel({
     const sessionsHeading = intl.formatMessage(messages.sessionsHeading);
     const quickPromptsHeading = intl.formatMessage(messages.quickPromptsHeading);
     const promptSearchNormalized = promptSearchQuery.trim().toLowerCase();
-    // No stored prompts yet — keep the list empty and show empty/no-match states.
-    const filteredQuickPrompts: { id: string; label: string }[] = [];
-    const showPromptEmpty = filteredQuickPrompts.length === 0 && !promptSearchNormalized;
-    const showPromptNoMatches = filteredQuickPrompts.length === 0 && Boolean(promptSearchNormalized);
-    const promptBodyClass = showPromptEmpty || showPromptNoMatches ? styles.bodyEmpty : styles.body;
+    const showPromptEmpty = !quickPromptsLoading && quickPrompts.length === 0 && !promptSearchNormalized;
+    const showPromptNoMatches = !quickPromptsLoading && quickPrompts.length > 0 && filteredQuickPrompts.length === 0;
+    const promptBodyClass =
+        showPromptEmpty || quickPromptsLoading || showPromptNoMatches ? styles.bodyEmpty : styles.body;
 
     const sessionList = (
         <div className={styles.sessionsSection}>
@@ -791,7 +948,7 @@ export function SessionsPanel({
                         value={promptSearchQuery}
                         placeholder={intl.formatMessage(messages.searchQuickPromptsPlaceholder)}
                         aria-label={intl.formatMessage(messages.searchQuickPromptsAriaLabel)}
-                        disabled={!listVisible}
+                        disabled={quickPromptsLoading || !listVisible}
                         tabIndex={!listVisible ? -1 : undefined}
                         onChange={(event) => {
                             setPromptSearchQuery(event.target.value);
@@ -828,19 +985,69 @@ export function SessionsPanel({
             {!isDesktop ? <p className={styles.sectionLabel}>{quickPromptsHeading}</p> : null}
 
             <div className={promptBodyClass}>
+                {quickPromptsLoading ? (
+                    <p className={styles.placeholder}>{intl.formatMessage(messages.loadingQuickPrompts)}</p>
+                ) : null}
                 {showPromptEmpty ? (
                     <p className={styles.placeholder}>{intl.formatMessage(messages.noQuickPrompts)}</p>
                 ) : null}
                 {showPromptNoMatches ? (
                     <p className={styles.placeholder}>{intl.formatMessage(messages.noMatchingQuickPrompts)}</p>
                 ) : null}
-                {filteredQuickPrompts.map((prompt) => (
-                    <div key={prompt.id} className={styles.sessionRow}>
-                        <button type='button' className={styles.sessionButton} tabIndex={!listVisible ? -1 : undefined}>
-                            <span className={styles.sessionTitle}>{prompt.label}</span>
-                        </button>
-                    </div>
-                ))}
+                {!quickPromptsLoading
+                    ? filteredQuickPrompts.map((prompt) => (
+                          <div key={prompt.id}>
+                              <SwipeToDelete
+                                  disabled={deletingPromptId === prompt.id || !listVisible}
+                                  onDelete={() => {
+                                      setPendingDeletePrompt(prompt);
+                                  }}
+                              >
+                                  <div className={styles.sessionRow}>
+                                      <button
+                                          type='button'
+                                          className={styles.sessionButton}
+                                          tabIndex={!listVisible ? -1 : undefined}
+                                      >
+                                          <span className={styles.sessionTitle}>{prompt.name}</span>
+                                          {prompt.description ? (
+                                              <p className={styles.sessionMetaMuted}>{prompt.description}</p>
+                                          ) : null}
+                                      </button>
+                                      <div className={styles.moreActions}>
+                                          <Tooltip content={intl.formatMessage(messages.quickPromptActions)}>
+                                              <button
+                                                  type='button'
+                                                  data-quick-prompt-actions-trigger={prompt.id}
+                                                  className={
+                                                      promptActionsMenu?.prompt.id === prompt.id
+                                                          ? styles.moreButtonOpen
+                                                          : styles.moreButton
+                                                  }
+                                                  aria-label={intl.formatMessage(messages.quickPromptActions)}
+                                                  aria-haspopup='menu'
+                                                  aria-expanded={promptActionsMenu?.prompt.id === prompt.id}
+                                                  disabled={deletingPromptId === prompt.id}
+                                                  tabIndex={!listVisible ? -1 : undefined}
+                                                  onClick={(event) => {
+                                                      event.preventDefault();
+                                                      event.stopPropagation();
+                                                      if (promptActionsMenu?.prompt.id === prompt.id) {
+                                                          closePromptActionsMenu();
+                                                          return;
+                                                      }
+                                                      openPromptActionsMenu(prompt, event.currentTarget);
+                                                  }}
+                                              >
+                                                  <MoreIcon />
+                                              </button>
+                                          </Tooltip>
+                                      </div>
+                                  </div>
+                              </SwipeToDelete>
+                          </div>
+                      ))
+                    : null}
             </div>
         </div>
     );
@@ -908,6 +1115,29 @@ export function SessionsPanel({
                 </div>
             ) : null}
 
+            {promptActionsMenu ? (
+                <div
+                    ref={promptActionsMenuRef}
+                    className={styles.actionsMenu}
+                    style={{ top: promptActionsMenu.top, right: promptActionsMenu.right }}
+                    role='menu'
+                    aria-label={intl.formatMessage(messages.quickPromptActions)}
+                >
+                    <button
+                        type='button'
+                        role='menuitem'
+                        className={styles.actionsMenuItemDanger}
+                        onClick={() => {
+                            const prompt = promptActionsMenu.prompt;
+                            closePromptActionsMenu();
+                            setPendingDeletePrompt(prompt);
+                        }}
+                    >
+                        {intl.formatMessage(messages.deleteQuickPrompt)}
+                    </button>
+                </div>
+            ) : null}
+
             {pendingDelete ? (
                 <ConfirmDialog
                     message={intl.formatMessage(messages.deleteConfirm, { name: pendingDelete.name })}
@@ -917,6 +1147,21 @@ export function SessionsPanel({
                     onCancel={() => setPendingDelete(null)}
                     onConfirm={() => {
                         void confirmDelete();
+                    }}
+                />
+            ) : null}
+
+            {pendingDeletePrompt ? (
+                <ConfirmDialog
+                    message={intl.formatMessage(messages.deleteQuickPromptConfirm, {
+                        name: pendingDeletePrompt.name,
+                    })}
+                    cancelLabel={intl.formatMessage(messages.deleteConfirmCancel)}
+                    confirmLabel={intl.formatMessage(messages.deleteConfirmContinue)}
+                    busy={deletingPromptId === pendingDeletePrompt.id}
+                    onCancel={() => setPendingDeletePrompt(null)}
+                    onConfirm={() => {
+                        void confirmDeletePrompt();
                     }}
                 />
             ) : null}

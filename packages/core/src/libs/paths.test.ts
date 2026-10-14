@@ -4,6 +4,7 @@ import {
     getConversationSessionDir,
     getConversationsDir,
     getHomeDir,
+    getQuickPromptsFilePath,
     getRepositoryWorktreesDir,
     getSessionsFilePath,
     getSettingsFilePath,
@@ -19,6 +20,7 @@ describe('paths', () => {
         expect(getTetherHomeDir()).toBe(path.join(home, '.tether'));
         expect(getSettingsFilePath()).toBe(path.join(home, '.tether', 'settings.json'));
         expect(getSessionsFilePath()).toBe(path.join(home, '.tether', 'sessions.json'));
+        expect(getQuickPromptsFilePath()).toBe(path.join(home, '.tether', 'quick-prompts.json'));
         expect(getWorktreesDir()).toBe(path.join(home, '.tether', 'worktrees'));
         expect(getConversationsDir()).toBe(path.join(home, '.tether', 'conversations'));
     });

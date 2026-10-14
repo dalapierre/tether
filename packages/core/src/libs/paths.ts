@@ -21,6 +21,11 @@ export function getSessionsFilePath(): string {
     return path.join(getTetherHomeDir(), 'sessions.json');
 }
 
+/** User-defined quick prompts: `~/.tether/quick-prompts.json`. */
+export function getQuickPromptsFilePath(): string {
+    return path.join(getTetherHomeDir(), 'quick-prompts.json');
+}
+
 export function getWorktreesDir(): string {
     return path.join(getTetherHomeDir(), 'worktrees');
 }
