@@ -11,8 +11,8 @@ import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import { useEffect, useRef } from 'react';
 import { useIntl } from 'react-intl';
+import { styles } from '@ui/modules/shell-split-panel/shellSplitPanel.styles';
 import { messages } from './sessionView.messages';
-import { styles } from './sessionView.styles';
 
 /** Keep in sync with server PTY resize clamp in sessions/store.ts */
 const MAX_TERMINAL_COLS = 300;
