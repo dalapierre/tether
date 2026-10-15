@@ -1,4 +1,5 @@
 import { killWorkspaceShell } from '@ui/libs/api/workspace';
+import { isTerminalInsertTarget } from '@ui/libs/keybinds';
 import { clearWorkspaceShellRoster } from '@ui/libs/layout/reviewLayoutPreferences';
 import { getLiveSession } from '@ui/modules/session-events';
 import { requestWorkspaceShellSplit } from '@ui/modules/workspace-terminal/workspaceShellSplitRequests';
@@ -28,6 +29,12 @@ export function createTerminalId(): string {
     return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+function blurTerminalInsertMode(): void {
+    if (isTerminalInsertTarget(document.activeElement)) {
+        (document.activeElement as HTMLElement).blur();
+    }
+}
+
 /** Open (or focus) a tab and navigate to its route. */
 export function useEditorTabNavigation() {
     const navigate = useNavigate();
@@ -35,6 +42,9 @@ export function useEditorTabNavigation() {
 
     const activateTab = useCallback(
         (tab: EditorTab) => {
+            // Leaving a focused shell/agent terminal via tab switch must blur first;
+            // otherwise focus/blur sequences race the unmount and land in the PTY.
+            blurTerminalInsertMode();
             openEditorTab(tab);
             navigate(pathForEditorTab(tab));
         },

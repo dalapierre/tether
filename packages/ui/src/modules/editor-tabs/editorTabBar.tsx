@@ -1,6 +1,7 @@
 import { Panel } from '@ui/components/panel';
 import { Tooltip } from '@ui/components/tooltip';
 import type { SessionStatus } from '@ui/libs/api/sessions';
+import { isTerminalInsertTarget } from '@ui/libs/keybinds';
 import { getLiveSession, getSessionsSnapshot, hasSessionsSnapshot, subscribe } from '@ui/modules/session-events';
 import {
     Fragment,
@@ -335,7 +336,14 @@ export function EditorTabBar() {
                                     }
                                     activateTab(tab);
                                 }}
-                                onPointerDown={(event) => onTabPointerDown(event, tab, label, selected, statusClass)}
+                                onPointerDown={(event) => {
+                                    // Blur xterm before the route swap so focus/blur sequences and
+                                    // leftover keystrokes can't land in the shell PTY on tab switch.
+                                    if (!selected && isTerminalInsertTarget(document.activeElement)) {
+                                        (document.activeElement as HTMLElement).blur();
+                                    }
+                                    onTabPointerDown(event, tab, label, selected, statusClass);
+                                }}
                                 onPointerMove={onTabPointerMove}
                                 onPointerUp={onTabPointerUp}
                                 onPointerCancel={onTabPointerCancel}

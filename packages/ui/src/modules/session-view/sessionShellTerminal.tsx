@@ -13,12 +13,15 @@ import { showToast } from '@ui/modules/toast';
 import { FitAddon } from '@xterm/addon-fit';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type MutableRefObject } from 'react';
 import { useIntl } from 'react-intl';
 import { messages } from './sessionView.messages';
 
 /** Keep in sync with server PTY resize clamp in sessions/store.ts */
 const MAX_TERMINAL_COLS = 300;
+
+/** Drop onData briefly after programmatic focus so chord/tab-switch leftovers can't type junk. */
+const PROGRAMMATIC_FOCUS_INPUT_GUARD_MS = 100;
 
 export type SessionShellTerminalHandle = {
     focus: () => void;
@@ -34,6 +37,16 @@ export type SessionShellTerminalProps = {
     /** Remount key when the underlying shell identity changes. */
     shellKey: string;
     active: boolean;
+    /**
+     * When false (hidden shell pane), ignore onData so a leaked focus can't feed the PTY.
+     * Defaults to true (e.g. workspace terminal is always shown).
+     */
+    visible?: boolean;
+    /**
+     * Shared guard timestamp (performance.now()). Parent sets this before keybind-driven
+     * open/focus; sendInput drops data until then.
+     */
+    ignoreInputUntilRef?: MutableRefObject<number>;
     onTitle: (title: string) => void;
     onHandleChange: (handle: SessionShellTerminalHandle | null) => void;
     /**
@@ -168,6 +181,8 @@ export function SessionShellTerminal({
     connect,
     shellKey,
     active,
+    visible = true,
+    ignoreInputUntilRef,
     onTitle,
     onHandleChange,
     onExplain,
@@ -185,6 +200,9 @@ export function SessionShellTerminal({
     const harnessPromptRef = useRef(harnessPrompt);
     const onHarnessPromptConsumedRef = useRef(onHarnessPromptConsumed);
     const activeRef = useRef(active);
+    const visibleRef = useRef(visible);
+    const localIgnoreInputUntilRef = useRef(0);
+    const ignoreInputUntilRefRef = useRef(ignoreInputUntilRef);
     const lastCommandRef = useRef(createLastCommandTracker());
     const [selectionExplain, setSelectionExplain] = useState<TerminalSelectionExplain | null>(null);
 
@@ -195,6 +213,15 @@ export function SessionShellTerminal({
     harnessPromptRef.current = harnessPrompt;
     onHarnessPromptConsumedRef.current = onHarnessPromptConsumed;
     activeRef.current = active;
+    visibleRef.current = visible;
+    ignoreInputUntilRefRef.current = ignoreInputUntilRef;
+
+    // Hidden panes must not keep insert-mode focus (mobile keeps them mounted with `invisible`).
+    useEffect(() => {
+        if (!visible) {
+            termRef.current?.blur();
+        }
+    }, [visible]);
 
     const syncSelectionExplain = useCallback(() => {
         const term = termRef.current;
@@ -275,7 +302,21 @@ export function SessionShellTerminal({
             scrollTerminalToBottomNow(term);
         };
 
+        const armProgrammaticFocusGuard = () => {
+            const until = performance.now() + PROGRAMMATIC_FOCUS_INPUT_GUARD_MS;
+            localIgnoreInputUntilRef.current = until;
+            const shared = ignoreInputUntilRefRef.current;
+            if (shared && shared.current < until) {
+                shared.current = until;
+            }
+        };
+
         const sendInput = (data: string) => {
+            // Drop input while the pane is hidden so a leaked focus can't dump into the PTY.
+            if (!visibleRef.current) return;
+            const sharedUntil = ignoreInputUntilRefRef.current?.current ?? 0;
+            const ignoreUntil = Math.max(localIgnoreInputUntilRef.current, sharedUntil);
+            if (performance.now() < ignoreUntil) return;
             lastCommandRef.current.pushInput(data);
             scrollToBottomAndFollow();
             resumeXtermRendererIfNeeded(term);
@@ -428,6 +469,8 @@ export function SessionShellTerminal({
 
         const handle: SessionShellTerminalHandle = {
             focus: () => {
+                if (!visibleRef.current) return;
+                armProgrammaticFocusGuard();
                 revealTerminalPrompt(term);
                 term.focus();
             },
@@ -460,7 +503,7 @@ export function SessionShellTerminal({
         };
         onHandleChangeRef.current(handle);
 
-        if (activeRef.current) {
+        if (activeRef.current && visibleRef.current) {
             requestAnimationFrame(() => {
                 handle.focus();
             });
@@ -478,10 +521,12 @@ export function SessionShellTerminal({
             for (const timer of focusSettleTimers) {
                 window.clearTimeout(timer);
             }
+            // Stop onData before blur/dispose so focus-report sequences can't hit the PTY.
             dataDisposable.dispose();
             selectionDisposable.dispose();
             scrollDisposable.dispose();
             clearPtyResize(term);
+            term.blur();
             socket.close();
             term.dispose();
             termRef.current = null;

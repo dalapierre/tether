@@ -487,6 +487,8 @@ export function SessionView({ sessionId }: SessionViewProps) {
     const pasteSettleTimersRef = useRef<number[]>([]);
     const schedulePasteLayoutSyncRef = useRef<(term: Terminal) => void>(() => {});
     const shellPanelApiRef = useRef<SessionShellPanelApi | null>(null);
+    /** Drop shell onData until this timestamp (keybind open before panel may mount). */
+    const shellIgnoreInputUntilRef = useRef(0);
     const reviewPaneRef = useRef<HTMLDivElement | null>(null);
     const prevReviewPaneVisibleRef = useRef(false);
     // Tracks the last diff generation observed while this session view is mounted,
@@ -634,6 +636,9 @@ export function SessionView({ sessionId }: SessionViewProps) {
                 setShellPanelOpen(sessionId, next);
                 if (next) {
                     setShellVisited(true);
+                } else {
+                    // Blur before display:none so keystrokes don't keep feeding the PTY.
+                    shellPanelApiRef.current?.blurActive();
                 }
                 return next;
             });
@@ -642,6 +647,8 @@ export function SessionView({ sessionId }: SessionViewProps) {
 
         setTab((current) => {
             if (current === 'terminal') {
+                // Mobile keeps the shell mounted (`invisible`); blur so it can't eat input.
+                shellPanelApiRef.current?.blurActive();
                 return 'agent';
             }
             setShellVisited(true);
@@ -704,10 +711,23 @@ export function SessionView({ sessionId }: SessionViewProps) {
         },
         { enabled: sessionReady },
     );
-    useKeybind('session', 'toggleTerminal', () => toggleShell(), {
-        enabled: sessionReady,
-        allowInTerminalInsert: true,
-    });
+    useKeybind(
+        'session',
+        'toggleTerminal',
+        () => {
+            // Chord keyup / Alt leftovers can land in the shell once we auto-focus it.
+            // Arm the shared ref even if the panel isn't mounted yet (first open).
+            if (!shellPaneVisible) {
+                shellIgnoreInputUntilRef.current = performance.now() + 100;
+                shellPanelApiRef.current?.armInputGuard();
+            }
+            toggleShell();
+        },
+        {
+            enabled: sessionReady,
+            allowInTerminalInsert: true,
+        },
+    );
     const openQuickPrompt = useCallback(() => {
         // Blur terminals first so arrow keys navigate the palette instead of the PTY.
         termRef.current?.blur();
@@ -1313,6 +1333,14 @@ export function SessionView({ sessionId }: SessionViewProps) {
         shellPaneHeightPct,
     ]);
 
+    // Mobile keeps the shell mounted with `invisible`; blur as soon as it hides
+    // so a leftover focus can't keep feeding keystrokes into the PTY.
+    useLayoutEffect(() => {
+        if (!shellPaneVisible) {
+            shellPanelApiRef.current?.blurActive();
+        }
+    }, [shellPaneVisible]);
+
     // If focus was inside the review pane when it hid, the browser may move it
     // onto a nearby xterm textarea. Undo that so closing review doesn't enter insert mode.
     useLayoutEffect(() => {
@@ -1404,6 +1432,9 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         ariaLabel={intl.formatMessage(messages.viewTabs)}
                         value={tab}
                         onChange={(next) => {
+                            if (tab === 'terminal' && next !== 'terminal') {
+                                shellPanelApiRef.current?.blurActive();
+                            }
                             setTab(next);
                             if (next === 'terminal') {
                                 setShellVisited(true);
@@ -1639,6 +1670,7 @@ export function SessionView({ sessionId }: SessionViewProps) {
                         key={sessionId}
                         sessionId={sessionId}
                         apiRef={shellPanelApiRef}
+                        ignoreInputUntilRef={shellIgnoreInputUntilRef}
                         isDesktop={isDesktop}
                         fullscreen={showDesktopShellFullscreen}
                         visible={shellPaneVisible}

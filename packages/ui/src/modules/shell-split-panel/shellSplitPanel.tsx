@@ -18,6 +18,8 @@ import { styles } from './shellSplitPanel.styles';
 export type ShellSplitPanelApi = {
     focusActive: () => void;
     blurActive: () => void;
+    /** Ignore shell onData until `performance.now() + ms` (keybind open leftovers). */
+    armInputGuard: (ms?: number) => void;
     fitAll: (options?: { afterPanelResize?: boolean; followById?: Map<string, boolean> }) => void;
     captureFollowIntent: () => Map<string, boolean>;
     /** Append a shell split when under the max. */
@@ -28,6 +30,9 @@ export type ShellSplitPanelApi = {
      */
     splitWithHarnessPrompt: (prompt: string) => boolean;
 };
+
+/** Default window to drop onData after a keybind-driven shell open. */
+const KEYBIND_INPUT_GUARD_MS = 100;
 
 export type ShellSplitPanelProps = {
     className?: string;
@@ -50,6 +55,11 @@ export type ShellSplitPanelProps = {
     fullscreen?: boolean;
     onToggleFullscreen?: () => void;
     apiRef?: MutableRefObject<ShellSplitPanelApi | null>;
+    /**
+     * Optional shared guard timestamp for shell onData. Lets a parent arm the
+     * guard before this panel mounts (e.g. first open via keybind).
+     */
+    ignoreInputUntilRef?: MutableRefObject<number>;
     onActiveTitleChange?: (title: string) => void;
     /** Highlighted shell text → explain (session: prompt harness; workspace: split + CLI). */
     onExplain?: (errorMessage: string, command: string) => void;
@@ -191,6 +201,7 @@ export function ShellSplitPanel({
     fullscreen = false,
     onToggleFullscreen,
     apiRef,
+    ignoreInputUntilRef: ignoreInputUntilRefProp,
     onActiveTitleChange,
     onExplain,
 }: ShellSplitPanelProps) {
@@ -211,6 +222,8 @@ export function ShellSplitPanel({
     const listWidthPxRef = useRef(listWidthPx);
     const handlesRef = useRef(new Map<string, SessionShellTerminalHandle>());
     const prevVisibleRef = useRef(false);
+    const localIgnoreInputUntilRef = useRef(0);
+    const ignoreInputUntilRef = ignoreInputUntilRefProp ?? localIgnoreInputUntilRef;
     const activeShellIdRef = useRef(activeShellId);
     const shellsRef = useRef(shells);
     const connectRef = useRef(connect);
@@ -248,9 +261,20 @@ export function ShellSplitPanel({
     }, []);
 
     const blurActive = useCallback(() => {
-        const id = activeShellIdRef.current;
-        handlesRef.current.get(id)?.blur();
+        for (const handle of handlesRef.current.values()) {
+            handle.blur();
+        }
     }, []);
+
+    const armInputGuard = useCallback(
+        (ms = KEYBIND_INPUT_GUARD_MS) => {
+            const until = performance.now() + ms;
+            if (until > ignoreInputUntilRef.current) {
+                ignoreInputUntilRef.current = until;
+            }
+        },
+        [ignoreInputUntilRef],
+    );
 
     const captureFollowIntent = useCallback(() => {
         const map = new Map<string, boolean>();
@@ -303,6 +327,7 @@ export function ShellSplitPanel({
         apiRef.current = {
             focusActive,
             blurActive,
+            armInputGuard,
             fitAll,
             captureFollowIntent,
             split: splitShell,
@@ -311,11 +336,26 @@ export function ShellSplitPanel({
         return () => {
             apiRef.current = null;
         };
-    }, [apiRef, focusActive, blurActive, fitAll, captureFollowIntent, splitShell, splitWithHarnessPrompt]);
+    }, [
+        apiRef,
+        focusActive,
+        blurActive,
+        armInputGuard,
+        fitAll,
+        captureFollowIntent,
+        splitShell,
+        splitWithHarnessPrompt,
+    ]);
 
     useEffect(() => {
         const becameVisible = visible && !prevVisibleRef.current;
+        const becameHidden = !visible && prevVisibleRef.current;
         prevVisibleRef.current = visible;
+
+        if (becameHidden) {
+            blurActive();
+            return;
+        }
         if (!visible) return;
 
         const scheduled = () => {
@@ -325,7 +365,7 @@ export function ShellSplitPanel({
             }
         };
         requestAnimationFrame(scheduled);
-    }, [visible, fullscreen, listWidthPx, shells.length, fitAll, focusActive]);
+    }, [visible, fullscreen, listWidthPx, shells.length, fitAll, focusActive, blurActive]);
 
     const activeTitle = shells.find((shell) => shell.id === activeShellId)?.title;
     useEffect(() => {
@@ -446,6 +486,8 @@ export function ShellSplitPanel({
                                 shellKey={`${scopeKey}:${shell.id}`}
                                 connect={() => connectRef.current(shell.id)}
                                 active={activeShellId === shell.id}
+                                visible={visible}
+                                ignoreInputUntilRef={ignoreInputUntilRef}
                                 onTitle={(title) => {
                                     setShells((current) =>
                                         current.map((entry) => (entry.id === shell.id ? { ...entry, title } : entry)),
