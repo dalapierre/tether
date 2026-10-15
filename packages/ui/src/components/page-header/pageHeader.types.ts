@@ -12,8 +12,6 @@ export type PageHeaderProps = {
     crumbs?: PageHeaderCrumb[];
     actions?: ReactNode;
     showSettings?: boolean;
-    /** When false, hides the brand logo. Defaults to true. */
-    showLogo?: boolean;
     /** When set, shows a back control at the start of the header. */
     onBack?: () => void;
 };

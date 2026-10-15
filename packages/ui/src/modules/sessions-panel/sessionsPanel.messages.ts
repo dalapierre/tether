@@ -1,7 +1,7 @@
 import { defineMessages, type NoMessageValues } from 'react-intl';
 
 type Messages = {
-    logo: NoMessageValues;
+    workspace: NoMessageValues;
     searchPlaceholder: NoMessageValues;
     searchAriaLabel: NoMessageValues;
     clearSearch: NoMessageValues;
@@ -45,9 +45,9 @@ type Messages = {
 
 export const messages = defineMessages<Messages>(
     {
-        logo: {
-            id: 'sessionsPanel.logo',
-            defaultMessage: 'Tether',
+        workspace: {
+            id: 'sessionsPanel.workspace',
+            defaultMessage: 'Workspace',
         },
         searchPlaceholder: {
             id: 'sessionsPanel.searchPlaceholder',

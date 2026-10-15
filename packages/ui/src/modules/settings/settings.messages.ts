@@ -110,7 +110,7 @@ export const messages = defineMessages<Messages>(
         },
         rootDescription: {
             id: 'settings.rootDescription',
-            defaultMessage: 'Configure how Tether runs on this machine.',
+            defaultMessage: 'Configure how Workspace runs on this machine.',
         },
         categoryGeneral: {
             id: 'settings.categoryGeneral',

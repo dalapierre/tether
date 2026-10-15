@@ -37,7 +37,7 @@ async function start(): Promise<void> {
     await serveUi(app, server, isDev);
 
     server.listen(PORT, HOST, () => {
-        logger.info(`Tether host listening on http://${HOST}:${PORT}`);
+        logger.info(`Workspace host listening on http://${HOST}:${PORT}`);
     });
 }
 

@@ -1,10 +1,6 @@
 import { defineMessages } from 'react-intl';
 
 export const messages = defineMessages({
-    logo: {
-        id: 'pageHeader.logo',
-        defaultMessage: 'Tether',
-    },
     breadcrumb: {
         id: 'pageHeader.breadcrumb',
         defaultMessage: 'Breadcrumb',

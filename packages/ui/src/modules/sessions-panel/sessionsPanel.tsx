@@ -1178,7 +1178,7 @@ export function SessionsPanel({
         <Fragment>
             {isDesktop ? (
                 <div className={styles.railWrap}>
-                    <Panel className={styles.panel} aria-label={intl.formatMessage(messages.logo)}>
+                    <Panel className={styles.panel} aria-label={intl.formatMessage(messages.workspace)}>
                         <div className={styles.railBody}>
                             <Tooltip content={createLabel} disabled={Boolean(createMenu)}>
                                 <button

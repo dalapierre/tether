@@ -1,4 +1,3 @@
-import logoLight from '@ui/assets/logo_light.svg';
 import { IconButton } from '@ui/components/icon-button';
 import { useSettings } from '@ui/modules/settings/settingsContext';
 import { Fragment } from 'react';
@@ -43,25 +42,13 @@ function BackIcon() {
     );
 }
 
-export function PageHeader({
-    title,
-    crumbs = [],
-    actions,
-    showSettings = true,
-    showLogo = true,
-    onBack,
-}: PageHeaderProps) {
+export function PageHeader({ title, crumbs = [], actions, showSettings = true, onBack }: PageHeaderProps) {
     const intl = useIntl();
     const { openSettings } = useSettings();
 
     return (
         <header className={styles.header}>
             <div className={styles.start}>
-                {showLogo ? (
-                    <div className={styles.logo} aria-label={intl.formatMessage(messages.logo)} role='img'>
-                        <img className={styles.logoImage} src={logoLight} alt='' />
-                    </div>
-                ) : null}
                 {onBack ? (
                     <IconButton label={intl.formatMessage(messages.back)} onClick={onBack}>
                         <BackIcon />
